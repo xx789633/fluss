@@ -24,7 +24,7 @@ public class LanceLakeCatalog implements LakeCatalog {
                 LanceConfig.from(
                         options.toMap(), tablePath.getDatabaseName(), tablePath.getTableName());
         WriteParams params = LanceConfig.genWriteParamsFromConfig(config);
-        LanceDatasetAdapter.createDataset("", tableDescriptor, params);
+        LanceDatasetAdapter.createDataset(config.getDatasetUri(), tableDescriptor, params);
     }
 
     @Override

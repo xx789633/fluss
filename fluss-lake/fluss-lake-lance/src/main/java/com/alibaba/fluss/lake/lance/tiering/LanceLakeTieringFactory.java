@@ -27,7 +27,7 @@ public class LanceLakeTieringFactory
 
     @Override
     public SimpleVersionedSerializer<LanceWriteResult> getWriteResultSerializer() {
-        return null;
+        return new LanceWriteResultSerializer();
     }
 
     @Override
