@@ -11,16 +11,15 @@ import com.lancedb.lance.WriteParams;
 
 /** A Lance implementation of {@link LakeCatalog}. */
 public class LanceLakeCatalog implements LakeCatalog {
-    private final Configuration config;
+    private final Configuration options;
     public LanceLakeCatalog(Configuration config) {
-        this.config = config;
+        this.options = config;
     }
 
     @Override
     public void createTable(TablePath tablePath, TableDescriptor tableDescriptor)
             throws TableAlreadyExistException {
-
-        LanceConfig config = LanceConfig.from(this.config.toMap(), tablePath.getDatabaseName(), tablePath.getTableName());
+        LanceConfig config = LanceConfig.from(options.toMap(), tablePath.getDatabaseName(), tablePath.getTableName());
         WriteParams params = LanceConfig.genWriteParamsFromConfig(config);
         LanceDatasetAdapter.createDataset("", tableDescriptor, params);
     }

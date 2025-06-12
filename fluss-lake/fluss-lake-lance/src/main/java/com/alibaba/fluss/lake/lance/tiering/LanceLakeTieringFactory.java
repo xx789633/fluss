@@ -13,7 +13,11 @@ import java.io.IOException;
 /** Implementation of {@link LakeTieringFactory} for Lance . */
 public class LanceLakeTieringFactory
         implements LakeTieringFactory<LanceWriteResult, LanceCommittable> {
-    public LanceLakeTieringFactory(Configuration config) {}
+    private final Configuration config;
+
+    public LanceLakeTieringFactory(Configuration config) {
+        this.config = config;
+    }
 
     @Override
     public LakeWriter<LanceWriteResult> createLakeWriter(WriterInitContext writerInitContext)
@@ -29,7 +33,7 @@ public class LanceLakeTieringFactory
     @Override
     public LakeCommitter<LanceWriteResult, LanceCommittable> createLakeCommitter(
             CommitterInitContext committerInitContext) throws IOException {
-        return null;
+        return new LanceLakeCommitter(config, committerInitContext.tablePath());
     }
 
     @Override
