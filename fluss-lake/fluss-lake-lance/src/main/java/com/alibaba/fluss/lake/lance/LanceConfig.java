@@ -1,7 +1,8 @@
 package com.alibaba.fluss.lake.lance;
 
-import com.lancedb.lance.WriteParams;
 import com.lancedb.lance.ReadOptions;
+import com.lancedb.lance.WriteParams;
+
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
@@ -38,10 +39,19 @@ public class LanceConfig implements Serializable {
         this.tableName = tableName;
         this.options = properties;
 
-        this.datasetUri = options.containsKey(warehouse) ? options.get(warehouse) : LANCE_DEFAULT_WAREHOUSE + "/" + this.databaseName + "/" + this.tableName + LANCE_FILE_SUFFIX;
+        this.datasetUri =
+                options.containsKey(warehouse)
+                        ? options.get(warehouse)
+                        : LANCE_DEFAULT_WAREHOUSE
+                                + "/"
+                                + this.databaseName
+                                + "/"
+                                + this.tableName
+                                + LANCE_FILE_SUFFIX;
     }
 
-    public static LanceConfig from(Map<String, String> properties, String databaseName, String tableName) {
+    public static LanceConfig from(
+            Map<String, String> properties, String databaseName, String tableName) {
         return new LanceConfig(databaseName, tableName, properties);
     }
 
@@ -110,7 +120,9 @@ public class LanceConfig implements Serializable {
 
     @Override
     public boolean equals(Object o) {
-        if (o == null || getClass() != o.getClass()) return false;
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
         LanceConfig config = (LanceConfig) o;
         return Objects.equals(databaseName, config.databaseName)
                 && Objects.equals(tableName, config.tableName)

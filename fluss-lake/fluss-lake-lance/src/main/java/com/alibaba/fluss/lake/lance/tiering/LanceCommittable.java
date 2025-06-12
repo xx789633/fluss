@@ -1,6 +1,7 @@
 package com.alibaba.fluss.lake.lance.tiering;
 
 import com.lancedb.lance.FragmentMetadata;
+
 import java.util.List;
 
 /** The committable that derived from {@link LanceWriteResult} to commit to Lance. */
