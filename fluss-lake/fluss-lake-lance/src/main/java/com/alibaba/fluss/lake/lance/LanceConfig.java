@@ -1,13 +1,22 @@
 package com.alibaba.fluss.lake.lance;
 
 import com.lancedb.lance.WriteParams;
+import com.lancedb.lance.ReadOptions;
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /** Lance Configuration. */
-public class LanceConfig {
+public class LanceConfig implements Serializable {
     private static final long serialVersionUID = 827364827364823764L;
+    public static final String LANCE_FILE_SUFFIX = ".lance";
+    public static final String LANCE_DEFAULT_WAREHOUSE = "/tmp/lance";
 
+    private static final String block_size = "block_size";
+    private static final String version = "version";
+    private static final String index_cache_size = "index_cache_size";
+    private static final String metadata_cache_size = "metadata_cache_size";
     private static final String max_row_per_file = "max_row_per_file";
     private static final String max_rows_per_group = "max_rows_per_group";
     private static final String max_bytes_per_file = "max_bytes_per_file";
@@ -17,44 +26,99 @@ public class LanceConfig {
     private static final String region = "aws_region";
     private static final String virtual_hosted_style = "virtual_hosted_style_request";
     private static final String allow_http = "allow_http";
+    private static final String warehouse = "warehouse";
 
-    private static final Map<String, String> options;
+    private final Map<String, String> options;
+    private final String databaseName;
+    private final String tableName;
+    private final String datasetUri;
 
-    public LanceConfig from(Map<String, String> properties, String datasetUri) {
+    public LanceConfig(String databaseName, String tableName, Map<String, String> properties) {
+        this.databaseName = databaseName;
+        this.tableName = tableName;
+        this.options = properties;
 
+        this.datasetUri = options.containsKey(warehouse) ? options.get(warehouse) : LANCE_DEFAULT_WAREHOUSE + "/" + this.databaseName + "/" + this.tableName + LANCE_FILE_SUFFIX;
     }
 
-    public WriteParams genWriteParamsFromConfig() {
-        WriteParams.Builder builder = new WriteParams.Builder();
-        if (options.containsKey(max_row_per_file)) {
-            builder.withMaxRowsPerFile(Integer.parseInt(options.get(max_row_per_file)));
+    public static LanceConfig from(Map<String, String> properties, String databaseName, String tableName) {
+        return new LanceConfig(databaseName, tableName, properties);
+    }
+
+    public Map<String, String> getOptions() {
+        return options;
+    }
+
+    public String getDatasetUri() {
+        return datasetUri;
+    }
+
+    public static ReadOptions genReadOptionFromConfig(LanceConfig config) {
+        ReadOptions.Builder builder = new ReadOptions.Builder();
+        Map<String, String> maps = config.getOptions();
+        if (maps.containsKey(block_size)) {
+            builder.setBlockSize(Integer.parseInt(maps.get(block_size)));
         }
-        if (options.containsKey(max_rows_per_group)) {
-            builder.withMaxRowsPerGroup(Integer.parseInt(options.get(max_rows_per_group)));
+        if (maps.containsKey(version)) {
+            builder.setVersion(Integer.parseInt(maps.get(version)));
         }
-        if (options.containsKey(max_bytes_per_file)) {
-            builder.withMaxBytesPerFile(Long.parseLong(options.get(max_bytes_per_file)));
+        if (maps.containsKey(index_cache_size)) {
+            builder.setIndexCacheSize(Integer.parseInt(maps.get(index_cache_size)));
         }
-        builder.withStorageOptions(genStorageOptions());
+        if (maps.containsKey(metadata_cache_size)) {
+            builder.setMetadataCacheSize(Integer.parseInt(maps.get(metadata_cache_size)));
+        }
+        builder.setStorageOptions(genStorageOptions(config));
         return builder.build();
     }
 
-    private Map<String, String> genStorageOptions() {
+    public static WriteParams genWriteParamsFromConfig(LanceConfig config) {
+        WriteParams.Builder builder = new WriteParams.Builder();
+        Map<String, String> maps = config.getOptions();
+        if (maps.containsKey(max_row_per_file)) {
+            builder.withMaxRowsPerFile(Integer.parseInt(maps.get(max_row_per_file)));
+        }
+        if (maps.containsKey(max_rows_per_group)) {
+            builder.withMaxRowsPerGroup(Integer.parseInt(maps.get(max_rows_per_group)));
+        }
+        if (maps.containsKey(max_bytes_per_file)) {
+            builder.withMaxBytesPerFile(Long.parseLong(maps.get(max_bytes_per_file)));
+        }
+        builder.withStorageOptions(genStorageOptions(config));
+        return builder.build();
+    }
+
+    private static Map<String, String> genStorageOptions(LanceConfig config) {
         Map<String, String> storageOptions = new HashMap<>();
-        if (options.containsKey(ak) && options.containsKey(sk) && options.containsKey(endpoint)) {
-            storageOptions.put(ak, options.get(ak));
-            storageOptions.put(sk, options.get(sk));
-            storageOptions.put(endpoint, options.get(endpoint));
+        Map<String, String> maps = config.getOptions();
+        if (maps.containsKey(ak) && maps.containsKey(sk) && maps.containsKey(endpoint)) {
+            storageOptions.put(ak, maps.get(ak));
+            storageOptions.put(sk, maps.get(sk));
+            storageOptions.put(endpoint, maps.get(endpoint));
         }
-        if (options.containsKey(region)) {
-            storageOptions.put(region, options.get(region));
+        if (maps.containsKey(region)) {
+            storageOptions.put(region, maps.get(region));
         }
-        if (options.containsKey(virtual_hosted_style)) {
-            storageOptions.put(virtual_hosted_style, options.get(virtual_hosted_style));
+        if (maps.containsKey(virtual_hosted_style)) {
+            storageOptions.put(virtual_hosted_style, maps.get(virtual_hosted_style));
         }
-        if (options.containsKey(allow_http)) {
-            storageOptions.put(allow_http, options.get(allow_http));
+        if (maps.containsKey(allow_http)) {
+            storageOptions.put(allow_http, maps.get(allow_http));
         }
         return storageOptions;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == null || getClass() != o.getClass()) return false;
+        LanceConfig config = (LanceConfig) o;
+        return Objects.equals(databaseName, config.databaseName)
+                && Objects.equals(tableName, config.tableName)
+                && Objects.equals(options, config.options);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(databaseName, tableName, options);
     }
 }
