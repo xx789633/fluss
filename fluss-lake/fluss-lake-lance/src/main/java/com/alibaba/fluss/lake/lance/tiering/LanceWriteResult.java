@@ -13,4 +13,8 @@ public class LanceWriteResult {
     public LanceWriteResult(List<FragmentMetadata> commitMessage) {
         this.commitMessage = commitMessage;
     }
+
+    public List<FragmentMetadata> commitMessage() {
+        return commitMessage;
+    }
 }

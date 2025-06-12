@@ -1,4 +1,4 @@
-package com.alibaba.fluss.lake.lance;
+package com.alibaba.fluss.lake.lance.utils;
 
 import com.alibaba.fluss.types.BigIntType;
 import com.alibaba.fluss.types.BinaryType;
