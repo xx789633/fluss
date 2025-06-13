@@ -27,18 +27,21 @@ public class LanceDatasetAdapter {
                 .close();
     }
 
-    public static void appendFragments(LanceConfig config, List<FragmentMetadata> fragments) {
+    public static long appendFragments(LanceConfig config, List<FragmentMetadata> fragments) {
         FragmentOperation.Append appendOp = new FragmentOperation.Append(fragments);
         String uri = config.getDatasetUri();
         ReadOptions options = LanceConfig.genReadOptionFromConfig(config);
         try (Dataset datasetRead = Dataset.open(allocator, uri, options)) {
-            Dataset.commit(
+            Dataset datasetWrite =
+                    Dataset.commit(
                             allocator,
                             config.getDatasetUri(),
                             appendOp,
                             java.util.Optional.of(datasetRead.version()),
-                            options.getStorageOptions())
-                    .close();
+                            options.getStorageOptions());
+            long version = datasetWrite.version();
+            datasetWrite.close();
+            return version;
         }
     }
 }

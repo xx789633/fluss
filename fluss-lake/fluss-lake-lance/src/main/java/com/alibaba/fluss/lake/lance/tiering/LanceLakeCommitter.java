@@ -38,8 +38,7 @@ public class LanceLakeCommitter implements LakeCommitter<LanceWriteResult, Lance
 
     @Override
     public long commit(LanceCommittable committable) throws IOException {
-        LanceDatasetAdapter.appendFragments(config, committable.committable());
-        return 0;
+        return LanceDatasetAdapter.appendFragments(config, committable.committable());
     }
 
     @Override
