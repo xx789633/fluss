@@ -8,12 +8,16 @@ import com.alibaba.fluss.lake.lance.utils.LanceDatasetAdapter;
 import com.alibaba.fluss.metadata.TablePath;
 
 import com.lancedb.lance.FragmentMetadata;
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.ipc.ArrowReader;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import static com.alibaba.fluss.metadata.TableDescriptor.OFFSET_COLUMN_NAME;
 
 /** Implementation of {@link LakeCommitter} for Lance. */
 public class LanceLakeCommitter implements LakeCommitter<LanceWriteResult, LanceCommittable> {
@@ -46,11 +50,34 @@ public class LanceLakeCommitter implements LakeCommitter<LanceWriteResult, Lance
         throw new UnsupportedOperationException();
     }
 
+    @SuppressWarnings("checkstyle:LocalVariableName")
     @Nullable
     @Override
     public CommittedLakeSnapshot getMissingLakeSnapshot(@Nullable Long latestLakeSnapshotIdOfFluss)
             throws IOException {
-        return null;
+        long latestLakeSnapshotIdOfLake = LanceDatasetAdapter.getVersion(config);
+
+        // we get the latest snapshot committed by fluss,
+        // but the latest snapshot is not greater than latestLakeSnapshotIdOfFluss, no any missing
+        // snapshot, return directly
+        if (latestLakeSnapshotIdOfFluss != null
+                && latestLakeSnapshotIdOfLake <= latestLakeSnapshotIdOfFluss) {
+            return null;
+        }
+
+        CommittedLakeSnapshot committedLakeSnapshot =
+                new CommittedLakeSnapshot(latestLakeSnapshotIdOfLake);
+
+        long maxOffset = 0;
+        ArrowReader reader = LanceDatasetAdapter.getColumnReader(config, OFFSET_COLUMN_NAME);
+        while (reader.loadNextBatch()) {
+            BigIntVector iVector = (BigIntVector) reader.getVectorSchemaRoot().getVector(0);
+            for (int i = 0; i < iVector.getValueCount(); i++) {
+                maxOffset = Math.max(iVector.get(i), maxOffset);
+            }
+        }
+        committedLakeSnapshot.addBucket(0, maxOffset);
+        return committedLakeSnapshot;
     }
 
     @Override
