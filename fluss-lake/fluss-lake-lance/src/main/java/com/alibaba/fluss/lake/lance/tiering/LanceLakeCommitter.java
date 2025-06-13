@@ -9,14 +9,19 @@ import com.alibaba.fluss.metadata.TablePath;
 
 import com.lancedb.lance.FragmentMetadata;
 import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.ipc.ArrowReader;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
+import static com.alibaba.fluss.metadata.TableDescriptor.BUCKET_COLUMN_NAME;
 import static com.alibaba.fluss.metadata.TableDescriptor.OFFSET_COLUMN_NAME;
 
 /** Implementation of {@link LakeCommitter} for Lance. */
@@ -68,15 +73,23 @@ public class LanceLakeCommitter implements LakeCommitter<LanceWriteResult, Lance
         CommittedLakeSnapshot committedLakeSnapshot =
                 new CommittedLakeSnapshot(latestLakeSnapshotIdOfLake);
 
-        long maxOffset = 0;
-        ArrowReader reader = LanceDatasetAdapter.getColumnReader(config, OFFSET_COLUMN_NAME);
+        LinkedHashMap<Integer, Long> bucketEndOffset = new LinkedHashMap<>();
+        ArrowReader reader =
+                LanceDatasetAdapter.getColumnReader(
+                        config, Arrays.asList(BUCKET_COLUMN_NAME, OFFSET_COLUMN_NAME));
         while (reader.loadNextBatch()) {
-            BigIntVector iVector = (BigIntVector) reader.getVectorSchemaRoot().getVector(0);
-            for (int i = 0; i < iVector.getValueCount(); i++) {
-                maxOffset = Math.max(iVector.get(i), maxOffset);
+            IntVector bucketVector = (IntVector) reader.getVectorSchemaRoot().getVector(0);
+            BigIntVector offsetVector = (BigIntVector) reader.getVectorSchemaRoot().getVector(1);
+            for (int i = 0; i < bucketVector.getValueCount(); i++) {
+                if (!bucketEndOffset.containsKey(bucketVector.get(i))
+                        || bucketEndOffset.get(bucketVector.get(i)) < offsetVector.get(i)) {
+                    bucketEndOffset.put(bucketVector.get(i), offsetVector.get(i));
+                }
             }
         }
-        committedLakeSnapshot.addBucket(0, maxOffset);
+        for (Map.Entry<Integer, Long> entry : bucketEndOffset.entrySet()) {
+            committedLakeSnapshot.addBucket(entry.getKey(), entry.getValue());
+        }
         return committedLakeSnapshot;
     }
 

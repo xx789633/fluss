@@ -13,7 +13,6 @@ import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.ipc.ArrowReader;
 import org.apache.arrow.vector.types.pojo.Schema;
 
-import java.util.Collections;
 import java.util.List;
 
 /** Lance dataset API adapter. */
@@ -50,14 +49,11 @@ public class LanceDatasetAdapter {
         }
     }
 
-    public static ArrowReader getColumnReader(LanceConfig config, String columnName) {
+    public static ArrowReader getColumnReader(LanceConfig config, List<String> columns) {
         String uri = config.getDatasetUri();
         ReadOptions options = LanceConfig.genReadOptionFromConfig(config);
         try (Dataset datasetRead = Dataset.open(allocator, uri, options)) {
-            ScanOptions scanOptions =
-                    new ScanOptions.Builder()
-                            .columns(Collections.singletonList(columnName))
-                            .build();
+            ScanOptions scanOptions = new ScanOptions.Builder().columns(columns).build();
             return datasetRead.newScan(scanOptions).scanBatches();
         }
     }
