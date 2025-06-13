@@ -38,6 +38,6 @@ public class LanceLakeTieringFactory
 
     @Override
     public SimpleVersionedSerializer<LanceCommittable> getCommitableSerializer() {
-        return null;
+        return new LanceCommittableSerializer();
     }
 }

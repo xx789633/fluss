@@ -8,8 +8,8 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
-/** The {@link SimpleVersionedSerializer} for {@link LanceWriteResult}. */
-public class LanceWriteResultSerializer implements SimpleVersionedSerializer<LanceWriteResult> {
+/** The serializer of {@link LanceCommittable}. */
+public class LanceCommittableSerializer implements SimpleVersionedSerializer<LanceCommittable> {
     private static final int CURRENT_VERSION = 1;
 
     @Override
@@ -18,20 +18,20 @@ public class LanceWriteResultSerializer implements SimpleVersionedSerializer<Lan
     }
 
     @Override
-    public byte[] serialize(LanceWriteResult lanceWriteResult) throws IOException {
+    public byte[] serialize(LanceCommittable lanceCommittable) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         ObjectOutputStream oos = new ObjectOutputStream(baos);
-        oos.writeObject(lanceWriteResult);
+        oos.writeObject(lanceCommittable);
         oos.close();
         return baos.toByteArray();
     }
 
     @Override
-    public LanceWriteResult deserialize(int version, byte[] serialized) throws IOException {
+    public LanceCommittable deserialize(int version, byte[] serialized) throws IOException {
         ByteArrayInputStream bais = new ByteArrayInputStream(serialized);
         ObjectInputStream ois = new ObjectInputStream(bais);
         try {
-            return (LanceWriteResult) ois.readObject();
+            return (LanceCommittable) ois.readObject();
         } catch (ClassNotFoundException e) {
             throw new RuntimeException(e);
         }
