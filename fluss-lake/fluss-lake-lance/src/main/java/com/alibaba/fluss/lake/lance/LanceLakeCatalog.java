@@ -49,9 +49,11 @@ public class LanceLakeCatalog implements LakeCatalog {
         WriteParams params = LanceConfig.genWriteParamsFromConfig(config);
 
         List<Field> fields = new ArrayList<>();
+        // set schema
         fields.addAll(
                 LanceArrowUtils.toArrowSchema(tableDescriptor.getSchema().getRowType())
                         .getFields());
+        // add system metadata columns to schema
         fields.addAll(SYSTEM_COLUMNS);
         LanceDatasetAdapter.createDataset(config.getDatasetUri(), new Schema(fields), params);
     }

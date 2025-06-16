@@ -22,7 +22,7 @@ public class LanceLakeTieringFactory
     @Override
     public LakeWriter<LanceWriteResult> createLakeWriter(WriterInitContext writerInitContext)
             throws IOException {
-        return null;
+        return new LanceLakeWriter(config, writerInitContext);
     }
 
     @Override

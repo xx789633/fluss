@@ -1,6 +1,8 @@
 package com.alibaba.fluss.lake.lance.utils;
 
 import com.alibaba.fluss.lake.lance.LanceConfig;
+import com.alibaba.fluss.lake.lance.tiering.LanceArrowWriter;
+import com.alibaba.fluss.metadata.TableBucket;
 
 import com.lancedb.lance.Dataset;
 import com.lancedb.lance.FragmentMetadata;
@@ -56,5 +58,18 @@ public class LanceDatasetAdapter {
             ScanOptions scanOptions = new ScanOptions.Builder().columns(columns).build();
             return datasetRead.newScan(scanOptions).scanBatches();
         }
+    }
+
+    public static Schema getSchema(LanceConfig config) {
+        String uri = config.getDatasetUri();
+        ReadOptions options = LanceConfig.genReadOptionFromConfig(config);
+        try (Dataset dataset = Dataset.open(allocator, uri, options)) {
+            return dataset.getSchema();
+        }
+    }
+
+    public static LanceArrowWriter getArrowWriter(
+            Schema schema, int batchSize, TableBucket tableBucket) {
+        return new LanceArrowWriter(allocator, schema, batchSize, tableBucket);
     }
 }

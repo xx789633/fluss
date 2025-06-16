@@ -27,6 +27,7 @@ public class LanceConfig implements Serializable {
     private static final String region = "aws_region";
     private static final String virtual_hosted_style = "virtual_hosted_style_request";
     private static final String allow_http = "allow_http";
+    private static final String batch_size = "batch_size";
     private static final String warehouse = "warehouse";
 
     private final Map<String, String> options;
@@ -53,6 +54,14 @@ public class LanceConfig implements Serializable {
     public static LanceConfig from(
             Map<String, String> properties, String databaseName, String tableName) {
         return new LanceConfig(databaseName, tableName, properties);
+    }
+
+    public static int getBatchSize(LanceConfig config) {
+        Map<String, String> options = config.getOptions();
+        if (options.containsKey(batch_size)) {
+            return Integer.parseInt(options.get(batch_size));
+        }
+        return 512;
     }
 
     public Map<String, String> getOptions() {
