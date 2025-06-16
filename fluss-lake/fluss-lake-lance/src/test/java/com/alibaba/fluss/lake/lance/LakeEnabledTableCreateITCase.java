@@ -57,7 +57,7 @@ class LakeEnabledTableCreateITCase {
                     .setClusterConf(initConfig())
                     .build();
 
-    private static Configuration lanceConfig;;
+    private static Configuration lanceConf;;
 
     private static final String DATABASE = "fluss";
 
@@ -87,7 +87,7 @@ class LakeEnabledTableCreateITCase {
 
     private static Configuration initConfig() {
         Configuration conf = new Configuration();
-        lanceConfig = new Configuration();
+        lanceConf = new Configuration();
         conf.set(ConfigOptions.DATALAKE_FORMAT, DataLakeFormat.LANCE);
         conf.setString("datalake.format", "lance");
         String warehousePath;
@@ -100,7 +100,7 @@ class LakeEnabledTableCreateITCase {
             throw new FlussRuntimeException("Failed to create warehouse path");
         }
         conf.setString("datalake.lance.warehouse", warehousePath);
-        lanceConfig.setString("warehouse", warehousePath);
+        lanceConf.setString("warehouse", warehousePath);
         return conf;
     }
 
@@ -119,7 +119,7 @@ class LakeEnabledTableCreateITCase {
                         .build();
         TablePath logTablePath = TablePath.of(DATABASE, "log_table");
         admin.createTable(logTablePath, logTable, false).get();
-        LanceConfig config = LanceConfig.from(lanceConfig.toMap(), DATABASE, "log_table");
+        LanceConfig config = LanceConfig.from(lanceConf.toMap(), DATABASE, "log_table");
 
         // check the gotten log table
         Field logC1 = new Field("log_c1", FieldType.nullable(new ArrowType.Int(4 * 8, true)), null);
