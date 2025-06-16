@@ -2,15 +2,11 @@ package com.alibaba.fluss.lake.lance.tiering;
 
 import com.alibaba.fluss.lake.lance.utils.LanceArrowUtils;
 import com.alibaba.fluss.lake.lance.writers.ArrowFieldWriter;
+import com.alibaba.fluss.row.GenericRow;
 import com.alibaba.fluss.row.InternalRow;
 
-import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
-
-import static com.alibaba.fluss.metadata.TableDescriptor.BUCKET_COLUMN_NAME;
-import static com.alibaba.fluss.metadata.TableDescriptor.OFFSET_COLUMN_NAME;
 
 /** An Arrow writer for InternalRow. */
 public class ArrowWriter {
@@ -41,11 +37,12 @@ public class ArrowWriter {
     /** Writes the specified row which is serialized into Arrow format. */
     public void writeRow(InternalRow row, int bucket, long offset) {
         int i;
-        for (i = 0; i < fieldWriters.length; i++) {
+        for (i = 0; i < fieldWriters.length - 2; i++) {
             fieldWriters[i].write(row, i, true);
         }
-        ((IntVector) (root.getVector(BUCKET_COLUMN_NAME))).setSafe(recordsCount, bucket);
-        ((BigIntVector) (root.getVector(OFFSET_COLUMN_NAME))).setSafe(recordsCount, bucket);
+        fieldWriters[i].write(GenericRow.of(bucket), 0, true);
+        i++;
+        fieldWriters[i].write(GenericRow.of(offset), 0, true);
         recordsCount++;
     }
 
