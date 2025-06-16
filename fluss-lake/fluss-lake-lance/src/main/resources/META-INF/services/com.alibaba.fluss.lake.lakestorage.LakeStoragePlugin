@@ -14,4 +14,4 @@
 # limitations under the License.
 #
 
-com.alibaba.fluss.lake.paimon.PaimonLakeStoragePlugin
+com.alibaba.fluss.lake.lance.LanceLakeStoragePlugin
