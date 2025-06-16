@@ -19,17 +19,16 @@ package com.alibaba.fluss.lake.lance;
 import com.alibaba.fluss.client.Connection;
 import com.alibaba.fluss.client.ConnectionFactory;
 import com.alibaba.fluss.client.admin.Admin;
-import com.alibaba.fluss.config.Configuration;
-import com.alibaba.fluss.lake.lance.utils.LanceDatasetAdapter;
-import com.alibaba.fluss.server.testutils.FlussClusterExtension;
 import com.alibaba.fluss.config.ConfigOptions;
+import com.alibaba.fluss.config.Configuration;
 import com.alibaba.fluss.exception.FlussRuntimeException;
+import com.alibaba.fluss.lake.lance.utils.LanceDatasetAdapter;
+import com.alibaba.fluss.metadata.DataLakeFormat;
 import com.alibaba.fluss.metadata.Schema;
 import com.alibaba.fluss.metadata.TableDescriptor;
 import com.alibaba.fluss.metadata.TablePath;
+import com.alibaba.fluss.server.testutils.FlussClusterExtension;
 import com.alibaba.fluss.types.DataTypes;
-import java.nio.file.Files;
-import java.util.Arrays;
 
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -38,6 +37,10 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+
+import java.nio.file.Files;
+import java.util.Arrays;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** ITCase for create lake enabled table with lance as lake storage. */
@@ -78,6 +81,7 @@ class LakeEnabledTableCreateITCase {
 
     private static Configuration initConfig() {
         Configuration conf = new Configuration();
+        conf.set(ConfigOptions.DATALAKE_FORMAT, DataLakeFormat.LANCE);
         conf.setString("datalake.format", "lance");
         String warehousePath;
         try {
@@ -107,12 +111,15 @@ class LakeEnabledTableCreateITCase {
                         .build();
         TablePath logTablePath = TablePath.of(DATABASE, "log_table");
         admin.createTable(logTablePath, logTable, false).get();
-        LanceConfig config = LanceConfig.from(FLUSS_CLUSTER_EXTENSION.getClientConfig().toMap(), DATABASE, "log_table");
+        LanceConfig config =
+                LanceConfig.from(
+                        FLUSS_CLUSTER_EXTENSION.getClientConfig().toMap(), DATABASE, "log_table");
 
         // check the gotten log table
-        Field log_c1 = new Field("log_c1", FieldType.nullable(new ArrowType.Int(4 * 8, true)), null);
-        Field log_c2 = new Field("log_c2", FieldType.nullable(new ArrowType.Utf8()), null);
-        org.apache.arrow.vector.types.pojo.Schema expectedSchema = new org.apache.arrow.vector.types.pojo.Schema(Arrays.asList(log_c1, log_c2));
+        Field logC1 = new Field("log_c1", FieldType.nullable(new ArrowType.Int(4 * 8, true)), null);
+        Field logC2 = new Field("log_c2", FieldType.nullable(new ArrowType.Utf8()), null);
+        org.apache.arrow.vector.types.pojo.Schema expectedSchema =
+                new org.apache.arrow.vector.types.pojo.Schema(Arrays.asList(logC1, logC2));
         assertThat(expectedSchema).isEqualTo(LanceDatasetAdapter.getSchema(config));
     }
 }
