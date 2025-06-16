@@ -43,5 +43,8 @@ public class ArrowWriter {
 
     public void finish() {
         root.setRowCount(recordsCount);
+        for (ArrowFieldWriter<InternalRow> fieldWriter : fieldWriters) {
+            fieldWriter.finish();
+        }
     }
 }

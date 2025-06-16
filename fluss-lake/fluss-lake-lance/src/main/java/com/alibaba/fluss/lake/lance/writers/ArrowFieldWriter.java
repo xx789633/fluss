@@ -55,4 +55,8 @@ public abstract class ArrowFieldWriter<IN> {
         doWrite(row, ordinal, handleSafe);
         count++;
     }
+
+    public void finish() {
+        valueVector.setValueCount(count);
+    }
 }

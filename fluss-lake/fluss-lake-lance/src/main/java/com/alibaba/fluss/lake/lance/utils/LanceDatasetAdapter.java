@@ -5,11 +5,14 @@ import com.alibaba.fluss.lake.lance.tiering.LanceArrowWriter;
 import com.alibaba.fluss.metadata.TableBucket;
 
 import com.lancedb.lance.Dataset;
+import com.lancedb.lance.Fragment;
 import com.lancedb.lance.FragmentMetadata;
 import com.lancedb.lance.FragmentOperation;
 import com.lancedb.lance.ReadOptions;
 import com.lancedb.lance.WriteParams;
 import com.lancedb.lance.ipc.ScanOptions;
+import org.apache.arrow.c.ArrowArrayStream;
+import org.apache.arrow.c.Data;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.ipc.ArrowReader;
@@ -23,6 +26,14 @@ public class LanceDatasetAdapter {
 
     public static void createDataset(String datasetUri, Schema schema, WriteParams params) {
         Dataset.create(allocator, datasetUri, schema, params).close();
+    }
+
+    public static List<FragmentMetadata> createFragment(
+            String datasetUri, ArrowReader reader, WriteParams params) {
+        try (ArrowArrayStream arrowStream = ArrowArrayStream.allocateNew(allocator)) {
+            Data.exportArrayStream(allocator, reader, arrowStream);
+            return Fragment.create(datasetUri, arrowStream, params);
+        }
     }
 
     public static long appendFragments(LanceConfig config, List<FragmentMetadata> fragments) {
