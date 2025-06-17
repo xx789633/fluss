@@ -215,8 +215,8 @@ public class LanceTieringTest {
         Field c1 = new Field("c1", FieldType.nullable(new ArrowType.Int(4 * 8, true)), null);
         Field c2 = new Field("c2", FieldType.nullable(new ArrowType.Utf8()), null);
         Field c3 = new Field("c3", FieldType.nullable(new ArrowType.Utf8()), null);
-
-        doCreateLanceTable(tablePath, Arrays.asList(c1, c2, c3), config);
+        ArrayList<Field> fields = new ArrayList<>(Arrays.asList(c1, c2, c3));
+        doCreateLanceTable(tablePath, fields, config);
     }
 
     private void doCreateLanceTable(TablePath tablePath, List<Field> fields, LanceConfig config)

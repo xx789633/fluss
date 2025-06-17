@@ -14,7 +14,7 @@ public class ArrowWriter {
      * An array of writers which are responsible for the serialization of each column of the rows.
      */
     private final ArrowFieldWriter<InternalRow>[] fieldWriters;
-
+    private static final int LAKE_LANCE_SYSTEM_COLUMNS = 3;
     private int recordsCount;
     private VectorSchemaRoot root;
 
@@ -37,7 +37,7 @@ public class ArrowWriter {
     /** Writes the specified row which is serialized into Arrow format. */
     public void writeRow(InternalRow row, int bucket, long offset) {
         int i;
-        for (i = 0; i < fieldWriters.length - 2; i++) {
+        for (i = 0; i < fieldWriters.length - LAKE_LANCE_SYSTEM_COLUMNS; i++) {
             fieldWriters[i].write(row, i, true);
         }
         fieldWriters[i].write(GenericRow.of(bucket), 0, true);
