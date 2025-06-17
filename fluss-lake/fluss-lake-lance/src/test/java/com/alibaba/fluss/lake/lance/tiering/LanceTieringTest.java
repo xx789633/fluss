@@ -75,7 +75,7 @@ public class LanceTieringTest {
     }
 
     private static Stream<Arguments> tieringWriteArgs() {
-        return Stream.of(Arguments.of(true), Arguments.of(false));
+        return Stream.of(Arguments.of(false), Arguments.of(true));
     }
 
     @ParameterizedTest
@@ -90,7 +90,7 @@ public class LanceTieringTest {
                         tablePath.getTableName());
         createTable(tablePath, isPartitioned, null, config);
 
-        List<LanceWriteResult> paimonWriteResults = new ArrayList<>();
+        List<LanceWriteResult> lanceWriteResults = new ArrayList<>();
         SimpleVersionedSerializer<LanceWriteResult> writeResultSerializer =
                 lanceLakeTieringFactory.getWriteResultSerializer();
         SimpleVersionedSerializer<LanceCommittable> committableSerializer =
@@ -120,9 +120,9 @@ public class LanceTieringTest {
                         lakeWriter.write(logRecord);
                     }
                     // serialize/deserialize writeResult
-                    LanceWriteResult paimonWriteResult = lakeWriter.complete();
-                    byte[] serialized = writeResultSerializer.serialize(paimonWriteResult);
-                    paimonWriteResults.add(
+                    LanceWriteResult lanceWriteResult = lakeWriter.complete();
+                    byte[] serialized = writeResultSerializer.serialize(lanceWriteResult);
+                    lanceWriteResults.add(
                             writeResultSerializer.deserialize(
                                     writeResultSerializer.getVersion(), serialized));
                 }
@@ -133,12 +133,12 @@ public class LanceTieringTest {
         try (LakeCommitter<LanceWriteResult, LanceCommittable> lakeCommitter =
                 createLakeCommitter(tablePath)) {
             // serialize/deserialize committable
-            LanceCommittable paimonCommittable = lakeCommitter.toCommitable(paimonWriteResults);
-            byte[] serialized = committableSerializer.serialize(paimonCommittable);
-            paimonCommittable =
+            LanceCommittable lanceCommittable = lakeCommitter.toCommitable(lanceWriteResults);
+            byte[] serialized = committableSerializer.serialize(lanceCommittable);
+            lanceCommittable =
                     committableSerializer.deserialize(
                             committableSerializer.getVersion(), serialized);
-            long snapshot = lakeCommitter.commit(paimonCommittable);
+            long snapshot = lakeCommitter.commit(lanceCommittable);
             assertThat(snapshot).isEqualTo(1);
         }
 

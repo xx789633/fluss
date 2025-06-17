@@ -46,7 +46,7 @@ public class LanceArrowWriter extends ArrowReader {
         try {
             // wait util prepareLoadNextBatch to release write token,
             writeToken.acquire();
-            arrowWriter.writeRow(row.getRow(), bucket, row.logOffset());
+            arrowWriter.writeRow(row.getRow(), bucket, row.logOffset(), row.timestamp());
             if (count.incrementAndGet() == batchSize) {
                 // notify loadNextBatch to take the batch
                 loadToken.release();
