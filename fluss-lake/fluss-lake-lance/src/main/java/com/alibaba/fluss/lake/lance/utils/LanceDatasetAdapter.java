@@ -17,8 +17,9 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.ipc.ArrowReader;
 import org.apache.arrow.vector.types.pojo.Schema;
-
+import java.util.Optional;
 import java.util.List;
+import java.util.Arrays;
 
 /** Lance dataset API adapter. */
 public class LanceDatasetAdapter {
@@ -62,12 +63,27 @@ public class LanceDatasetAdapter {
         }
     }
 
-    public static ArrowReader getColumnReader(LanceConfig config, List<String> columns) {
+    public static ArrowReader getArrowReader(LanceConfig config) {
+        return getArrowReader(config, Arrays.asList());
+    }
+
+    public static ArrowReader getArrowReader(LanceConfig config, List<String> columns) {
         String uri = config.getDatasetUri();
         ReadOptions options = LanceConfig.genReadOptionFromConfig(config);
         try (Dataset datasetRead = Dataset.open(allocator, uri, options)) {
             ScanOptions scanOptions = new ScanOptions.Builder().columns(columns).build();
             return datasetRead.newScan(scanOptions).scanBatches();
+        }
+    }
+
+    public static Optional<Long> getDatasetRowCount(LanceConfig config) {
+        String uri = config.getDatasetUri();
+        ReadOptions options = LanceConfig.genReadOptionFromConfig(config);
+        try (Dataset dataset = Dataset.open(allocator, uri, options)) {
+            return Optional.of(dataset.countRows());
+        } catch (IllegalArgumentException e) {
+            // dataset not found
+            return Optional.empty();
         }
     }
 

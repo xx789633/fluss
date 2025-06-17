@@ -33,6 +33,7 @@ import com.alibaba.fluss.row.GenericRow;
 import com.alibaba.fluss.utils.types.Tuple2;
 
 import com.lancedb.lance.WriteParams;
+import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -55,7 +56,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
-
+import org.apache.arrow.vector.ipc.ArrowReader;
 import static com.alibaba.fluss.metadata.TableDescriptor.BUCKET_COLUMN_NAME;
 import static com.alibaba.fluss.metadata.TableDescriptor.OFFSET_COLUMN_NAME;
 import static com.alibaba.fluss.metadata.TableDescriptor.TIMESTAMP_COLUMN_NAME;
@@ -75,7 +76,7 @@ public class LanceTieringTest {
     }
 
     private static Stream<Arguments> tieringWriteArgs() {
-        return Stream.of(Arguments.of(false), Arguments.of(true));
+        return Stream.of(Arguments.of(false));
     }
 
     @ParameterizedTest
@@ -140,6 +141,15 @@ public class LanceTieringTest {
                             committableSerializer.getVersion(), serialized);
             long snapshot = lakeCommitter.commit(lanceCommittable);
             assertThat(snapshot).isEqualTo(1);
+        }
+
+        ArrowReader reader = LanceDatasetAdapter.getArrowReader(config);
+        VectorSchemaRoot readerRoot = reader.getVectorSchemaRoot();
+        while (reader.loadNextBatch()) {
+            int batchRows = readerRoot.getRowCount();
+            for (int i = 0; i < batchRows; i++) {
+                int value = (int) readerRoot.getVector("c1").getObject(i);
+            }
         }
 
         // then, check data

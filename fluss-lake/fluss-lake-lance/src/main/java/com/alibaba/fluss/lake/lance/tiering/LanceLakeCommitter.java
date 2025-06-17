@@ -10,6 +10,7 @@ import com.alibaba.fluss.metadata.TablePath;
 import com.lancedb.lance.FragmentMetadata;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.ipc.ArrowReader;
 
 import javax.annotation.Nullable;
@@ -75,11 +76,12 @@ public class LanceLakeCommitter implements LakeCommitter<LanceWriteResult, Lance
 
         LinkedHashMap<Integer, Long> bucketEndOffset = new LinkedHashMap<>();
         ArrowReader reader =
-                LanceDatasetAdapter.getColumnReader(
+                LanceDatasetAdapter.getArrowReader(
                         config, Arrays.asList(BUCKET_COLUMN_NAME, OFFSET_COLUMN_NAME));
+        VectorSchemaRoot readerRoot = reader.getVectorSchemaRoot();
         while (reader.loadNextBatch()) {
-            IntVector bucketVector = (IntVector) reader.getVectorSchemaRoot().getVector(0);
-            BigIntVector offsetVector = (BigIntVector) reader.getVectorSchemaRoot().getVector(1);
+            IntVector bucketVector = (IntVector) readerRoot.getVector(BUCKET_COLUMN_NAME);
+            BigIntVector offsetVector = (BigIntVector) readerRoot.getVector(OFFSET_COLUMN_NAME);
             for (int i = 0; i < bucketVector.getValueCount(); i++) {
                 if (!bucketEndOffset.containsKey(bucketVector.get(i))
                         || bucketEndOffset.get(bucketVector.get(i)) < offsetVector.get(i)) {
