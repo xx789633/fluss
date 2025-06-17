@@ -61,6 +61,7 @@ import static com.alibaba.fluss.metadata.TableDescriptor.OFFSET_COLUMN_NAME;
 import static com.alibaba.fluss.metadata.TableDescriptor.TIMESTAMP_COLUMN_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
 
+/** The UT for tiering to Lance via {@link LanceLakeTieringFactory}. */
 public class LanceTieringTest {
     private @TempDir File tempWarehouseDir;
     private LanceLakeTieringFactory lanceLakeTieringFactory;
@@ -220,18 +221,18 @@ public class LanceTieringTest {
 
     private void doCreateLanceTable(TablePath tablePath, List<Field> fields, LanceConfig config)
             throws Exception {
-        Field bucket_col =
+        Field bucketCol =
                 new Field(
                         BUCKET_COLUMN_NAME, FieldType.nullable(new ArrowType.Int(32, true)), null);
-        Field offset_col =
+        Field offsetCol =
                 new Field(
                         OFFSET_COLUMN_NAME, FieldType.nullable(new ArrowType.Int(64, true)), null);
-        Field timestamp_col =
+        Field timestampCol =
                 new Field(
                         TIMESTAMP_COLUMN_NAME,
                         FieldType.nullable(new ArrowType.Timestamp(TimeUnit.MICROSECOND, null)),
                         null);
-        fields.addAll(Arrays.asList(bucket_col, offset_col, timestamp_col));
+        fields.addAll(Arrays.asList(bucketCol, offsetCol, timestampCol));
         WriteParams params = LanceConfig.genWriteParamsFromConfig(config);
         LanceDatasetAdapter.createDataset(config.getDatasetUri(), new Schema(fields), params);
     }

@@ -57,7 +57,7 @@ class LakeEnabledTableCreateITCase {
                     .setClusterConf(initConfig())
                     .build();
 
-    private static Configuration lanceConf;;
+    private static Configuration lanceConf;
 
     private static final String DATABASE = "fluss";
 
