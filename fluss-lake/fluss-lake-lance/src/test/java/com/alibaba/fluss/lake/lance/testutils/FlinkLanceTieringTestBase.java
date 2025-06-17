@@ -29,7 +29,9 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.nio.file.Files;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static com.alibaba.fluss.testutils.common.CommonTestUtils.retry;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -96,6 +98,12 @@ public class FlinkLanceTieringTestBase {
             conn.close();
             conn = null;
         }
+    }
+
+    protected static Map<String, String> getLanceCatalogConf() {
+        Map<String, String> lanceConf = new HashMap<>();
+        lanceConf.put("warehouse", warehousePath);
+        return lanceConf;
     }
 
     protected long createTable(TablePath tablePath, TableDescriptor tableDescriptor)
