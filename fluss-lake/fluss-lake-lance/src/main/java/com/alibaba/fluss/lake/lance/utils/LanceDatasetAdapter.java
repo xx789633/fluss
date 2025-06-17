@@ -10,6 +10,7 @@ import com.lancedb.lance.FragmentMetadata;
 import com.lancedb.lance.FragmentOperation;
 import com.lancedb.lance.ReadOptions;
 import com.lancedb.lance.WriteParams;
+import com.lancedb.lance.ipc.ColumnOrdering;
 import com.lancedb.lance.ipc.ScanOptions;
 import org.apache.arrow.c.ArrowArrayStream;
 import org.apache.arrow.c.Data;
@@ -17,9 +18,9 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.ipc.ArrowReader;
 import org.apache.arrow.vector.types.pojo.Schema;
-import java.util.Optional;
+
 import java.util.List;
-import java.util.Arrays;
+import java.util.Optional;
 
 /** Lance dataset API adapter. */
 public class LanceDatasetAdapter {
@@ -63,16 +64,19 @@ public class LanceDatasetAdapter {
         }
     }
 
-    public static ArrowReader getArrowReader(LanceConfig config) {
-        return getArrowReader(config, Arrays.asList());
-    }
-
-    public static ArrowReader getArrowReader(LanceConfig config, List<String> columns) {
+    public static ArrowReader getArrowReader(
+            LanceConfig config, List<String> columns, List<ColumnOrdering> columnOrderings) {
         String uri = config.getDatasetUri();
         ReadOptions options = LanceConfig.genReadOptionFromConfig(config);
         try (Dataset datasetRead = Dataset.open(allocator, uri, options)) {
-            ScanOptions scanOptions = new ScanOptions.Builder().columns(columns).build();
-            return datasetRead.newScan(scanOptions).scanBatches();
+            ScanOptions.Builder scanOptionBuilder = new ScanOptions.Builder();
+            if (!columns.isEmpty()) {
+                scanOptionBuilder.columns(columns);
+            }
+            if (!columnOrderings.isEmpty()) {
+                scanOptionBuilder.setColumnOrderings(columnOrderings);
+            }
+            return datasetRead.newScan(scanOptionBuilder.build()).scanBatches();
         }
     }
 

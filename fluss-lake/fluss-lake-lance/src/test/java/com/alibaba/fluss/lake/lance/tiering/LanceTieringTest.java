@@ -33,7 +33,9 @@ import com.alibaba.fluss.row.GenericRow;
 import com.alibaba.fluss.utils.types.Tuple2;
 
 import com.lancedb.lance.WriteParams;
+import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.arrow.vector.ipc.ArrowReader;
 import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -56,7 +58,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
-import org.apache.arrow.vector.ipc.ArrowReader;
+
 import static com.alibaba.fluss.metadata.TableDescriptor.BUCKET_COLUMN_NAME;
 import static com.alibaba.fluss.metadata.TableDescriptor.OFFSET_COLUMN_NAME;
 import static com.alibaba.fluss.metadata.TableDescriptor.TIMESTAMP_COLUMN_NAME;
@@ -76,7 +78,7 @@ public class LanceTieringTest {
     }
 
     private static Stream<Arguments> tieringWriteArgs() {
-        return Stream.of(Arguments.of(false));
+        return Stream.of(Arguments.of(false), Arguments.of(true));
     }
 
     @ParameterizedTest
@@ -140,24 +142,49 @@ public class LanceTieringTest {
                     committableSerializer.deserialize(
                             committableSerializer.getVersion(), serialized);
             long snapshot = lakeCommitter.commit(lanceCommittable);
-            assertThat(snapshot).isEqualTo(1);
+            // Dataset.create returns version 1
+            assertThat(snapshot).isEqualTo(2);
         }
 
-        ArrowReader reader = LanceDatasetAdapter.getArrowReader(config);
+        ArrowReader reader =
+                LanceDatasetAdapter.getArrowReader(config, Arrays.asList(), Arrays.asList());
         VectorSchemaRoot readerRoot = reader.getVectorSchemaRoot();
-        while (reader.loadNextBatch()) {
-            int batchRows = readerRoot.getRowCount();
-            for (int i = 0; i < batchRows; i++) {
-                int value = (int) readerRoot.getVector("c1").getObject(i);
-            }
-        }
+        //        while (reader.loadNextBatch()) {
+        //            System.out.print(readerRoot.contentToTSVString());
+        //        }
 
         // then, check data
         for (int bucket = 0; bucket < 3; bucket++) {
             for (String partition : partitions) {
+                reader.loadNextBatch();
                 Tuple2<String, Integer> partitionBucket = Tuple2.of(partition, bucket);
                 List<LogRecord> expectRecords = recordsByBucket.get(partitionBucket);
+                verifyLogTableRecords(readerRoot, expectRecords, bucket, isPartitioned, partition);
             }
+        }
+        assertThat(reader.loadNextBatch()).isEqualTo(false);
+    }
+
+    private void verifyLogTableRecords(
+            VectorSchemaRoot root,
+            List<LogRecord> expectRecords,
+            int expectBucket,
+            boolean isPartitioned,
+            @Nullable String partition)
+            throws Exception {
+        assertThat(root.getRowCount()).isEqualTo(expectRecords.size());
+        for (int i = 0; i < expectRecords.size(); i++) {
+            LogRecord expectRecord = expectRecords.get(i);
+            // check business columns:
+            assertThat((int) (root.getVector(0).getObject(i)))
+                    .isEqualTo(expectRecord.getRow().getInt(0));
+            assertThat(((VarCharVector) root.getVector(1)).getObject(i).toString())
+                    .isEqualTo(expectRecord.getRow().getString(1).toString());
+            assertThat(((VarCharVector) root.getVector(2)).getObject(i).toString())
+                    .isEqualTo(expectRecord.getRow().getString(2).toString());
+            // check system columns: __bucket, __offset, __timestamp
+            assertThat((int) (root.getVector(3).getObject(i))).isEqualTo(expectBucket);
+            assertThat((long) (root.getVector(4).getObject(i))).isEqualTo(expectRecord.logOffset());
         }
     }
 

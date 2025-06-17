@@ -5,7 +5,6 @@ import com.alibaba.fluss.lake.lance.LanceConfig;
 import com.alibaba.fluss.lake.lance.utils.LanceDatasetAdapter;
 import com.alibaba.fluss.lake.writer.LakeWriter;
 import com.alibaba.fluss.lake.writer.WriterInitContext;
-import com.alibaba.fluss.metadata.TableBucket;
 import com.alibaba.fluss.record.LogRecord;
 
 import com.lancedb.lance.FragmentMetadata;
@@ -23,7 +22,6 @@ public class LanceLakeWriter implements LakeWriter<LanceWriteResult> {
     FutureTask<List<FragmentMetadata>> fragmentCreationTask;
 
     public LanceLakeWriter(Configuration options, WriterInitContext writerInitContext) {
-        TableBucket bucket = writerInitContext.tableBucket();
         LanceConfig config =
                 LanceConfig.from(
                         options.toMap(),
