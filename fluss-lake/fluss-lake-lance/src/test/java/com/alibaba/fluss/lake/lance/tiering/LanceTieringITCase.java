@@ -10,6 +10,7 @@ import com.alibaba.fluss.row.InternalRow;
 
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.ipc.ArrowReader;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -40,24 +41,31 @@ public class LanceTieringITCase extends FlinkLanceTieringTestBase {
     void testTiering() throws Exception {
         List<InternalRow> rows = Arrays.asList(row(1, "v1"), row(2, "v2"), row(3, "v3"));
 
-        // then, create another log table
-        TablePath t2 = TablePath.of(DEFAULT_DB, "logTable");
-        long t2Id = createLogTable(t2);
-        TableBucket t2Bucket = new TableBucket(t2Id, 0);
+        // create log table
+        TablePath t1 = TablePath.of(DEFAULT_DB, "logTable");
+        long t1Id = createLogTable(t1);
+        TableBucket t1Bucket = new TableBucket(t1Id, 0);
         List<InternalRow> flussRows = new ArrayList<>();
         // write records
         for (int i = 0; i < 10; i++) {
             rows = Arrays.asList(row(1, "v1"), row(2, "v2"), row(3, "v3"));
             flussRows.addAll(rows);
             // write records
-            writeRows(t2, rows, true);
+            writeRows(t1, rows, true);
         }
+        waitUntilSnapshot(t1Id, 1, 0);
+
+        // then start tiering job
+        JobClient jobClient = buildTieringJob(execEnv);
+
         // check the status of replica after synced;
         // note: we can't update log start offset for unaware bucket mode log table
-        assertReplicaStatus(t2Bucket, 30);
+        assertReplicaStatus(t1Bucket, 30);
 
         // check data in lance
-        checkDataInLanceAppendOnlyTable(t2, flussRows, 0);
+        checkDataInLanceAppendOnlyTable(t1, flussRows, 0);
+
+        jobClient.cancel().get();
     }
 
     private void checkDataInLanceAppendOnlyTable(
