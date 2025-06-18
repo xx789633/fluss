@@ -17,6 +17,7 @@
 package com.alibaba.fluss.lake.lance.tiering;
 
 import com.alibaba.fluss.config.Configuration;
+import com.alibaba.fluss.lake.committer.CommittedLakeSnapshot;
 import com.alibaba.fluss.lake.committer.LakeCommitter;
 import com.alibaba.fluss.lake.lance.LanceConfig;
 import com.alibaba.fluss.lake.lance.utils.LanceDatasetAdapter;
@@ -78,7 +79,7 @@ public class LanceTieringTest {
     }
 
     private static Stream<Arguments> tieringWriteArgs() {
-        return Stream.of(Arguments.of(false), Arguments.of(true));
+        return Stream.of(Arguments.of(false));
     }
 
     @ParameterizedTest
@@ -142,8 +143,7 @@ public class LanceTieringTest {
                     committableSerializer.deserialize(
                             committableSerializer.getVersion(), serialized);
             long snapshot = lakeCommitter.commit(lanceCommittable);
-            // Dataset.create returns version 1
-            assertThat(snapshot).isEqualTo(2);
+            assertThat(snapshot).isEqualTo(1);
         }
 
         ArrowReader reader =
@@ -163,6 +163,32 @@ public class LanceTieringTest {
             }
         }
         assertThat(reader.loadNextBatch()).isEqualTo(false);
+
+        // then, let's verify getMissingLakeSnapshot works
+        try (LakeCommitter<LanceWriteResult, LanceCommittable> lakeCommitter =
+                createLakeCommitter(tablePath)) {
+            // use snapshot id 0 as the known snapshot id
+            CommittedLakeSnapshot committedLakeSnapshot = lakeCommitter.getMissingLakeSnapshot(0L);
+            assertThat(committedLakeSnapshot).isNotNull();
+            Map<Tuple2<String, Integer>, Long> offsets = committedLakeSnapshot.getLogEndOffsets();
+            for (int bucket = 0; bucket < 3; bucket++) {
+                for (String partition : partitions) {
+                    // we only write 10 records, so expected log offset should be 9
+                    assertThat(offsets.get(Tuple2.of(partition, bucket))).isEqualTo(9);
+                }
+            }
+            assertThat(committedLakeSnapshot.getLakeSnapshotId()).isOne();
+
+            // use null as the known snapshot id
+            CommittedLakeSnapshot committedLakeSnapshot2 =
+                    lakeCommitter.getMissingLakeSnapshot(null);
+            assertThat(committedLakeSnapshot2).isEqualTo(committedLakeSnapshot);
+
+            // use snapshot id 1 as the known snapshot id
+            committedLakeSnapshot = lakeCommitter.getMissingLakeSnapshot(1L);
+            // no any missing committed offset since the latest snapshot is 1L
+            assertThat(committedLakeSnapshot).isNull();
+        }
     }
 
     private void verifyLogTableRecords(

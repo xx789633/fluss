@@ -52,7 +52,8 @@ public class LanceDatasetAdapter {
                             options.getStorageOptions());
             long version = datasetWrite.version();
             datasetWrite.close();
-            return version;
+            // Dataset.create returns version 1
+            return version - 1;
         }
     }
 
@@ -60,7 +61,8 @@ public class LanceDatasetAdapter {
         String uri = config.getDatasetUri();
         ReadOptions options = LanceConfig.genReadOptionFromConfig(config);
         try (Dataset datasetRead = Dataset.open(allocator, uri, options)) {
-            return datasetRead.latestVersion();
+            // Dataset.create returns version 1
+            return datasetRead.latestVersion() - 1;
         }
     }
 
