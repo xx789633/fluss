@@ -8,6 +8,7 @@ import com.alibaba.fluss.metadata.TableBucket;
 import com.alibaba.fluss.metadata.TablePath;
 import com.alibaba.fluss.row.InternalRow;
 
+import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.ipc.ArrowReader;
 import org.apache.flink.core.execution.JobClient;
@@ -21,6 +22,7 @@ import java.util.Iterator;
 import java.util.List;
 
 import static com.alibaba.fluss.testutils.DataTestUtils.row;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** IT case for tiering tables to lance. */
 public class LanceTieringITCase extends FlinkLanceTieringTestBase {
@@ -76,9 +78,21 @@ public class LanceTieringITCase extends FlinkLanceTieringTestBase {
         ArrowReader reader =
                 LanceDatasetAdapter.getArrowReader(config, Arrays.asList(), Arrays.asList());
         VectorSchemaRoot readerRoot = reader.getVectorSchemaRoot();
-        while (reader.loadNextBatch()) {
-            System.out.print(readerRoot.contentToTSVString());
-        }
+        //        while (reader.loadNextBatch()) {
+        //            System.out.print(readerRoot.contentToTSVString());
+        //        }
+        reader.loadNextBatch();
         Iterator<InternalRow> flussRowIterator = expectedRows.iterator();
+        int rowCount = readerRoot.getRowCount();
+        for (int i = 0; i < rowCount; i++) {
+            InternalRow flussRow = flussRowIterator.next();
+            assertThat((int) (readerRoot.getVector(0).getObject(i))).isEqualTo(flussRow.getInt(0));
+            assertThat(((VarCharVector) readerRoot.getVector(1)).getObject(i).toString())
+                    .isEqualTo(flussRow.getString(1).toString());
+            // the idx 2 is __bucket, so use 3
+            assertThat((long) (readerRoot.getVector(3).getObject(i))).isEqualTo(startingOffset++);
+        }
+        assertThat(reader.loadNextBatch()).isFalse();
+        assertThat(flussRowIterator.hasNext()).isFalse();
     }
 }

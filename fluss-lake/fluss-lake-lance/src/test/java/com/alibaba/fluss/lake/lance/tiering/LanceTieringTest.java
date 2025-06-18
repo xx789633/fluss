@@ -162,7 +162,7 @@ public class LanceTieringTest {
                 verifyLogTableRecords(readerRoot, expectRecords, bucket, isPartitioned, partition);
             }
         }
-        assertThat(reader.loadNextBatch()).isEqualTo(false);
+        assertThat(reader.loadNextBatch()).isFalse();
 
         // then, let's verify getMissingLakeSnapshot works
         try (LakeCommitter<LanceWriteResult, LanceCommittable> lakeCommitter =
