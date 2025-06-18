@@ -53,7 +53,6 @@ public class LanceTieringITCase extends FlinkLanceTieringTestBase {
             // write records
             writeRows(t1, rows, true);
         }
-        waitUntilSnapshot(t1Id, 1, 0);
 
         // then start tiering job
         JobClient jobClient = buildTieringJob(execEnv);
