@@ -20,6 +20,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static com.alibaba.fluss.metadata.TableDescriptor.BUCKET_COLUMN_NAME;
@@ -61,18 +62,25 @@ public class LanceLakeCommitter implements LakeCommitter<LanceWriteResult, Lance
     @Override
     public CommittedLakeSnapshot getMissingLakeSnapshot(@Nullable Long latestLakeSnapshotIdOfFluss)
             throws IOException {
-        long latestLakeSnapshotIdOfLake = LanceDatasetAdapter.getVersion(config);
+        Optional<Long> latestLakeSnapshotIdOfLake = LanceDatasetAdapter.getVersion(config);
+
+        if (!latestLakeSnapshotIdOfLake.isPresent()) {
+            throw new IOException("Fail to get dataset " + config.getDatasetUri() + " in Lance.");
+        } else if (latestLakeSnapshotIdOfLake.get() == 0) {
+            // no any snapshot, return null directly
+            return null;
+        }
 
         // we get the latest snapshot committed by fluss,
         // but the latest snapshot is not greater than latestLakeSnapshotIdOfFluss, no any missing
         // snapshot, return directly
         if (latestLakeSnapshotIdOfFluss != null
-                && latestLakeSnapshotIdOfLake <= latestLakeSnapshotIdOfFluss) {
+                && latestLakeSnapshotIdOfLake.get() <= latestLakeSnapshotIdOfFluss) {
             return null;
         }
 
         CommittedLakeSnapshot committedLakeSnapshot =
-                new CommittedLakeSnapshot(latestLakeSnapshotIdOfLake);
+                new CommittedLakeSnapshot(latestLakeSnapshotIdOfLake.get());
 
         LinkedHashMap<Integer, Long> bucketEndOffset = new LinkedHashMap<>();
         ArrowReader reader =

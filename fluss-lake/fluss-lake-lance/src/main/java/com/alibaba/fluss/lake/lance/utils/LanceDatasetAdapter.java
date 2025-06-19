@@ -58,12 +58,15 @@ public class LanceDatasetAdapter {
         }
     }
 
-    public static long getVersion(LanceConfig config) {
+    public static Optional<Long> getVersion(LanceConfig config) {
         String uri = config.getDatasetUri();
         ReadOptions options = LanceConfig.genReadOptionFromConfig(config);
         try (Dataset datasetRead = Dataset.open(allocator, uri, options)) {
             // Dataset.create returns version 1
-            return datasetRead.latestVersion() - 1;
+            return Optional.of(datasetRead.latestVersion() - 1);
+        } catch (IllegalArgumentException e) {
+            // dataset not found
+            return Optional.empty();
         }
     }
 
