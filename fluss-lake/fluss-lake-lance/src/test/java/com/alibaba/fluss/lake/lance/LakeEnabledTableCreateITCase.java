@@ -140,6 +140,12 @@ class LakeEnabledTableCreateITCase {
         org.apache.arrow.vector.types.pojo.Schema expectedSchema =
                 new org.apache.arrow.vector.types.pojo.Schema(
                         Arrays.asList(logC1, logC2, logC3, logC4, logC5));
-        assertThat(expectedSchema).isEqualTo(LanceDatasetAdapter.getSchema(config));
+        assertThat(expectedSchema).isEqualTo(LanceDatasetAdapter.getSchema(config).get());
+
+        assertThat(
+                        LanceDatasetAdapter.getSchema(
+                                        LanceConfig.from(lanceConf.toMap(), DATABASE, "xxx_table"))
+                                .isPresent())
+                .isFalse();
     }
 }

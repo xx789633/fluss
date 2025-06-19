@@ -41,14 +41,12 @@ public class LanceConfig implements Serializable {
         this.options = properties;
 
         this.datasetUri =
-                options.containsKey(warehouse)
-                        ? options.get(warehouse)
-                        : LANCE_DEFAULT_WAREHOUSE
-                                + "/"
-                                + this.databaseName
-                                + "/"
-                                + this.tableName
-                                + LANCE_FILE_SUFFIX;
+                options.getOrDefault(warehouse, LANCE_DEFAULT_WAREHOUSE)
+                        + "/"
+                        + databaseName
+                        + "/"
+                        + tableName
+                        + LANCE_FILE_SUFFIX;
     }
 
     public static LanceConfig from(

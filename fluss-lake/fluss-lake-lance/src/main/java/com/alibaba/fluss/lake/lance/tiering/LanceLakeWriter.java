@@ -9,9 +9,11 @@ import com.alibaba.fluss.record.LogRecord;
 
 import com.lancedb.lance.FragmentMetadata;
 import com.lancedb.lance.WriteParams;
+import org.apache.arrow.vector.types.pojo.Schema;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
@@ -21,18 +23,21 @@ public class LanceLakeWriter implements LakeWriter<LanceWriteResult> {
     private final LanceArrowWriter arrowWriter;
     FutureTask<List<FragmentMetadata>> fragmentCreationTask;
 
-    public LanceLakeWriter(Configuration options, WriterInitContext writerInitContext) {
+    public LanceLakeWriter(Configuration options, WriterInitContext writerInitContext)
+            throws IOException {
         LanceConfig config =
                 LanceConfig.from(
                         options.toMap(),
                         writerInitContext.tablePath().getDatabaseName(),
                         writerInitContext.tablePath().getTableName());
         int batchSize = LanceConfig.getBatchSize(config);
+        Optional<Schema> schema = LanceDatasetAdapter.getSchema(config);
+        if (!schema.isPresent()) {
+            throw new IOException("Fail to get dataset " + config.getDatasetUri() + " in Lance.");
+        }
         this.arrowWriter =
                 LanceDatasetAdapter.getArrowWriter(
-                        LanceDatasetAdapter.getSchema(config),
-                        batchSize,
-                        writerInitContext.tableBucket());
+                        schema.get(), batchSize, writerInitContext.tableBucket());
 
         WriteParams params = LanceConfig.genWriteParamsFromConfig(config);
         Callable<List<FragmentMetadata>> fragmentCreator =

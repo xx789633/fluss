@@ -98,11 +98,14 @@ public class LanceDatasetAdapter {
         }
     }
 
-    public static Schema getSchema(LanceConfig config) {
+    public static Optional<Schema> getSchema(LanceConfig config) {
         String uri = config.getDatasetUri();
         ReadOptions options = LanceConfig.genReadOptionFromConfig(config);
         try (Dataset dataset = Dataset.open(allocator, uri, options)) {
-            return dataset.getSchema();
+            return Optional.of(dataset.getSchema());
+        } catch (IllegalArgumentException e) {
+            // dataset not found
+            return Optional.empty();
         }
     }
 
