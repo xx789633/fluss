@@ -321,12 +321,9 @@ public final class CoordinatorService extends RpcServiceBase implements Coordina
 
         if (dataLakeFormat != null && dataLakeFormat.equals(DataLakeFormat.LANCE)) {
             if (newDescriptor.hasPrimaryKey()) {
-                newDescriptor.withProperties(
-                        new HashMap<String, String>() {
-                            {
-                                put(ConfigOptions.TABLE_DATALAKE_ENABLED.key(), "false");
-                            }
-                        });
+                Map<String, String> newProperties = new HashMap<>(newDescriptor.getProperties());
+                newProperties.put(ConfigOptions.TABLE_DATALAKE_ENABLED.key(), "false");
+                newDescriptor = newDescriptor.withProperties(newProperties);
                 LOG.warn("Fluss currently does not support tiering primary key table to Lance.");
             }
         }
