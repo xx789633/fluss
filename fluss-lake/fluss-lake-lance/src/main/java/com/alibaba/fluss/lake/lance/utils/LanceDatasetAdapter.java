@@ -19,6 +19,7 @@ import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.ipc.ArrowReader;
 import org.apache.arrow.vector.types.pojo.Schema;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -64,6 +65,10 @@ public class LanceDatasetAdapter {
             // Dataset.create returns version 1
             return datasetRead.latestVersion() - 1;
         }
+    }
+
+    public static ArrowReader getArrowReader(LanceConfig config) {
+        return getArrowReader(config, Arrays.asList(), Arrays.asList());
     }
 
     public static ArrowReader getArrowReader(

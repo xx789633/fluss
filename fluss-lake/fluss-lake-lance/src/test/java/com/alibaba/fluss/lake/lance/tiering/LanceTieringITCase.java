@@ -75,8 +75,7 @@ public class LanceTieringITCase extends FlinkLanceTieringTestBase {
         LanceConfig config =
                 LanceConfig.from(
                         lanceConf.toMap(), tablePath.getDatabaseName(), tablePath.getTableName());
-        ArrowReader reader =
-                LanceDatasetAdapter.getArrowReader(config, Arrays.asList(), Arrays.asList());
+        ArrowReader reader = LanceDatasetAdapter.getArrowReader(config);
         VectorSchemaRoot readerRoot = reader.getVectorSchemaRoot();
         //        while (reader.loadNextBatch()) {
         //            System.out.print(readerRoot.contentToTSVString());

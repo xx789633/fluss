@@ -146,8 +146,7 @@ public class LanceTieringTest {
             assertThat(snapshot).isEqualTo(1);
         }
 
-        ArrowReader reader =
-                LanceDatasetAdapter.getArrowReader(config, Arrays.asList(), Arrays.asList());
+        ArrowReader reader = LanceDatasetAdapter.getArrowReader(config);
         VectorSchemaRoot readerRoot = reader.getVectorSchemaRoot();
         //        while (reader.loadNextBatch()) {
         //            System.out.print(readerRoot.contentToTSVString());
