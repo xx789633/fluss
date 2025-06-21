@@ -210,8 +210,7 @@
                         <configuration>
                             <artifactSet>
                                 <includes>
-                                    <include>com.lancedb:lance-core</include>
-                                    <include>org.apache.arrow:*</include>
+                                    <include>*:*</include>
                                 </includes>
                             </artifactSet>
                         </configuration>
