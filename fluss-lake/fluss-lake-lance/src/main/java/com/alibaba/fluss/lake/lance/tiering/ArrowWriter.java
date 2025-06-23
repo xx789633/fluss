@@ -20,7 +20,7 @@ import com.alibaba.fluss.lake.lance.utils.LanceArrowUtils;
 import com.alibaba.fluss.lake.lance.writers.ArrowFieldWriter;
 import com.alibaba.fluss.row.GenericRow;
 import com.alibaba.fluss.row.InternalRow;
-import com.alibaba.fluss.row.TimestampLtz;
+import com.alibaba.fluss.row.TimestampNtz;
 
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
@@ -62,7 +62,7 @@ public class ArrowWriter {
         i++;
         fieldWriters[i].write(GenericRow.of(offset), 0, true);
         i++;
-        fieldWriters[i].write(GenericRow.of(TimestampLtz.fromEpochMicros(timestamp)), 0, true);
+        fieldWriters[i].write(GenericRow.of(TimestampNtz.fromMillis(timestamp)), 0, true);
         recordsCount++;
     }
 
