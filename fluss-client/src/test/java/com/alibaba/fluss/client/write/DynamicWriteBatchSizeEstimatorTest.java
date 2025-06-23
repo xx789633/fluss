@@ -1,11 +1,12 @@
 /*
- * Copyright (c) 2025 Alibaba Group Holding Ltd.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -39,32 +40,36 @@ public class DynamicWriteBatchSizeEstimatorTest {
         assertThat(estimator.getEstimatedBatchSize(DATA1_PHYSICAL_TABLE_PATH)).isEqualTo(1000);
 
         estimator = new DynamicWriteBatchSizeEstimator(true, 1000, 100);
-        // test decrease 10%
-        estimator.updateEstimation(DATA1_PHYSICAL_TABLE_PATH, 450);
-        assertThat(estimator.getEstimatedBatchSize(DATA1_PHYSICAL_TABLE_PATH)).isEqualTo(900);
-
         // test decrease 5%
-        estimator.updateEstimation(DATA1_PHYSICAL_TABLE_PATH, (int) (900 * 0.9) - 10);
-        assertThat(estimator.getEstimatedBatchSize(DATA1_PHYSICAL_TABLE_PATH)).isEqualTo(855);
-
-        // test increase 1%
-        estimator.updateEstimation(DATA1_PHYSICAL_TABLE_PATH, 852);
+        estimator.updateEstimation(DATA1_PHYSICAL_TABLE_PATH, 450);
+        int expectedSize = 950;
         assertThat(estimator.getEstimatedBatchSize(DATA1_PHYSICAL_TABLE_PATH))
-                .isEqualTo((int) (855 * 1.1));
+                .isEqualTo(expectedSize);
+
+        // test increase 5%
+        estimator.updateEstimation(DATA1_PHYSICAL_TABLE_PATH, 350);
+        expectedSize = (int) (950 * 0.95);
+        assertThat(estimator.getEstimatedBatchSize(DATA1_PHYSICAL_TABLE_PATH))
+                .isEqualTo(expectedSize);
+
+        // test increase 10%
+        estimator.updateEstimation(DATA1_PHYSICAL_TABLE_PATH, 930);
+        assertThat(estimator.getEstimatedBatchSize(DATA1_PHYSICAL_TABLE_PATH))
+                .isEqualTo((int) (expectedSize * 1.1));
     }
 
     @Test
     void testMinDecreaseToPageSize() {
         int estimatedSize = estimator.getEstimatedBatchSize(DATA1_PHYSICAL_TABLE_PATH);
         estimator.updateEstimation(DATA1_PHYSICAL_TABLE_PATH, 1000);
-        while (estimatedSize > 100) {
+        while (estimatedSize > 2 * 100) {
             estimator.updateEstimation(DATA1_PHYSICAL_TABLE_PATH, (int) (estimatedSize * 0.5) - 10);
             estimatedSize = estimator.getEstimatedBatchSize(DATA1_PHYSICAL_TABLE_PATH);
         }
 
-        assertThat(estimator.getEstimatedBatchSize(DATA1_PHYSICAL_TABLE_PATH)).isEqualTo(100);
+        assertThat(estimator.getEstimatedBatchSize(DATA1_PHYSICAL_TABLE_PATH)).isEqualTo(200);
         estimator.updateEstimation(DATA1_PHYSICAL_TABLE_PATH, 0);
-        assertThat(estimator.getEstimatedBatchSize(DATA1_PHYSICAL_TABLE_PATH)).isEqualTo(100);
+        assertThat(estimator.getEstimatedBatchSize(DATA1_PHYSICAL_TABLE_PATH)).isEqualTo(200);
     }
 
     @Test

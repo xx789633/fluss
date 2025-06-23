@@ -4,11 +4,13 @@ sidebar_position: 2
 ---
 
 <!--
- Copyright (c) 2025 Alibaba Group Holding Ltd.
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
 
       http://www.apache.org/licenses/LICENSE-2.0
 
@@ -30,6 +32,12 @@ For partitioned tables, Fluss supports three strategies of managing partitions.
    - **Dynamic create partitions**, the partitions will be created automatically based on the data being written to the table. See [Dynamic Partitioning](table-design/data-distribution/partitioning.md#dynamic-partitioning).
    
 These three strategies are orthogonal and can coexist on the same table.
+
+### Multi-Field Partitioned Tables
+
+Partitioned tables (either primary-key table or log table) support configuring partition keys based on multiple fields. This allows users to segment data using combinations of field values, enabling more granular data organization, management, and query optimization.
+
+For example, in an `Order` primary key table, the partition key can be defined as `(date, region)`. Data will then be stored in partitions corresponding to specific combinations such as `date=2025-04-05, region=US`. Users can leverage partition pruning during streaming queries — such as filtering by `region=US` — to improve read performance through partition pushdown.
 
 ### Key Benefits of Partitioned Tables
 - **Improved Query Performance:** By narrowing down the query scope to specific partitions, the system reads fewer data, reducing query execution time.

@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
- Copyright (c) 2025 Alibaba Group Holding Ltd.
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
 
       http://www.apache.org/licenses/LICENSE-2.0
 
@@ -21,7 +23,7 @@
     <parent>
         <groupId>com.alibaba.fluss</groupId>
         <artifactId>fluss</artifactId>
-        <version>0.7-SNAPSHOT</version>
+        <version>0.8-SNAPSHOT</version>
     </parent>
 
     <artifactId>fluss-test-coverage</artifactId>
@@ -243,9 +245,6 @@
                                         <exclude>
                                             com.alibaba.fluss.row.columnar.BytesColumnVector.Bytes
                                         </exclude>
-                                        <exclude>
-                                            com.alibaba.fluss.row.columnar.VectorizedColumnBatch
-                                        </exclude>
                                         <exclude>com.alibaba.fluss.row.encode.RowEncoder</exclude>
                                         <exclude>com.alibaba.fluss.table.*</exclude>
                                         <exclude>com.alibaba.fluss.record.*</exclude>
@@ -271,12 +270,10 @@
                                         <exclude>com.alibaba.fluss.remote.*</exclude>
                                         <exclude>com.alibaba.fluss.compression.*</exclude>
                                         <exclude>com.alibaba.fluss.security.auth.sasl.plain.PlainSaslServer.PlainSaslServerFactory</exclude>
+                                        <exclude>com.alibaba.fluss.security.auth.ServerAuthenticator</exclude>
                                         <!-- start exclude for flink-connector -->
                                         <exclude>com.alibaba.fluss.flink.utils.*</exclude>
                                         <exclude>com.alibaba.fluss.flink.source.*
-                                        </exclude>
-                                        <exclude>
-                                            com.alibaba.fluss.flink.catalog.FlinkCatalogOptions
                                         </exclude>
                                         <exclude>
                                             com.alibaba.fluss.flink.source.FlinkTableSource.*
@@ -320,8 +317,10 @@
                                         <exclude>com.alibaba.fluss.kafka.*</exclude>
                                         <!-- exclude for fluss-ci-tools -->
                                         <exclude>com.alibaba.fluss.tools.ci.*</exclude>
-                                        <!-- exclude for fluss-dist -->
+                                        <!-- exclude for dummy class -->
                                         <exclude>com.alibaba.fluss.dist.DummyClass</exclude>
+                                        <exclude>com.alibaba.fluss.flink.DummyClass120</exclude>
+                                        <exclude>com.alibaba.fluss.flink.DummyClass119</exclude>
                                         <exclude>com.alibaba.fluss.lake.batch.ArrowRecordBatch</exclude>
                                         <exclude>com.alibaba.fluss.lake.committer.CommittedLakeSnapshot</exclude>
                                         <exclude>com.alibaba.fluss.lake.paimon.FlussDataTypeToPaimonDataType</exclude>

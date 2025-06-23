@@ -1,11 +1,12 @@
 /*
- * Copyright (c) 2025 Alibaba Group Holding Ltd.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -76,6 +77,7 @@ import java.util.List;
 import java.util.Map;
 
 import static com.alibaba.fluss.flink.utils.PushdownUtils.ValueConversion.FLINK_INTERNAL_VALUE;
+import static com.alibaba.fluss.flink.utils.PushdownUtils.extractFieldEquals;
 import static com.alibaba.fluss.utils.Preconditions.checkNotNull;
 
 /** Flink table source to scan Fluss data. */
@@ -398,7 +400,7 @@ public class FlinkTableSource
                 && filters.size() == primaryKeyIndexes.length) {
             Map<Integer, LogicalType> primaryKeyTypes = getPrimaryKeyTypes();
             List<FieldEqual> fieldEquals =
-                    PushdownUtils.extractFieldEquals(
+                    extractFieldEquals(
                             filters,
                             primaryKeyTypes,
                             acceptedFilters,
@@ -419,11 +421,10 @@ public class FlinkTableSource
             return Result.of(acceptedFilters, remainingFilters);
         } else if (isPartitioned()) {
             // dynamic partition pushdown
-            Map<Integer, LogicalType> partitionKeyTypes = getPartitionKeyTypes();
             List<FieldEqual> fieldEquals =
-                    PushdownUtils.extractFieldEquals(
+                    extractFieldEquals(
                             filters,
-                            partitionKeyTypes,
+                            getPartitionKeyTypes(),
                             acceptedFilters,
                             remainingFilters,
                             FLINK_INTERNAL_VALUE);

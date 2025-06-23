@@ -1,11 +1,12 @@
 /*
- * Copyright (c) 2025 Alibaba Group Holding Ltd.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,6 +20,7 @@ package com.alibaba.fluss.flink.catalog;
 import com.alibaba.fluss.config.ConfigOptions;
 import com.alibaba.fluss.flink.FlinkConnectorOptions;
 
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CommonCatalogOptions;
@@ -28,16 +30,17 @@ import org.junit.jupiter.api.Test;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link FlinkCatalogFactory}. */
-public class FlinkCatalogFactoryTest {
+abstract class FlinkCatalogFactoryTest {
 
-    private static final String CATALOG_NAME = "my_catalog";
-    private static final String BOOTSTRAP_SERVERS_NAME = "localhost:9092";
-    private static final String DB_NAME = "my_db";
+    static final String CATALOG_NAME = "my_catalog";
+    static final String BOOTSTRAP_SERVERS_NAME = "localhost:9092";
+    static final String DB_NAME = "my_db";
 
     @Test
     public void testCreateCatalog() {
@@ -67,9 +70,10 @@ public class FlinkCatalogFactoryTest {
 
         // test security configs
         Map<String, String> securityMap = new HashMap<>();
-        securityMap.put(ConfigOptions.CLIENT_SECURITY_PROTOCOL.key(), "username_password");
-        securityMap.put("client.security.username_password.username", "root");
-        securityMap.put("client.security.username_password.password", "password");
+        securityMap.put(ConfigOptions.CLIENT_SECURITY_PROTOCOL.key(), "sasl");
+        securityMap.put(ConfigOptions.CLIENT_SASL_MECHANISM.key(), "plain");
+        securityMap.put("client.security.sasl.username", "root");
+        securityMap.put("client.security.sasl.password", "password");
 
         options.putAll(securityMap);
         FlinkCatalog actualCatalog2 =
@@ -118,5 +122,21 @@ public class FlinkCatalogFactoryTest {
     private static void checkEquals(FlinkCatalog c1, FlinkCatalog c2) {
         assertThat(c2.getName()).isEqualTo(c1.getName());
         assertThat(c2.getDefaultDatabase()).isEqualTo(c1.getDefaultDatabase());
+    }
+
+    @Test
+    public void testOptionalOptionsConfiguration() {
+        FlinkCatalogFactory factory = new FlinkCatalogFactory();
+
+        // Test that optionalOptions() correctly declares DEFAULT_DATABASE
+        Set<ConfigOption<?>> optionalOptions = factory.optionalOptions();
+        assertThat(optionalOptions)
+                .hasSize(1)
+                .containsExactly(FlinkCatalogOptions.DEFAULT_DATABASE);
+
+        ConfigOption<?> defaultDbOption = FlinkCatalogOptions.DEFAULT_DATABASE;
+        assertThat(defaultDbOption.key()).isEqualTo("default-database");
+        assertThat(defaultDbOption.hasDefaultValue()).isTrue();
+        assertThat(defaultDbOption.defaultValue()).isEqualTo("fluss");
     }
 }

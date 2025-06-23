@@ -1,11 +1,12 @@
 /*
- * Copyright (c) 2025 Alibaba Group Holding Ltd.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,6 +20,8 @@ package com.alibaba.fluss.flink.catalog;
 import com.alibaba.fluss.config.ConfigOptions;
 import com.alibaba.fluss.config.Configuration;
 import com.alibaba.fluss.exception.IllegalConfigurationException;
+import com.alibaba.fluss.exception.InvalidPartitionException;
+import com.alibaba.fluss.exception.InvalidTableException;
 import com.alibaba.fluss.server.testutils.FlussClusterExtension;
 import com.alibaba.fluss.utils.ExceptionUtils;
 
@@ -163,6 +166,14 @@ class FlinkCatalogTest {
         CatalogTable table = this.newCatalogTable(options);
         catalog.createTable(this.tableInDefaultDb, table, false);
         assertThat(catalog.tableExists(this.tableInDefaultDb)).isTrue();
+        // test invalid table
+        assertThatThrownBy(
+                        () ->
+                                catalog.createTable(
+                                        new ObjectPath(DEFAULT_DB, "**invalid"), table, false))
+                .isInstanceOf(InvalidTableException.class)
+                .hasMessage(
+                        "Table name **invalid is invalid: '**invalid' contains one or more characters other than ASCII alphanumerics, '_' and '-'");
         // create the table again, should throw exception with ignore if exist = false
         assertThatThrownBy(() -> catalog.createTable(this.tableInDefaultDb, table, false))
                 .isInstanceOf(TableAlreadyExistException.class)
@@ -363,6 +374,12 @@ class FlinkCatalogTest {
         assertThat(db2.getComment()).isEqualTo("test comment");
         assertThat(db2.getProperties())
                 .isEqualTo(Collections.singletonMap(SCAN_STARTUP_MODE.key(), "earliest"));
+        // test DatabaseNotExistException when get db
+        String notExistDb = "db3";
+        assertThatThrownBy(() -> catalog.getDatabase(notExistDb))
+                .isInstanceOf(DatabaseNotExistException.class)
+                .hasMessage("Database %s does not exist in Catalog %s.", notExistDb, CATALOG_NAME);
+
         // create the database again should throw exception with ignore if exist = false
         assertThatThrownBy(
                 () ->
@@ -433,7 +450,7 @@ class FlinkCatalogTest {
     }
 
     @Test
-    void testListPartitions() throws Exception {
+    void testOperatePartitions() throws Exception {
         catalog.createDatabase("db1", new CatalogDatabaseImpl(Collections.emptyMap(), null), false);
         assertThatThrownBy(() -> catalog.listPartitions(new ObjectPath("db1", "unkown_table")))
                 .isInstanceOf(TableNotExistException.class)
@@ -469,6 +486,21 @@ class FlinkCatalogTest {
         List<CatalogPartitionSpec> catalogPartitionSpecs = catalog.listPartitions(path2);
         assertThat(catalogPartitionSpecs).hasSize(1);
         assertThat(catalogPartitionSpecs.get(0).getPartitionSpec()).containsEntry("first", "1");
+
+        CatalogPartitionSpec testSpec =
+                new CatalogPartitionSpec(Collections.singletonMap("first", "1"));
+        List<CatalogPartitionSpec> catalogPartitionSpecs1 = catalog.listPartitions(path2, testSpec);
+        assertThat(catalogPartitionSpecs1).hasSize(1);
+        assertThat(catalogPartitionSpecs1.get(0).getPartitionSpec()).containsEntry("first", "1");
+
+        // test list partition by partitionSpec
+        CatalogPartitionSpec invalidTestSpec =
+                new CatalogPartitionSpec(Collections.singletonMap("second", ""));
+        assertThatThrownBy(() -> catalog.listPartitions(path2, invalidTestSpec))
+                .isInstanceOf(CatalogException.class)
+                .hasMessage(
+                        "Failed to list partitions of table default.partitioned_t1 in test-catalog, by partitionSpec CatalogPartitionSpec{{second=}}");
+
         // NEW: Test dropPartition functionality
         CatalogPartitionSpec firstPartSpec = catalogPartitionSpecs.get(0);
         catalog.dropPartition(path2, firstPartSpec, false);
@@ -484,15 +516,12 @@ class FlinkCatalogTest {
                 new CatalogPartitionSpec(Collections.singletonMap("first", "999"));
         assertThatThrownBy(() -> catalog.dropPartition(path2, nonExistentSpec, false))
                 .isInstanceOf(
-                        org.apache.flink.table.catalog.exceptions.PartitionNotExistException.class);
+                        org.apache.flink.table.catalog.exceptions.PartitionNotExistException.class)
+                .hasMessage(
+                        "Partition CatalogPartitionSpec{{first=999}} of table default.partitioned_t1 in catalog test-catalog does not exist.");
 
         // Should not throw with ignoreIfNotExists = true
         catalog.dropPartition(path2, nonExistentSpec, true);
-
-        // NEW: Test partition creation exceptions
-        // Try to create duplicate partition
-        assertThatThrownBy(() -> catalog.createPartition(path2, firstPartSpec, null, false))
-                .isInstanceOf(PartitionAlreadyExistsException.class);
 
         // NEW: Test unsupported partition operations
         assertThatThrownBy(() -> catalog.getPartition(path2, firstPartSpec))
@@ -504,11 +533,6 @@ class FlinkCatalogTest {
         assertThatThrownBy(() -> catalog.alterPartition(path2, firstPartSpec, null, false))
                 .isInstanceOf(UnsupportedOperationException.class);
 
-        CatalogPartitionSpec testSpec =
-                new CatalogPartitionSpec(Collections.singletonMap("first", "test"));
-        assertThatThrownBy(() -> catalog.listPartitions(path2, testSpec))
-                .isInstanceOf(UnsupportedOperationException.class);
-
         assertThatThrownBy(() -> catalog.listPartitionsByFilter(path2, Collections.emptyList()))
                 .isInstanceOf(UnsupportedOperationException.class);
 
@@ -516,14 +540,88 @@ class FlinkCatalogTest {
         catalog.dropPartition(path2, firstPartSpec, false);
     }
 
-    private void createAndCheckAndDropTable(
-            final ResolvedSchema schema, ObjectPath tablePath, Map<String, String> options)
-            throws Exception {
-        CatalogTable table = newCatalogTable(schema, options);
-        catalog.createTable(tablePath, table, false);
-        CatalogBaseTable tableCreated = catalog.getTable(tablePath);
-        checkEqualsRespectSchema((CatalogTable) tableCreated, table);
-        catalog.dropTable(tablePath, false);
+    @Test
+    void testCreatePartitions() throws Exception {
+        ObjectPath nonPartitionedPath = new ObjectPath(DEFAULT_DB, "non_partitioned_table1");
+        ResolvedSchema resolvedSchema = this.createSchema();
+        // test TableNotExistException
+        assertThatThrownBy(
+                        () ->
+                                catalog.createPartition(
+                                        nonPartitionedPath,
+                                        new CatalogPartitionSpec(
+                                                Collections.singletonMap("first", "1")),
+                                        null,
+                                        false))
+                .isInstanceOf(TableNotExistException.class)
+                .hasMessage(
+                        "Table (or view) %s does not exist in Catalog %s.",
+                        nonPartitionedPath, CATALOG_NAME);
+
+        // create non-partition table
+        CatalogTable nonPartitionedTable = this.newCatalogTable(Collections.emptyMap());
+        catalog.createTable(nonPartitionedPath, nonPartitionedTable, false);
+
+        // test TableNotPartitionedException
+        assertThatThrownBy(
+                        () ->
+                                catalog.createPartition(
+                                        nonPartitionedPath,
+                                        new CatalogPartitionSpec(
+                                                Collections.singletonMap("first", "1")),
+                                        null,
+                                        false))
+                .isInstanceOf(TableNotPartitionedException.class)
+                .hasMessage(
+                        "Table %s in catalog %s is not partitioned.",
+                        nonPartitionedPath, CATALOG_NAME);
+
+        // create partition table
+        ObjectPath partitionedPath = new ObjectPath(DEFAULT_DB, "partitioned_table1");
+        CatalogTable partitionedTable =
+                new ResolvedCatalogTable(
+                        CatalogTable.of(
+                                Schema.newBuilder().fromResolvedSchema(resolvedSchema).build(),
+                                "test comment",
+                                Collections.singletonList("first"),
+                                Collections.emptyMap()),
+                        resolvedSchema);
+        catalog.createTable(partitionedPath, partitionedTable, false);
+
+        // test InvalidPartitionException
+        assertThatThrownBy(
+                        () ->
+                                catalog.createPartition(
+                                        partitionedPath,
+                                        new CatalogPartitionSpec(
+                                                Collections.singletonMap("first", "**")),
+                                        null,
+                                        false))
+                .rootCause()
+                .isInstanceOf(InvalidPartitionException.class)
+                .hasMessage(
+                        "The partition value ** is invalid: '**' contains one or more characters other than ASCII alphanumerics, '_' and '-'");
+
+        // create partition success
+        catalog.createPartition(
+                partitionedPath,
+                new CatalogPartitionSpec(Collections.singletonMap("first", "success")),
+                null,
+                false);
+
+        // test PartitionAlreadyExistsException
+        assertThatThrownBy(
+                        () ->
+                                catalog.createPartition(
+                                        partitionedPath,
+                                        new CatalogPartitionSpec(
+                                                Collections.singletonMap("first", "success")),
+                                        null,
+                                        false))
+                .isInstanceOf(PartitionAlreadyExistsException.class)
+                .hasMessage(
+                        "Partition CatalogPartitionSpec{{%s}} of table %s in catalog %s already exists.",
+                        "first=success", partitionedPath, CATALOG_NAME);
     }
 
     @Test
@@ -687,5 +785,15 @@ class FlinkCatalogTest {
         } finally {
             securedCatalog.close();
         }
+    }
+
+    private void createAndCheckAndDropTable(
+            final ResolvedSchema schema, ObjectPath tablePath, Map<String, String> options)
+            throws Exception {
+        CatalogTable table = newCatalogTable(schema, options);
+        catalog.createTable(tablePath, table, false);
+        CatalogBaseTable tableCreated = catalog.getTable(tablePath);
+        checkEqualsRespectSchema((CatalogTable) tableCreated, table);
+        catalog.dropTable(tablePath, false);
     }
 }

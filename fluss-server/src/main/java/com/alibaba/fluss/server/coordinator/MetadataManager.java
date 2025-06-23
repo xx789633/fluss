@@ -1,11 +1,12 @@
 /*
- * Copyright (c) 2025 Alibaba Group Holding Ltd.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,6 +23,7 @@ import com.alibaba.fluss.exception.DatabaseAlreadyExistException;
 import com.alibaba.fluss.exception.DatabaseNotEmptyException;
 import com.alibaba.fluss.exception.DatabaseNotExistException;
 import com.alibaba.fluss.exception.FlussRuntimeException;
+import com.alibaba.fluss.exception.InvalidPartitionException;
 import com.alibaba.fluss.exception.PartitionAlreadyExistsException;
 import com.alibaba.fluss.exception.PartitionNotExistException;
 import com.alibaba.fluss.exception.SchemaNotExistException;
@@ -159,14 +161,37 @@ public class MetadataManager {
      */
     public Map<String, Long> listPartitions(TablePath tablePath)
             throws TableNotExistException, TableNotPartitionedException {
+        return listPartitions(tablePath, null);
+    }
+
+    /**
+     * List the partitions of the given table and partitionSpec.
+     *
+     * <p>Return a map from partition name to partition id.
+     */
+    public Map<String, Long> listPartitions(
+            TablePath tablePath, ResolvedPartitionSpec partitionFilter)
+            throws TableNotExistException, TableNotPartitionedException, InvalidPartitionException {
         TableInfo tableInfo = getTable(tablePath);
         if (!tableInfo.isPartitioned()) {
             throw new TableNotPartitionedException(
                     "Table '" + tablePath + "' is not a partitioned table.");
         }
-        return uncheck(
-                () -> zookeeperClient.getPartitionNameAndIds(tablePath),
-                "Fail to list partitions for table: " + tablePath);
+        try {
+            if (partitionFilter == null) {
+                return zookeeperClient.getPartitionNameAndIds(tablePath);
+            } else {
+
+                return zookeeperClient.getPartitionNameAndIds(
+                        tablePath, tableInfo.getPartitionKeys(), partitionFilter);
+            }
+        } catch (Exception e) {
+            throw new FlussRuntimeException(
+                    String.format(
+                            "Fail to list partitions for table: %s, partitionSpec: %s.",
+                            tablePath, partitionFilter),
+                    e);
+        }
     }
 
     public void dropDatabase(String name, boolean ignoreIfNotExists, boolean cascade)

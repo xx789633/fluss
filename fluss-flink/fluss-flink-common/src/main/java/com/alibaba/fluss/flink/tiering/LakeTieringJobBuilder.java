@@ -1,11 +1,12 @@
 /*
- * Copyright (c) 2025 Alibaba Group Holding Ltd.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -28,6 +29,7 @@ import com.alibaba.fluss.lake.lakestorage.LakeStoragePluginSetUp;
 import com.alibaba.fluss.lake.writer.LakeTieringFactory;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -41,6 +43,8 @@ import static com.alibaba.fluss.utils.Preconditions.checkNotNull;
 
 /** The builder to build Flink lake tiering job. */
 public class LakeTieringJobBuilder {
+
+    private static final String DEFAULT_TIERING_SERVICE_JOB_NAME = "Fluss Lake Tiering Service";
 
     private final StreamExecutionEnvironment env;
     private final Configuration flussConfig;
@@ -106,7 +110,11 @@ public class LakeTieringJobBuilder {
                 .setParallelism(1)
                 .setMaxParallelism(1)
                 .sinkTo(new DiscardingSink());
+        String jobName =
+                env.getConfiguration()
+                        .getOptional(PipelineOptions.NAME)
+                        .orElse(DEFAULT_TIERING_SERVICE_JOB_NAME);
 
-        return env.executeAsync();
+        return env.executeAsync(jobName);
     }
 }

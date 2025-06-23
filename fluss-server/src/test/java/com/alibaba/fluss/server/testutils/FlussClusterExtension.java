@@ -1,11 +1,12 @@
 /*
- * Copyright (c) 2025 Alibaba Group Holding Ltd.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -38,6 +39,10 @@ import com.alibaba.fluss.rpc.messages.NotifyLeaderAndIsrRequest;
 import com.alibaba.fluss.rpc.messages.PbNotifyLeaderAndIsrReqForBucket;
 import com.alibaba.fluss.rpc.messages.StopReplicaRequest;
 import com.alibaba.fluss.rpc.metrics.ClientMetricGroup;
+import com.alibaba.fluss.security.acl.AccessControlEntry;
+import com.alibaba.fluss.security.acl.AclBinding;
+import com.alibaba.fluss.server.authorizer.Authorizer;
+import com.alibaba.fluss.server.authorizer.DefaultAuthorizer;
 import com.alibaba.fluss.server.coordinator.CoordinatorServer;
 import com.alibaba.fluss.server.coordinator.MetadataManager;
 import com.alibaba.fluss.server.entity.NotifyLeaderAndIsrData;
@@ -58,6 +63,8 @@ import com.alibaba.fluss.server.zk.data.PartitionAssignment;
 import com.alibaba.fluss.server.zk.data.RemoteLogManifestHandle;
 import com.alibaba.fluss.server.zk.data.TableAssignment;
 import com.alibaba.fluss.utils.FileUtils;
+import com.alibaba.fluss.utils.clock.Clock;
+import com.alibaba.fluss.utils.clock.SystemClock;
 
 import org.apache.curator.test.TestingServer;
 import org.junit.jupiter.api.extension.AfterAllCallback;
@@ -119,6 +126,7 @@ public final class FlussClusterExtension
     private final Map<Integer, TabletServer> tabletServers;
     private final Map<Integer, ServerInfo> tabletServerInfos;
     private final Configuration clusterConf;
+    private final Clock clock;
 
     /** Creates a new {@link Builder} for {@link FlussClusterExtension}. */
     public static Builder builder() {
@@ -129,13 +137,15 @@ public final class FlussClusterExtension
             int numOfTabletServers,
             String coordinatorServerListeners,
             String tabletServerListeners,
-            Configuration clusterConf) {
+            Configuration clusterConf,
+            Clock clock) {
         this.initialNumOfTabletServers = numOfTabletServers;
         this.tabletServers = new HashMap<>(numOfTabletServers);
         this.coordinatorServerListeners = coordinatorServerListeners;
         this.tabletServerListeners = tabletServerListeners;
         this.tabletServerInfos = new HashMap<>();
         this.clusterConf = clusterConf;
+        this.clock = clock;
     }
 
     @Override
@@ -302,7 +312,7 @@ public final class FlussClusterExtension
 
         setRemoteDataDir(tabletServerConf);
 
-        TabletServer tabletServer = new TabletServer(tabletServerConf);
+        TabletServer tabletServer = new TabletServer(tabletServerConf, clock);
         tabletServer.start();
         ServerInfo serverInfo =
                 new ServerInfo(
@@ -508,6 +518,13 @@ public final class FlussClusterExtension
 
     /** Wait until all the table assignments buckets are ready for table. */
     public void waitUtilTableReady(long tableId) {
+        waitUtilTableReadyWithAuthorization(tableId, null);
+    }
+
+    /**
+     * Wait until all the table assignments buckets and required authorization are ready for table.
+     */
+    public void waitUtilTableReadyWithAuthorization(long tableId, @Nullable AclBinding aclBinding) {
         ZooKeeperClient zkClient = getZooKeeperClient();
         retry(
                 Duration.ofMinutes(1),
@@ -516,6 +533,29 @@ public final class FlussClusterExtension
                             zkClient.getTableAssignment(tableId);
                     assertThat(tableAssignmentOpt).isPresent();
                     waitReplicaInAssignmentReady(zkClient, tableAssignmentOpt.get(), tableId, null);
+
+                    if (aclBinding != null) {
+                        getTabletServers()
+                                .forEach(
+                                        ts -> {
+                                            Authorizer authorizer = ts.getAuthorizer();
+                                            assertThat(authorizer).isNotNull();
+                                            AccessControlEntry accessControlEntry =
+                                                    aclBinding.getAccessControlEntry();
+                                            assertThat(
+                                                            ((DefaultAuthorizer) authorizer)
+                                                                    .aclsAllowAccess(
+                                                                            aclBinding
+                                                                                    .getResource(),
+                                                                            accessControlEntry
+                                                                                    .getPrincipal(),
+                                                                            accessControlEntry
+                                                                                    .getOperationType(),
+                                                                            accessControlEntry
+                                                                                    .getHost()))
+                                                    .isTrue();
+                                        });
+                    }
                 });
     }
 
@@ -788,6 +828,7 @@ public final class FlussClusterExtension
         private int numOfTabletServers = 1;
         private String tabletServerListeners = DEFAULT_LISTENERS;
         private String coordinatorServerListeners = DEFAULT_LISTENERS;
+        private Clock clock = SystemClock.getInstance();
 
         private final Configuration clusterConf = new Configuration();
 
@@ -821,12 +862,19 @@ public final class FlussClusterExtension
             return this;
         }
 
+        /** Sets the clock of fluss cluster. */
+        public Builder setClock(Clock clock) {
+            this.clock = clock;
+            return this;
+        }
+
         public FlussClusterExtension build() {
             return new FlussClusterExtension(
                     numOfTabletServers,
                     coordinatorServerListeners,
                     tabletServerListeners,
-                    clusterConf);
+                    clusterConf,
+                    clock);
         }
     }
 }

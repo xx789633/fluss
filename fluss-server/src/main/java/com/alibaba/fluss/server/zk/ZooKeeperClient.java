@@ -1,11 +1,12 @@
 /*
- * Copyright (c) 2025 Alibaba Group Holding Ltd.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,6 +18,7 @@
 package com.alibaba.fluss.server.zk;
 
 import com.alibaba.fluss.annotation.Internal;
+import com.alibaba.fluss.metadata.ResolvedPartitionSpec;
 import com.alibaba.fluss.metadata.Schema;
 import com.alibaba.fluss.metadata.SchemaInfo;
 import com.alibaba.fluss.metadata.TableBucket;
@@ -84,6 +86,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
+
+import static com.alibaba.fluss.metadata.ResolvedPartitionSpec.fromPartitionName;
 
 /**
  * This class includes methods for write/read various metadata (leader address, tablet server
@@ -444,6 +448,28 @@ public class ZooKeeperClient implements AutoCloseable {
             optPartition.ifPresent(
                     partition -> partitions.put(partitionName, partition.getPartitionId()));
         }
+        return partitions;
+    }
+
+    /** Get the partition and the id for the partitions of a table in ZK by partition spec. */
+    public Map<String, Long> getPartitionNameAndIds(
+            TablePath tablePath,
+            List<String> partitionKeys,
+            ResolvedPartitionSpec partialPartitionSpec)
+            throws Exception {
+        Map<String, Long> partitions = new HashMap<>();
+
+        for (String partitionName : getPartitions(tablePath)) {
+            ResolvedPartitionSpec resolvedPartitionSpec =
+                    fromPartitionName(partitionKeys, partitionName);
+            boolean contains = resolvedPartitionSpec.contains(partialPartitionSpec);
+            if (contains) {
+                Optional<TablePartition> optPartition = getPartition(tablePath, partitionName);
+                optPartition.ifPresent(
+                        partition -> partitions.put(partitionName, partition.getPartitionId()));
+            }
+        }
+
         return partitions;
     }
 

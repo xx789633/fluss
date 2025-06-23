@@ -1,11 +1,12 @@
 /*
- * Copyright (c) 2025 Alibaba Group Holding Ltd.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -30,7 +31,6 @@ import com.alibaba.fluss.fs.token.ObtainedSecurityToken;
 import com.alibaba.fluss.metadata.PartitionInfo;
 import com.alibaba.fluss.metadata.PartitionSpec;
 import com.alibaba.fluss.metadata.PhysicalTablePath;
-import com.alibaba.fluss.metadata.ResolvedPartitionSpec;
 import com.alibaba.fluss.metadata.TableBucket;
 import com.alibaba.fluss.metadata.TablePath;
 import com.alibaba.fluss.rpc.messages.CreatePartitionRequest;
@@ -67,6 +67,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.alibaba.fluss.rpc.util.CommonRpcMessageUtils.toResolvedPartitionSpec;
 import static com.alibaba.fluss.utils.Preconditions.checkState;
 
 /**
@@ -300,14 +301,8 @@ public class ClientRpcMessageUtils {
                 .setTablePath()
                 .setDatabaseName(tablePath.getDatabaseName())
                 .setTableName(tablePath.getTableName());
-        List<PbKeyValue> pbPartitionKeyAndValues = new ArrayList<>();
-        partitionSpec
-                .getSpecMap()
-                .forEach(
-                        (partitionKey, value) ->
-                                pbPartitionKeyAndValues.add(
-                                        new PbKeyValue().setKey(partitionKey).setValue(value)));
-        createPartitionRequest.setPartitionSpec().addAllPartitionKeyValues(pbPartitionKeyAndValues);
+        PbPartitionSpec pbPartitionSpec = makePbPartitionSpec(partitionSpec);
+        createPartitionRequest.setPartitionSpec(pbPartitionSpec);
         return createPartitionRequest;
     }
 
@@ -319,14 +314,8 @@ public class ClientRpcMessageUtils {
                 .setTablePath()
                 .setDatabaseName(tablePath.getDatabaseName())
                 .setTableName(tablePath.getTableName());
-        List<PbKeyValue> pbPartitionKeyAndValues = new ArrayList<>();
-        partitionSpec
-                .getSpecMap()
-                .forEach(
-                        (partitionKey, value) ->
-                                pbPartitionKeyAndValues.add(
-                                        new PbKeyValue().setKey(partitionKey).setValue(value)));
-        dropPartitionRequest.setPartitionSpec().addAllPartitionKeyValues(pbPartitionKeyAndValues);
+        PbPartitionSpec pbPartitionSpec = makePbPartitionSpec(partitionSpec);
+        dropPartitionRequest.setPartitionSpec(pbPartitionSpec);
         return dropPartitionRequest;
     }
 
@@ -348,13 +337,11 @@ public class ClientRpcMessageUtils {
                                 PbKeyValue::getKey, PbKeyValue::getValue));
     }
 
-    public static ResolvedPartitionSpec toResolvedPartitionSpec(PbPartitionSpec pbPartitionSpec) {
-        List<String> partitionKeys = new ArrayList<>();
-        List<String> partitionValues = new ArrayList<>();
-        for (PbKeyValue pbKeyValue : pbPartitionSpec.getPartitionKeyValuesList()) {
-            partitionKeys.add(pbKeyValue.getKey());
-            partitionValues.add(pbKeyValue.getValue());
-        }
-        return new ResolvedPartitionSpec(partitionKeys, partitionValues);
+    public static PbPartitionSpec makePbPartitionSpec(PartitionSpec partitionSpec) {
+        Map<String, String> partitionSpecMap = partitionSpec.getSpecMap();
+        List<PbKeyValue> pbKeyValues = new ArrayList<>(partitionSpecMap.size());
+        partitionSpecMap.forEach(
+                (key, value) -> pbKeyValues.add(new PbKeyValue().setKey(key).setValue(value)));
+        return new PbPartitionSpec().addAllPartitionKeyValues(pbKeyValues);
     }
 }
