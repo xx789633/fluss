@@ -62,7 +62,7 @@ public class ArrowWriter {
         i++;
         fieldWriters[i].write(GenericRow.of(offset), 0, true);
         i++;
-        fieldWriters[i].write(GenericRow.of(TimestampLtz.fromMillis(timestamp)), 0, true);
+        fieldWriters[i].write(GenericRow.of(TimestampLtz.fromEpochMillis(timestamp)), 0, true);
         recordsCount++;
     }
 
