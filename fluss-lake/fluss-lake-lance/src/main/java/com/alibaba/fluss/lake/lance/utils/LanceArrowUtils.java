@@ -28,6 +28,7 @@ import com.alibaba.fluss.lake.lance.writers.ArrowIntWriter;
 import com.alibaba.fluss.lake.lance.writers.ArrowSmallIntWriter;
 import com.alibaba.fluss.lake.lance.writers.ArrowTimeWriter;
 import com.alibaba.fluss.lake.lance.writers.ArrowTimestampLtzWriter;
+import com.alibaba.fluss.lake.lance.writers.ArrowTimestampNtzWriter;
 import com.alibaba.fluss.lake.lance.writers.ArrowTinyIntWriter;
 import com.alibaba.fluss.lake.lance.writers.ArrowVarBinaryWriter;
 import com.alibaba.fluss.lake.lance.writers.ArrowVarCharWriter;
@@ -265,10 +266,12 @@ public class LanceArrowUtils {
                 || vector instanceof TimeMicroVector
                 || vector instanceof TimeNanoVector) {
             return ArrowTimeWriter.forField(vector);
-        } else if (vector instanceof TimeStampVector
-                && ((ArrowType.Timestamp) vector.getField().getType()).getTimezone() == null) {
-            int precision = 0;
-            return ArrowTimestampLtzWriter.forField(vector, precision);
+        } else if (vector instanceof TimeStampVector) {
+            if (((ArrowType.Timestamp) vector.getField().getType()).getTimezone() == null) {
+                return ArrowTimestampNtzWriter.forField(vector, 0);
+            } else {
+                return ArrowTimestampLtzWriter.forField(vector, 0);
+            }
         } else {
             throw new UnsupportedOperationException();
         }
