@@ -210,9 +210,7 @@
                         <configuration>
                             <artifactSet>
                                 <includes>
-                                    <include>com.lancedb:*</include>
-                                    <include>org.apache.arrow:*</include>
-                                    <include>com.google.flatbuffers:*</include>
+                                    <include>*:*</include>
                                 </includes>
                             </artifactSet>
                         </configuration>
