@@ -55,5 +55,10 @@ public interface WriterInitContext {
     @Nullable
     String partition();
 
+    /**
+     * Returns the table schema.
+     *
+     * @return the table schema
+     */
     Schema schema();
 }

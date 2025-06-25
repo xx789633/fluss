@@ -661,7 +661,8 @@ class PaimonTieringTest {
 
                     @Override
                     public com.alibaba.fluss.metadata.Schema schema() {
-                        return null;
+                        throw new UnsupportedOperationException(
+                                "The lake writer in Paimon currently uses paimonCatalog to determine the schema.");
                     }
                 });
     }
