@@ -20,7 +20,8 @@ import com.alibaba.fluss.lake.lance.utils.LanceArrowUtils;
 import com.alibaba.fluss.lake.lance.writers.ArrowFieldWriter;
 import com.alibaba.fluss.row.GenericRow;
 import com.alibaba.fluss.row.InternalRow;
-import com.alibaba.fluss.row.TimestampNtz;
+import com.alibaba.fluss.row.TimestampLtz;
+import com.alibaba.fluss.types.RowType;
 
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
@@ -41,13 +42,14 @@ public class ArrowWriter {
         this.root = root;
     }
 
-    public static ArrowWriter create(VectorSchemaRoot root) {
+    public static ArrowWriter create(VectorSchemaRoot root, RowType rowType) {
         ArrowFieldWriter<InternalRow>[] fieldWriters =
                 new ArrowFieldWriter[root.getFieldVectors().size()];
         for (int i = 0; i < fieldWriters.length; i++) {
             FieldVector fieldVector = root.getVector(i);
 
-            fieldWriters[i] = LanceArrowUtils.createArrowFieldWriter(fieldVector);
+            fieldWriters[i] =
+                    LanceArrowUtils.createArrowFieldWriter(fieldVector, rowType.getTypeAt(i));
         }
         return new ArrowWriter(fieldWriters, root);
     }
@@ -62,7 +64,7 @@ public class ArrowWriter {
         i++;
         fieldWriters[i].write(GenericRow.of(offset), 0, true);
         i++;
-        fieldWriters[i].write(GenericRow.of(TimestampNtz.fromMillis(timestamp)), 0, true);
+        fieldWriters[i].write(GenericRow.of(TimestampLtz.fromEpochMillis(timestamp)), 0, true);
         recordsCount++;
     }
 

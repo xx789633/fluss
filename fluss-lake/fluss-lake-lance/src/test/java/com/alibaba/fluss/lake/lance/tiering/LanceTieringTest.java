@@ -20,10 +20,12 @@ import com.alibaba.fluss.config.Configuration;
 import com.alibaba.fluss.lake.committer.CommittedLakeSnapshot;
 import com.alibaba.fluss.lake.committer.LakeCommitter;
 import com.alibaba.fluss.lake.lance.LanceConfig;
+import com.alibaba.fluss.lake.lance.utils.LanceArrowUtils;
 import com.alibaba.fluss.lake.lance.utils.LanceDatasetAdapter;
 import com.alibaba.fluss.lake.serializer.SimpleVersionedSerializer;
 import com.alibaba.fluss.lake.writer.LakeWriter;
 import com.alibaba.fluss.lake.writer.WriterInitContext;
+import com.alibaba.fluss.metadata.Schema;
 import com.alibaba.fluss.metadata.TableBucket;
 import com.alibaba.fluss.metadata.TablePath;
 import com.alibaba.fluss.record.ChangeType;
@@ -31,17 +33,13 @@ import com.alibaba.fluss.record.GenericRecord;
 import com.alibaba.fluss.record.LogRecord;
 import com.alibaba.fluss.row.BinaryString;
 import com.alibaba.fluss.row.GenericRow;
+import com.alibaba.fluss.types.DataTypes;
 import com.alibaba.fluss.utils.types.Tuple2;
 
 import com.lancedb.lance.WriteParams;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.ipc.ArrowReader;
-import org.apache.arrow.vector.types.TimeUnit;
-import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.FieldType;
-import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -92,7 +90,7 @@ public class LanceTieringTest {
                         configuration.toMap(),
                         tablePath.getDatabaseName(),
                         tablePath.getTableName());
-        createTable(tablePath, isPartitioned, null, config);
+        Schema schema = createTable(tablePath, isPartitioned, null, config);
 
         List<LanceWriteResult> lanceWriteResults = new ArrayList<>();
         SimpleVersionedSerializer<LanceWriteResult> writeResultSerializer =
@@ -113,7 +111,7 @@ public class LanceTieringTest {
         for (int bucket = 0; bucket < bucketNum; bucket++) {
             for (String partition : partitions) {
                 try (LakeWriter<LanceWriteResult> lakeWriter =
-                        createLakeWriter(tablePath, bucket, partition)) {
+                        createLakeWriter(tablePath, bucket, partition, schema)) {
                     Tuple2<String, Integer> partitionBucket = Tuple2.of(partition, bucket);
                     Tuple2<List<LogRecord>, List<LogRecord>> writeAndExpectRecords =
                             genLogTableRecords(partition, bucket, 10);
@@ -219,7 +217,8 @@ public class LanceTieringTest {
     }
 
     private LakeWriter<LanceWriteResult> createLakeWriter(
-            TablePath tablePath, int bucket, @Nullable String partition) throws IOException {
+            TablePath tablePath, int bucket, @Nullable String partition, Schema schema)
+            throws IOException {
         return lanceLakeTieringFactory.createLakeWriter(
                 new WriterInitContext() {
                     @Override
@@ -237,6 +236,11 @@ public class LanceTieringTest {
                     @Override
                     public String partition() {
                         return partition;
+                    }
+
+                    @Override
+                    public com.alibaba.fluss.metadata.Schema schema() {
+                        return schema;
                     }
                 });
     }
@@ -267,35 +271,31 @@ public class LanceTieringTest {
         return Tuple2.of(logRecords, logRecords);
     }
 
-    private void createTable(
+    private Schema createTable(
             TablePath tablePath,
             boolean isPartitioned,
             @Nullable Integer numBuckets,
             LanceConfig config)
             throws Exception {
+        Schema.Builder builder =
+                Schema.newBuilder()
+                        .column("c1", DataTypes.INT())
+                        .column("c2", DataTypes.STRING())
+                        .column("c3", DataTypes.STRING());
 
-        Field c1 = new Field("c1", FieldType.nullable(new ArrowType.Int(4 * 8, true)), null);
-        Field c2 = new Field("c2", FieldType.nullable(new ArrowType.Utf8()), null);
-        Field c3 = new Field("c3", FieldType.nullable(new ArrowType.Utf8()), null);
-        ArrayList<Field> fields = new ArrayList<>(Arrays.asList(c1, c2, c3));
-        doCreateLanceTable(tablePath, fields, config);
+        return doCreateLanceTable(tablePath, builder, config);
     }
 
-    private void doCreateLanceTable(TablePath tablePath, List<Field> fields, LanceConfig config)
+    private Schema doCreateLanceTable(
+            TablePath tablePath, Schema.Builder schemaBuilder, LanceConfig config)
             throws Exception {
-        Field bucketCol =
-                new Field(
-                        BUCKET_COLUMN_NAME, FieldType.nullable(new ArrowType.Int(32, true)), null);
-        Field offsetCol =
-                new Field(
-                        OFFSET_COLUMN_NAME, FieldType.nullable(new ArrowType.Int(64, true)), null);
-        Field timestampCol =
-                new Field(
-                        TIMESTAMP_COLUMN_NAME,
-                        FieldType.nullable(new ArrowType.Timestamp(TimeUnit.MICROSECOND, null)),
-                        null);
-        fields.addAll(Arrays.asList(bucketCol, offsetCol, timestampCol));
+        schemaBuilder.column(BUCKET_COLUMN_NAME, DataTypes.INT());
+        schemaBuilder.column(OFFSET_COLUMN_NAME, DataTypes.BIGINT());
+        schemaBuilder.column(TIMESTAMP_COLUMN_NAME, DataTypes.TIMESTAMP_LTZ());
+        Schema schema = schemaBuilder.build();
         WriteParams params = LanceConfig.genWriteParamsFromConfig(config);
-        LanceDatasetAdapter.createDataset(config.getDatasetUri(), new Schema(fields), params);
+        LanceDatasetAdapter.createDataset(
+                config.getDatasetUri(), LanceArrowUtils.toArrowSchema(schema.getRowType()), params);
+        return schema;
     }
 }

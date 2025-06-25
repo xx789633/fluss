@@ -18,6 +18,7 @@ package com.alibaba.fluss.lake.lance.tiering;
 
 import com.alibaba.fluss.metadata.TableBucket;
 import com.alibaba.fluss.record.LogRecord;
+import com.alibaba.fluss.types.RowType;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.ipc.ArrowReader;
@@ -34,6 +35,7 @@ import static com.alibaba.fluss.utils.Preconditions.checkNotNull;
 /** A custom arrow reader that supports writes Fluss internal rows while reading data in batches. */
 public class LanceArrowWriter extends ArrowReader {
     private final Schema schema;
+    private final RowType rowType;
     private final int batchSize;
 
     private volatile boolean finished;
@@ -46,11 +48,16 @@ public class LanceArrowWriter extends ArrowReader {
     private final int bucket;
 
     public LanceArrowWriter(
-            BufferAllocator allocator, Schema schema, int batchSize, TableBucket tableBucket) {
+            BufferAllocator allocator,
+            Schema schema,
+            int batchSize,
+            TableBucket tableBucket,
+            RowType rowType) {
         super(allocator);
         checkNotNull(schema);
         checkArgument(batchSize > 0);
         this.schema = schema;
+        this.rowType = rowType;
         this.batchSize = batchSize;
         this.bucket = tableBucket.getBucket();
         this.writeToken = new Semaphore(0);
@@ -80,7 +87,7 @@ public class LanceArrowWriter extends ArrowReader {
     @Override
     public void prepareLoadNextBatch() throws IOException {
         super.prepareLoadNextBatch();
-        arrowWriter = ArrowWriter.create(this.getVectorSchemaRoot());
+        arrowWriter = ArrowWriter.create(this.getVectorSchemaRoot(), rowType);
         // release batch size token for write
         writeToken.release(batchSize);
     }

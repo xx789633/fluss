@@ -16,24 +16,24 @@
 
 package com.alibaba.fluss.lake.lance.tiering;
 
+import com.alibaba.fluss.lake.lance.utils.LanceArrowUtils;
 import com.alibaba.fluss.metadata.TableBucket;
 import com.alibaba.fluss.record.GenericRecord;
 import com.alibaba.fluss.record.LogRecord;
 import com.alibaba.fluss.row.GenericRow;
+import com.alibaba.fluss.types.DataField;
+import com.alibaba.fluss.types.DataTypes;
+import com.alibaba.fluss.types.RowType;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.VectorUnloader;
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
-import org.apache.arrow.vector.types.TimeUnit;
-import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.FieldType;
-import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -48,34 +48,24 @@ public class LanceArrowWriterTest {
     @Test
     public void test() throws Exception {
         try (BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE)) {
-            Field field =
-                    new Field(
-                            "column1",
-                            FieldType.nullable(
-                                    org.apache.arrow.vector.types.Types.MinorType.INT.getType()),
-                            null);
-            Field bucketCol =
-                    new Field(
-                            BUCKET_COLUMN_NAME,
-                            FieldType.nullable(new ArrowType.Int(32, true)),
-                            null);
-            Field offsetCol =
-                    new Field(
-                            OFFSET_COLUMN_NAME,
-                            FieldType.nullable(new ArrowType.Int(64, true)),
-                            null);
-            Field timestampCol =
-                    new Field(
-                            TIMESTAMP_COLUMN_NAME,
-                            FieldType.nullable(new ArrowType.Timestamp(TimeUnit.MICROSECOND, null)),
-                            null);
-            Schema schema = new Schema(Arrays.asList(field, bucketCol, offsetCol, timestampCol));
+            List<DataField> fields =
+                    Arrays.asList(
+                            new DataField("column1", DataTypes.INT()),
+                            new DataField(BUCKET_COLUMN_NAME, DataTypes.INT()),
+                            new DataField(OFFSET_COLUMN_NAME, DataTypes.BIGINT()),
+                            new DataField(TIMESTAMP_COLUMN_NAME, DataTypes.TIMESTAMP_LTZ()));
 
+            RowType rowType = new RowType(fields);
             final int totalRows = 125;
             final int batchSize = 34;
 
             final LanceArrowWriter arrowWriter =
-                    new LanceArrowWriter(allocator, schema, batchSize, new TableBucket(0, 0L, 0));
+                    new LanceArrowWriter(
+                            allocator,
+                            LanceArrowUtils.toArrowSchema(rowType),
+                            batchSize,
+                            new TableBucket(0, 0L, 0),
+                            rowType);
             AtomicInteger rowsWritten = new AtomicInteger(0);
             AtomicInteger rowsRead = new AtomicInteger(0);
             AtomicLong expectedBytesRead = new AtomicLong(0);

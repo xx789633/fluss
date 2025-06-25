@@ -19,6 +19,7 @@ package com.alibaba.fluss.lake.lance.utils;
 import com.alibaba.fluss.lake.lance.LanceConfig;
 import com.alibaba.fluss.lake.lance.tiering.LanceArrowWriter;
 import com.alibaba.fluss.metadata.TableBucket;
+import com.alibaba.fluss.types.RowType;
 
 import com.lancedb.lance.Dataset;
 import com.lancedb.lance.Fragment;
@@ -129,7 +130,7 @@ public class LanceDatasetAdapter {
     }
 
     public static LanceArrowWriter getArrowWriter(
-            Schema schema, int batchSize, TableBucket tableBucket) {
-        return new LanceArrowWriter(allocator, schema, batchSize, tableBucket);
+            Schema schema, int batchSize, TableBucket tableBucket, RowType rowType) {
+        return new LanceArrowWriter(allocator, schema, batchSize, tableBucket, rowType);
     }
 }

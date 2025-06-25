@@ -234,7 +234,8 @@ public class LanceArrowUtils {
         return precision;
     }
 
-    public static ArrowFieldWriter<InternalRow> createArrowFieldWriter(ValueVector vector) {
+    public static ArrowFieldWriter<InternalRow> createArrowFieldWriter(
+            ValueVector vector, DataType dataType) {
         if (vector instanceof TinyIntVector) {
             return ArrowTinyIntWriter.forField((TinyIntVector) vector);
         } else if (vector instanceof SmallIntVector) {
@@ -266,14 +267,19 @@ public class LanceArrowUtils {
                 || vector instanceof TimeMicroVector
                 || vector instanceof TimeNanoVector) {
             return ArrowTimeWriter.forField(vector);
-        } else if (vector instanceof TimeStampVector) {
-            if (((ArrowType.Timestamp) vector.getField().getType()).getTimezone() == null) {
-                return ArrowTimestampNtzWriter.forField(vector, 0);
+        } else if (vector instanceof TimeStampVector
+                && ((ArrowType.Timestamp) vector.getField().getType()).getTimezone() == null) {
+            int precision;
+            if (dataType instanceof LocalZonedTimestampType) {
+                precision = ((LocalZonedTimestampType) dataType).getPrecision();
+                return ArrowTimestampLtzWriter.forField(vector, precision);
             } else {
-                return ArrowTimestampLtzWriter.forField(vector, 0);
+                precision = ((TimestampType) dataType).getPrecision();
+                return ArrowTimestampNtzWriter.forField(vector, precision);
             }
         } else {
-            throw new UnsupportedOperationException();
+            throw new UnsupportedOperationException(
+                    String.format("Unsupported type %s.", dataType));
         }
     }
 }

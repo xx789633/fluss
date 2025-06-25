@@ -53,7 +53,10 @@ public class LanceLakeWriter implements LakeWriter<LanceWriteResult> {
         }
         this.arrowWriter =
                 LanceDatasetAdapter.getArrowWriter(
-                        schema.get(), batchSize, writerInitContext.tableBucket());
+                        schema.get(),
+                        batchSize,
+                        writerInitContext.tableBucket(),
+                        writerInitContext.schema().getRowType());
 
         WriteParams params = LanceConfig.genWriteParamsFromConfig(config);
         Callable<List<FragmentMetadata>> fragmentCreator =
