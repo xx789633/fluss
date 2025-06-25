@@ -658,6 +658,11 @@ class PaimonTieringTest {
                     public String partition() {
                         return partition;
                     }
+
+                    @Override
+                    public com.alibaba.fluss.metadata.Schema schema() {
+                        return null;
+                    }
                 });
     }
 
