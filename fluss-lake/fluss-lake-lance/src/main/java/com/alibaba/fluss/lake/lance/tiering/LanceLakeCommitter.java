@@ -100,9 +100,12 @@ public class LanceLakeCommitter implements LakeCommitter<LanceWriteResult, Lance
                 new CommittedLakeSnapshot(latestLakeSnapshotIdOfLake.get());
 
         LinkedHashMap<Integer, Long> bucketEndOffset = new LinkedHashMap<>();
+
+        Map<String, String> options = config.getOptions();
+        options.put("version", String.valueOf((latestLakeSnapshotIdOfLake.get() + 1)));
         ArrowReader reader =
                 LanceDatasetAdapter.getArrowReader(
-                        config,
+                        LanceConfig.from(options, config.getDatabaseName(), config.getTableName()),
                         Arrays.asList(BUCKET_COLUMN_NAME, OFFSET_COLUMN_NAME),
                         Arrays.asList());
         VectorSchemaRoot readerRoot = reader.getVectorSchemaRoot();

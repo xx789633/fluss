@@ -83,6 +83,14 @@ public class LanceConfig implements Serializable {
         return options;
     }
 
+    public String getDatabaseName() {
+        return databaseName;
+    }
+
+    public String getTableName() {
+        return tableName;
+    }
+
     public String getDatasetUri() {
         return datasetUri;
     }
