@@ -278,18 +278,18 @@ public class LanceTieringTest {
             @Nullable Integer numBuckets,
             LanceConfig config)
             throws Exception {
-        Schema.Builder builder =
-                Schema.newBuilder()
-                        .column("c1", DataTypes.INT())
-                        .column("c2", DataTypes.STRING())
-                        .column("c3", DataTypes.STRING());
+        List<Schema.Column> columns = new ArrayList<>();
+        columns.add(new Schema.Column("c1", DataTypes.INT()));
+        columns.add(new Schema.Column("c2", DataTypes.STRING()));
+        columns.add(new Schema.Column("c3", DataTypes.STRING()));
 
-        return doCreateLanceTable(tablePath, builder, config);
+        doCreateLanceTable(tablePath, columns, config);
+        return Schema.newBuilder().fromColumns(columns).build();
     }
 
-    private Schema doCreateLanceTable(
-            TablePath tablePath, Schema.Builder schemaBuilder, LanceConfig config)
-            throws Exception {
+    private void doCreateLanceTable(
+            TablePath tablePath, List<Schema.Column> columns, LanceConfig config) throws Exception {
+        Schema.Builder schemaBuilder = Schema.newBuilder().fromColumns(columns);
         schemaBuilder.column(BUCKET_COLUMN_NAME, DataTypes.INT());
         schemaBuilder.column(OFFSET_COLUMN_NAME, DataTypes.BIGINT());
         schemaBuilder.column(TIMESTAMP_COLUMN_NAME, DataTypes.TIMESTAMP_LTZ());
@@ -297,6 +297,5 @@ public class LanceTieringTest {
         WriteParams params = LanceConfig.genWriteParamsFromConfig(config);
         LanceDatasetAdapter.createDataset(
                 config.getDatasetUri(), LanceArrowUtils.toArrowSchema(schema.getRowType()), params);
-        return schema;
     }
 }
