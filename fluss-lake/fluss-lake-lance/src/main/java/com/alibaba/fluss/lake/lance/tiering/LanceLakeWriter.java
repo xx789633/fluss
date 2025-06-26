@@ -23,12 +23,10 @@ import com.alibaba.fluss.lake.lance.utils.LanceDatasetAdapter;
 import com.alibaba.fluss.lake.writer.LakeWriter;
 import com.alibaba.fluss.lake.writer.WriterInitContext;
 import com.alibaba.fluss.record.LogRecord;
-
 import com.alibaba.fluss.types.DataField;
+import com.alibaba.fluss.types.DataTypes;
 import com.alibaba.fluss.types.RowType;
-import com.alibaba.fluss.types.BigIntType;
-import com.alibaba.fluss.types.IntType;
-import com.alibaba.fluss.types.LocalZonedTimestampType;
+
 import com.lancedb.lance.FragmentMetadata;
 import com.lancedb.lance.WriteParams;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -61,26 +59,21 @@ public class LanceLakeWriter implements LakeWriter<LanceWriteResult> {
         if (!schema.isPresent()) {
             throw new IOException("Fail to get dataset " + config.getDatasetUri() + " in Lance.");
         }
-        RowType originalRowType = writerInitContext.schema().getRowType();
 
         RowType.Builder rowTypeBuilder = RowType.builder();
-
-        for (DataField field : originalRowType.getFields()) {
+        for (DataField field : writerInitContext.schema().getRowType().getFields()) {
             rowTypeBuilder.field(field.getName(), field.getType());
         }
-
-        rowTypeBuilder.field(BUCKET_COLUMN_NAME, new IntType());
-        rowTypeBuilder.field(OFFSET_COLUMN_NAME, new BigIntType());
-        rowTypeBuilder.field(TIMESTAMP_COLUMN_NAME, new LocalZonedTimestampType(3));
-
-        RowType rowTypes = rowTypeBuilder.build();
+        rowTypeBuilder.field(BUCKET_COLUMN_NAME, DataTypes.INT());
+        rowTypeBuilder.field(OFFSET_COLUMN_NAME, DataTypes.BIGINT());
+        rowTypeBuilder.field(TIMESTAMP_COLUMN_NAME, DataTypes.TIMESTAMP_LTZ());
 
         this.arrowWriter =
                 LanceDatasetAdapter.getArrowWriter(
                         schema.get(),
                         batchSize,
                         writerInitContext.tableBucket(),
-                        rowTypes);
+                        rowTypeBuilder.build());
 
         WriteParams params = LanceConfig.genWriteParamsFromConfig(config);
         Callable<List<FragmentMetadata>> fragmentCreator =
