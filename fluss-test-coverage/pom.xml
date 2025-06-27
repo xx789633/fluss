@@ -328,6 +328,7 @@
                                         <exclude>com.alibaba.fluss.lake.lance.writers.*</exclude>
                                         <exclude>com.alibaba.fluss.lake.lance.LanceConfig</exclude>
                                         <exclude>com.alibaba.fluss.lake.lance.utils.LanceArrowUtils</exclude>
+                                        <exclude>com.alibaba.fluss.lake.lance.utils.LanceArrowUtils.DataTypeToArrowTypeConverter</exclude>
                                         <!-- start exclude for flink tiering service -->
                                         <exclude>com.alibaba.fluss.flink.tiering.source.TieringSourceOptions</exclude>
                                         <exclude>com.alibaba.fluss.flink.tiering.source.TieringSource.Builder</exclude>
