@@ -232,24 +232,5 @@
                 </executions>
             </plugin>
         </plugins>
-
-        <pluginManagement>
-            <plugins>
-                <plugin>
-                    <groupId>org.jacoco</groupId>
-                    <artifactId>jacoco-maven-plugin</artifactId>
-
-                    <configuration>
-                        <excludes>
-                            <exclude>com.alibaba.fluss.lake.lance.writers.*</exclude>
-                            <exclude>com.alibaba.fluss.lake.lance.LanceConfig</exclude>
-                            <exclude>com.alibaba.fluss.lake.lance.utils.LanceArrowUtils</exclude>
-                            <exclude>com.alibaba.fluss.lake.lance.utils.LanceArrowUtils.DataTypeToArrowTypeConverter</exclude>
-                        </excludes>
-                    </configuration>
-                </plugin>
-            </plugins>
-        </pluginManagement>
     </build>
-
 </project>
