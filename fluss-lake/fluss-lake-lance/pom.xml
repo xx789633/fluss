@@ -219,15 +219,6 @@
                                     <exclude>org.apache.flink:*</exclude>
                                 </excludes>
                             </artifactSet>
-                            <filters>
-                                <filter>
-                                    <artifact>*</artifact>
-                                    <excludes>
-                                        <exclude>LICENSE*</exclude>
-                                        <exclude>NOTICE</exclude>
-                                    </excludes>
-                                </filter>
-                            </filters>
                         </configuration>
                     </execution>
                 </executions>
