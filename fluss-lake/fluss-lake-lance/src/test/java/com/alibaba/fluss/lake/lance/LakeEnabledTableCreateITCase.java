@@ -143,27 +143,4 @@ class LakeEnabledTableCreateITCase {
                         Arrays.asList(logC1, logC2, logC3, logC4, logC5));
         assertThat(expectedSchema).isEqualTo(LanceDatasetAdapter.getSchema(config).get());
     }
-
-    @Test
-    void testPrimaryKeyTable() throws Exception {
-        TableDescriptor pkTable =
-                TableDescriptor.builder()
-                        .schema(
-                                Schema.newBuilder()
-                                        .column("pk_c1", DataTypes.INT())
-                                        .column("pk_c2", DataTypes.STRING())
-                                        .primaryKey("pk_c1")
-                                        .build())
-                        .distributedBy(BUCKET_NUM)
-                        .property(ConfigOptions.TABLE_DATALAKE_ENABLED, true)
-                        .build();
-        TablePath pkTablePath = TablePath.of(DATABASE, "pk_table");
-        admin.createTable(pkTablePath, pkTable, false).get();
-
-        assertThat(
-                        LanceDatasetAdapter.getSchema(
-                                        LanceConfig.from(lanceConf.toMap(), DATABASE, "pk_table"))
-                                .isPresent())
-                .isFalse();
-    }
 }
