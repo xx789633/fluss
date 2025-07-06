@@ -42,6 +42,8 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.nio.file.Files;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 import static com.alibaba.fluss.metadata.TableDescriptor.BUCKET_COLUMN_NAME;
 import static com.alibaba.fluss.metadata.TableDescriptor.OFFSET_COLUMN_NAME;
@@ -107,6 +109,9 @@ class LakeEnabledTableCreateITCase {
 
     @Test
     void testLogTable() throws Exception {
+        Map<String, String> customProperties = new HashMap<>();
+        customProperties.put("lance.batch_size", "512");
+
         // test bucket key log table
         TableDescriptor logTable =
                 TableDescriptor.builder()
@@ -116,6 +121,7 @@ class LakeEnabledTableCreateITCase {
                                         .column("log_c2", DataTypes.STRING())
                                         .build())
                         .property(ConfigOptions.TABLE_DATALAKE_ENABLED, true)
+                        .customProperties(customProperties)
                         .distributedBy(BUCKET_NUM, "log_c1", "log_c2")
                         .build();
         TablePath logTablePath = TablePath.of(DATABASE, "log_table");
