@@ -68,6 +68,13 @@
             <scope>provided</scope>
         </dependency>
 
+        <dependency>
+            <groupId>com.alibaba.fluss</groupId>
+            <artifactId>fluss-fs-obs</artifactId>
+            <version>${project.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
         <!-- metrics plugin -->
         <dependency>
             <groupId>com.alibaba.fluss</groupId>
@@ -92,11 +99,18 @@
 
         <dependency>
             <groupId>com.alibaba.fluss</groupId>
-            <artifactId>fluss-lake-lance</artifactId>
+            <artifactId>fluss-lake-iceberg</artifactId>
             <version>${project.version}</version>
             <scope>provided</scope>
         </dependency>
 
+        <dependency>
+            <groupId>com.alibaba.fluss</groupId>
+            <artifactId>fluss-lake-lance</artifactId>
+            <version>${project.version}</version>
+            <scope>provided</scope>
+        </dependency>
+      
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-shaded-hadoop-2-uber</artifactId>

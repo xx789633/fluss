@@ -307,6 +307,7 @@
                                         <exclude>com.alibaba.fluss.fs.hdfs.HadoopSecurityTokenReceiver</exclude>
                                         <exclude>com.alibaba.fluss.fs.oss.*</exclude>
                                         <exclude>com.alibaba.fluss.fs.s3.*</exclude>
+                                        <exclude>com.alibaba.fluss.fs.obs.*</exclude>
                                         <exclude>com.amazonaws.services.s3.model.transform.XmlResponsesSaxParser*</exclude>
                                         <exclude>com.alibaba.fluss.rocksdb.RocksIteratorWrapper
                                         </exclude>
@@ -325,11 +326,14 @@
                                         <exclude>com.alibaba.fluss.lake.batch.ArrowRecordBatch</exclude>
                                         <exclude>com.alibaba.fluss.lake.committer.CommittedLakeSnapshot</exclude>
                                         <exclude>com.alibaba.fluss.lake.paimon.FlussDataTypeToPaimonDataType</exclude>
+                                        <!-- start exclude for lake lance -->
                                         <exclude>com.alibaba.fluss.lake.lance.*</exclude>
                                         <exclude>com.alibaba.fluss.lake.lance.utils.LanceArrowUtils.DataTypeToArrowTypeConverter</exclude>
                                         <exclude>com.alibaba.fluss.lake.lance.writers.*</exclude>
                                         <exclude>com.alibaba.fluss.lake.lance.LanceConfig</exclude>
                                         <exclude>com.alibaba.fluss.lake.lance.utils.LanceArrowUtils</exclude>
+                                        <!-- temporarily exclude iceberg -->
+                                        <exclude>com.alibaba.fluss.lake.iceberg.*</exclude>
                                         <!-- start exclude for flink tiering service -->
                                         <exclude>com.alibaba.fluss.flink.tiering.source.TieringSourceOptions</exclude>
                                         <exclude>com.alibaba.fluss.flink.tiering.source.TieringSource.Builder</exclude>
