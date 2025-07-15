@@ -70,6 +70,15 @@
                                     <include>org.apache.iceberg:iceberg-core</include>
                                 </includes>
                             </artifactSet>
+                            <filters>
+                                 <filter>
+                                     <artifact>*</artifact>
+                                     <excludes>
+                                         <exclude>LICENSE</exclude>
+                                         <exclude>NOTICE</exclude>
+                                     </excludes>
+                                 </filter>
+                             </filters>
                         </configuration>
                     </execution>
                 </executions>
