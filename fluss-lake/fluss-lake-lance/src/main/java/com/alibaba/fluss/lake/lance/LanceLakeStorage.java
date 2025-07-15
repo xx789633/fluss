@@ -33,7 +33,7 @@ public class LanceLakeStorage implements LakeStorage {
 
     @Override
     public LakeTieringFactory<LanceWriteResult, LanceCommittable> createLakeTieringFactory() {
-        return null;
+        throw new UnsupportedOperationException("Not implemented");
     }
 
     @Override
