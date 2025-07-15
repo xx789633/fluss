@@ -33,11 +33,11 @@ public class IcebergLakeStorage implements LakeStorage {
 
     @Override
     public LakeTieringFactory<?, ?> createLakeTieringFactory() {
-        return null;
+        throw new UnsupportedOperationException("Not implemented");
     }
 
     @Override
     public LakeCatalog createLakeCatalog() {
-        return null;
+        throw new UnsupportedOperationException("Not implemented");
     }
 }
