@@ -22,6 +22,8 @@ import com.alibaba.fluss.annotation.PublicEvolving;
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -112,5 +114,38 @@ public class TableBucket implements Serializable {
         }
         builder.append('}');
         return builder.toString();
+    }
+
+    @Nullable
+    public static TableBucket from(String value) {
+        if (value == null || !value.startsWith("TableBucket{tableId=") || !value.endsWith("}")) {
+            return null;
+        }
+        String[] fields =
+                value.substring("TableBucket{tableId=".length(), value.length() - 1).split(",\\s*");
+        Map<String, String> fieldMap = new LinkedHashMap<>();
+        for (String field : fields) {
+            String[] keyValue = field.split("=", 2);
+            if (keyValue.length != 2) {
+                throw new IllegalArgumentException("Invalid field format: " + field);
+            }
+            fieldMap.put(keyValue[0].trim(), keyValue[1].trim());
+        }
+        if (!fieldMap.containsKey("tableId") || !fieldMap.containsKey("bucket")) {
+            throw new IllegalArgumentException(
+                    "Missing required fields: tableId and bucket are mandatory");
+        }
+        try {
+            Long partitionId =
+                    fieldMap.containsKey("partitionId")
+                            ? Long.parseLong(fieldMap.get("partitionId"))
+                            : null;
+            return new TableBucket(
+                    Long.parseLong(fieldMap.get("tableId")),
+                    partitionId,
+                    Integer.parseInt(fieldMap.get("bucket")));
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Numeric conversion error", e);
+        }
     }
 }

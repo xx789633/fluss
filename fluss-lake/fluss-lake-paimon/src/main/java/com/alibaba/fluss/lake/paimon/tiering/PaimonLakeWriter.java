@@ -21,6 +21,7 @@ import com.alibaba.fluss.lake.paimon.tiering.append.AppendOnlyWriter;
 import com.alibaba.fluss.lake.paimon.tiering.mergetree.MergeTreeWriter;
 import com.alibaba.fluss.lake.writer.LakeWriter;
 import com.alibaba.fluss.lake.writer.WriterInitContext;
+import com.alibaba.fluss.metadata.TableBucket;
 import com.alibaba.fluss.metadata.TablePath;
 import com.alibaba.fluss.record.LogRecord;
 
@@ -38,11 +39,14 @@ public class PaimonLakeWriter implements LakeWriter<PaimonWriteResult> {
 
     private final Catalog paimonCatalog;
     private final RecordWriter<?> recordWriter;
+    private long latestOffset;
+    private final TableBucket tableBucket;
 
     public PaimonLakeWriter(
             PaimonCatalogProvider paimonCatalogProvider, WriterInitContext writerInitContext)
             throws IOException {
         this.paimonCatalog = paimonCatalogProvider.get();
+        this.tableBucket = writerInitContext.tableBucket();
         FileStoreTable fileStoreTable = getTable(writerInitContext.tablePath());
 
         List<String> partitionKeys = fileStoreTable.partitionKeys();
@@ -65,6 +69,7 @@ public class PaimonLakeWriter implements LakeWriter<PaimonWriteResult> {
     public void write(LogRecord record) throws IOException {
         try {
             recordWriter.write(record);
+            latestOffset = record.logOffset();
         } catch (Exception e) {
             throw new IOException("Failed to write Fluss record to Paimon.", e);
         }
@@ -78,7 +83,7 @@ public class PaimonLakeWriter implements LakeWriter<PaimonWriteResult> {
         } catch (Exception e) {
             throw new IOException("Failed to complete Paimon write.", e);
         }
-        return new PaimonWriteResult(commitMessage);
+        return new PaimonWriteResult(commitMessage, latestOffset, tableBucket);
     }
 
     @Override

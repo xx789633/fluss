@@ -192,7 +192,7 @@ class PaimonTieringTest {
             // use snapshot id 0 as the known snapshot id
             CommittedLakeSnapshot committedLakeSnapshot = lakeCommitter.getMissingLakeSnapshot(0L);
             assertThat(committedLakeSnapshot).isNotNull();
-            Map<Tuple2<String, Integer>, Long> offsets = committedLakeSnapshot.getLogEndOffsets();
+            Map<Tuple2<Long, Integer>, Long> offsets = committedLakeSnapshot.getLogEndOffsets();
             for (int bucket = 0; bucket < 3; bucket++) {
                 for (String partition : partitions) {
                     // we only write 10 records, so expected log offset should be 9

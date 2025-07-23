@@ -17,6 +17,8 @@
 
 package com.alibaba.fluss.lake.paimon.tiering;
 
+import com.alibaba.fluss.metadata.TableBucket;
+
 import org.apache.paimon.table.sink.CommitMessage;
 
 import java.io.Serializable;
@@ -28,11 +30,25 @@ public class PaimonWriteResult implements Serializable {
 
     private final CommitMessage commitMessage;
 
-    public PaimonWriteResult(CommitMessage commitMessage) {
+    private final long latestOffset;
+    private final TableBucket tableBucket;
+
+    public PaimonWriteResult(
+            CommitMessage commitMessage, long latestOffset, TableBucket tableBucket) {
         this.commitMessage = commitMessage;
+        this.latestOffset = latestOffset;
+        this.tableBucket = tableBucket;
     }
 
     public CommitMessage commitMessage() {
         return commitMessage;
+    }
+
+    public long latestOffset() {
+        return latestOffset;
+    }
+
+    public TableBucket tableBucket() {
+        return tableBucket;
     }
 }

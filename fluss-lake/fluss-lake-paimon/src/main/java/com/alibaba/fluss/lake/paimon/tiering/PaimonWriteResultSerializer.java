@@ -18,7 +18,10 @@
 package com.alibaba.fluss.lake.paimon.tiering;
 
 import com.alibaba.fluss.lake.serializer.SimpleVersionedSerializer;
+import com.alibaba.fluss.metadata.TableBucket;
 
+import org.apache.paimon.io.DataInputDeserializer;
+import org.apache.paimon.io.DataOutputSerializer;
 import org.apache.paimon.table.sink.CommitMessage;
 import org.apache.paimon.table.sink.CommitMessageSerializer;
 
@@ -38,8 +41,31 @@ public class PaimonWriteResultSerializer implements SimpleVersionedSerializer<Pa
 
     @Override
     public byte[] serialize(PaimonWriteResult paimonWriteResult) throws IOException {
-        CommitMessage commitMessage = paimonWriteResult.commitMessage();
-        return messageSer.serialize(commitMessage);
+        final DataOutputSerializer out = new DataOutputSerializer(256);
+
+        // serialize bucket
+        TableBucket tableBucket = paimonWriteResult.tableBucket();
+        out.writeLong(tableBucket.getTableId());
+        // write partition
+        if (tableBucket.getPartitionId() != null) {
+            out.writeBoolean(true);
+            out.writeLong(tableBucket.getPartitionId());
+        } else {
+            out.writeBoolean(false);
+        }
+        out.writeInt(tableBucket.getBucket());
+
+        // serialize write result
+        byte[] serializeBytes = messageSer.serialize(paimonWriteResult.commitMessage());
+        out.writeInt(serializeBytes.length);
+        out.write(serializeBytes);
+
+        // serialize log end offset
+        out.writeLong(paimonWriteResult.latestOffset());
+
+        final byte[] result = out.getCopyOfBuffer();
+        out.clear();
+        return result;
     }
 
     @Override
@@ -52,7 +78,26 @@ public class PaimonWriteResultSerializer implements SimpleVersionedSerializer<Pa
                             + version
                             + ".");
         }
-        CommitMessage commitMessage = messageSer.deserialize(messageSer.getVersion(), serialized);
-        return new PaimonWriteResult(commitMessage);
+        DataInputDeserializer in = new DataInputDeserializer(serialized);
+
+        // deserialize bucket
+        long tableId = in.readLong();
+        Long partitionId = null;
+        if (in.readBoolean()) {
+            partitionId = in.readLong();
+        }
+        int bucketId = in.readInt();
+        TableBucket tableBucket = new TableBucket(tableId, partitionId, bucketId);
+
+        int writeResultLength = in.readInt();
+        byte[] writeResultBytes = new byte[writeResultLength];
+        in.readFully(writeResultBytes);
+        CommitMessage commitMessage =
+                messageSer.deserialize(messageSer.getVersion(), writeResultBytes);
+
+        // deserialize log end offset
+        long logEndOffset = in.readLong();
+
+        return new PaimonWriteResult(commitMessage, logEndOffset, tableBucket);
     }
 }
