@@ -122,7 +122,7 @@ public class TableBucket implements Serializable {
             return null;
         }
         String[] fields =
-                value.substring("TableBucket{tableId=".length(), value.length() - 1).split(",\\s*");
+                value.substring("TableBucket{".length(), value.length() - 1).split(", ");
         Map<String, String> fieldMap = new LinkedHashMap<>();
         for (String field : fields) {
             String[] keyValue = field.split("=", 2);
