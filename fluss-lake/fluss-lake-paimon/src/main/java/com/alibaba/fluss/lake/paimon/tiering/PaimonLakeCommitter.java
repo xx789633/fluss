@@ -19,8 +19,10 @@ package com.alibaba.fluss.lake.paimon.tiering;
 
 import com.alibaba.fluss.lake.committer.CommittedLakeSnapshot;
 import com.alibaba.fluss.lake.committer.LakeCommitter;
-import com.alibaba.fluss.metadata.TableBucket;
 import com.alibaba.fluss.metadata.TablePath;
+import com.alibaba.fluss.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
+import com.alibaba.fluss.shaded.jackson2.com.fasterxml.jackson.core.type.TypeReference;
+import com.alibaba.fluss.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.apache.paimon.CoreOptions;
 import org.apache.paimon.Snapshot;
@@ -35,13 +37,16 @@ import org.apache.paimon.utils.SnapshotManager;
 
 import javax.annotation.Nullable;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 import static com.alibaba.fluss.lake.paimon.tiering.PaimonLakeTieringFactory.FLUSS_LAKE_TIERING_COMMIT_USER;
 import static com.alibaba.fluss.lake.paimon.utils.PaimonConversions.toPaimon;
+import static com.alibaba.fluss.metadata.ResolvedPartitionSpec.PARTITION_SPEC_SEPARATOR;
 import static com.alibaba.fluss.utils.Preconditions.checkNotNull;
 import static org.apache.paimon.table.sink.BatchWriteBuilder.COMMIT_IDENTIFIER;
 
@@ -65,11 +70,30 @@ public class PaimonLakeCommitter implements LakeCommitter<PaimonWriteResult, Pai
     public PaimonCommittable toCommittable(List<PaimonWriteResult> paimonWriteResults)
             throws IOException {
         ManifestCommittable committable = new ManifestCommittable(COMMIT_IDENTIFIER);
+        ObjectMapper mapper = new ObjectMapper();
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        JsonGenerator generator = mapper.createGenerator(out);
+        generator.writeStartArray();
         for (PaimonWriteResult paimonWriteResult : paimonWriteResults) {
             committable.addFileCommittable(paimonWriteResult.commitMessage());
-            committable.addProperty(
-                    paimonWriteResult.tableBucket().toString(), String.valueOf(paimonWriteResult.latestOffset()));
+            Long partitionId = paimonWriteResult.tableBucket().getPartitionId();
+            int bucket = paimonWriteResult.tableBucket().getBucket();
+            generator.writeStartObject();
+            if (partitionId == null) {
+                generator.writeNumberField(
+                        String.valueOf(bucket), paimonWriteResult.latestOffset());
+            } else {
+                generator.writeNumberField(
+                        String.join(
+                                PARTITION_SPEC_SEPARATOR,
+                                Arrays.asList(String.valueOf(partitionId), String.valueOf(bucket))),
+                        paimonWriteResult.latestOffset());
+            }
+            generator.writeEndObject();
         }
+        generator.writeEndArray();
+        committable.addProperty("fluss-bucket-offset", out.toString());
+        generator.close();
         return new PaimonCommittable(committable);
     }
 
@@ -124,14 +148,25 @@ public class PaimonLakeCommitter implements LakeCommitter<PaimonWriteResult, Pai
                 new CommittedLakeSnapshot(latestLakeSnapshotOfLake.id());
 
         for (Map.Entry<String, String> entry : latestLakeSnapshotOfLake.properties().entrySet()) {
-            TableBucket tableBucket = TableBucket.from(entry.getKey());
-            if (tableBucket != null) {
-                long offset = Long.parseLong(entry.getValue());
-                if (tableBucket.getPartitionId() == null) {
-                    committedLakeSnapshot.addBucket(tableBucket.getBucket(), offset);
-                } else {
-                    committedLakeSnapshot.addPartitionBucket(
-                            tableBucket.getPartitionId(), tableBucket.getBucket(), offset);
+            if (entry.getKey().equals("fluss-bucket-offset")) {
+                ObjectMapper mapper = new ObjectMapper();
+                List<Map<String, Long>> bucketOffsets =
+                        mapper.readValue(
+                                entry.getValue(), new TypeReference<List<Map<String, Long>>>() {});
+
+                for (Map<String, Long> bucketOffset : bucketOffsets) {
+                    for (Map.Entry<String, Long> offset : bucketOffset.entrySet()) {
+                        String[] splits = offset.getKey().split(PARTITION_SPEC_SEPARATOR);
+                        if (splits.length != 2) {
+                            committedLakeSnapshot.addBucket(
+                                    Integer.parseInt(splits[0]), offset.getValue());
+                        } else {
+                            committedLakeSnapshot.addPartitionBucket(
+                                    Long.parseLong(splits[0]),
+                                    Integer.parseInt(splits[1]),
+                                    offset.getValue());
+                        }
+                    }
                 }
             }
         }

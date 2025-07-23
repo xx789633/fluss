@@ -129,11 +129,16 @@ class PaimonTieringTest {
         }
 
         Map<Tuple2<String, Integer>, List<LogRecord>> recordsByBucket = new HashMap<>();
-        Map<Long, String> partitionIdAndName = isPartitioned ? new HashMap<Long, String>() {{
-            put(1L, "p1");
-            put(2L, "p2");
-            put(3L, "p3");
-        }} : new HashMap<>();
+        Map<Long, String> partitionIdAndName =
+                isPartitioned
+                        ? new HashMap<Long, String>() {
+                            {
+                                put(1L, "p1");
+                                put(2L, "p2");
+                                put(3L, "p3");
+                            }
+                        }
+                        : new HashMap<>();
         // first, write data
         for (int bucket = 0; bucket < bucketNum; bucket++) {
             for (Map.Entry<Long, String> entry : partitionIdAndName.entrySet()) {
@@ -176,19 +181,18 @@ class PaimonTieringTest {
 
         // then, check data
         for (int bucket = 0; bucket < 3; bucket++) {
-                for (String partition : partitionIdAndName.values()) {
-                    Tuple2<String, Integer> partitionBucket = Tuple2.of(partition, bucket);
-                    List<LogRecord> expectRecords = recordsByBucket.get(partitionBucket);
-                    CloseableIterator<InternalRow> actualRecords =
-                            getPaimonRows(tablePath, partition, isPrimaryKeyTable, bucket);
-                    if (isPrimaryKeyTable) {
-                        verifyPrimaryKeyTableRecord(actualRecords, expectRecords, bucket, partition);
-                    } else {
-                        verifyLogTableRecords(
-                                actualRecords, expectRecords, bucket, isPartitioned, partition);
-                    }
+            for (String partition : partitionIdAndName.values()) {
+                Tuple2<String, Integer> partitionBucket = Tuple2.of(partition, bucket);
+                List<LogRecord> expectRecords = recordsByBucket.get(partitionBucket);
+                CloseableIterator<InternalRow> actualRecords =
+                        getPaimonRows(tablePath, partition, isPrimaryKeyTable, bucket);
+                if (isPrimaryKeyTable) {
+                    verifyPrimaryKeyTableRecord(actualRecords, expectRecords, bucket, partition);
+                } else {
+                    verifyLogTableRecords(
+                            actualRecords, expectRecords, bucket, isPartitioned, partition);
                 }
-
+            }
         }
 
         // then, let's verify getMissingLakeSnapshot works
@@ -228,11 +232,14 @@ class PaimonTieringTest {
         List<PaimonWriteResult> paimonWriteResults = new ArrayList<>();
 
         // Test data for different partitions using $ separator
-        Map<Long, String> partitionIdAndName = new HashMap<Long, String>() {{
-            put(1L, "us-east$2024");
-            put(2L, "us-west$2024");
-            put(3L, "eu-central$2023");
-        }};
+        Map<Long, String> partitionIdAndName =
+                new HashMap<Long, String>() {
+                    {
+                        put(1L, "us-east$2024");
+                        put(2L, "us-west$2024");
+                        put(3L, "eu-central$2023");
+                    }
+                };
 
         int bucket = 0;
 
@@ -280,13 +287,16 @@ class PaimonTieringTest {
         List<PaimonWriteResult> paimonWriteResults = new ArrayList<>();
 
         // Test data for different three-level partitions using $ separator
-        Map<Long, String> partitionIdAndName = new HashMap<Long, String>() {{
-            put(1L, "us-east$2024$01");
-            put(2L, "eu-central$2023$12");
-        }};
+        Map<Long, String> partitionIdAndName =
+                new HashMap<Long, String>() {
+                    {
+                        put(1L, "us-east$2024$01");
+                        put(2L, "eu-central$2023$12");
+                    }
+                };
         int bucket = 0;
 
-        for (Map.Entry<Long, String> entry: partitionIdAndName.entrySet()) {
+        for (Map.Entry<Long, String> entry : partitionIdAndName.entrySet()) {
             String partition = entry.getValue();
             try (LakeWriter<PaimonWriteResult> lakeWriter =
                     createLakeWriter(tablePath, bucket, partition, entry.getKey())) {
@@ -651,7 +661,8 @@ class PaimonTieringTest {
     }
 
     private LakeWriter<PaimonWriteResult> createLakeWriter(
-            TablePath tablePath, int bucket, @Nullable String partition, @Nullable Long partitionId) throws IOException {
+            TablePath tablePath, int bucket, @Nullable String partition, @Nullable Long partitionId)
+            throws IOException {
         return paimonLakeTieringFactory.createLakeWriter(
                 new WriterInitContext() {
                     @Override
