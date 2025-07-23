@@ -203,9 +203,9 @@ class PaimonTieringTest {
             assertThat(committedLakeSnapshot).isNotNull();
             Map<Tuple2<Long, Integer>, Long> offsets = committedLakeSnapshot.getLogEndOffsets();
             for (int bucket = 0; bucket < 3; bucket++) {
-                for (Map.Entry<Long, String> entry : partitionIdAndName.entrySet()) {
+                for (Long partitionId : partitionIdAndName.keySet()) {
                     // we only write 10 records, so expected log offset should be 9
-                    assertThat(offsets.get(Tuple2.of(entry.getKey(), bucket))).isEqualTo(9);
+                    assertThat(offsets.get(Tuple2.of(partitionId, bucket))).isEqualTo(9);
                 }
             }
             assertThat(committedLakeSnapshot.getLakeSnapshotId()).isOne();

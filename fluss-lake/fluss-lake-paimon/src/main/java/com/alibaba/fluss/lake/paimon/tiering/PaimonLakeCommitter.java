@@ -43,6 +43,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import static com.alibaba.fluss.lake.paimon.tiering.PaimonLakeTieringFactory.FLUSS_LAKE_TIERING_COMMIT_USER;
 import static com.alibaba.fluss.lake.paimon.utils.PaimonConversions.toPaimon;
@@ -58,6 +59,7 @@ public class PaimonLakeCommitter implements LakeCommitter<PaimonWriteResult, Pai
     private FileStoreCommit fileStoreCommit;
     private final TablePath tablePath;
     private static final ThreadLocal<Long> currentCommitSnapshotId = new ThreadLocal<>();
+    public static final String FLUSS_BUCKET_OFFSET_PROPERTY = "fluss-bucket-offset";
 
     public PaimonLakeCommitter(PaimonCatalogProvider paimonCatalogProvider, TablePath tablePath)
             throws IOException {
@@ -92,7 +94,8 @@ public class PaimonLakeCommitter implements LakeCommitter<PaimonWriteResult, Pai
             generator.writeEndObject();
         }
         generator.writeEndArray();
-        committable.addProperty("fluss-bucket-offset", out.toString());
+        generator.flush();
+        committable.addProperty(FLUSS_BUCKET_OFFSET_PROPERTY, out.toString());
         generator.close();
         return new PaimonCommittable(committable);
     }
@@ -147,30 +150,27 @@ public class PaimonLakeCommitter implements LakeCommitter<PaimonWriteResult, Pai
         CommittedLakeSnapshot committedLakeSnapshot =
                 new CommittedLakeSnapshot(latestLakeSnapshotOfLake.id());
 
-        for (Map.Entry<String, String> entry : latestLakeSnapshotOfLake.properties().entrySet()) {
-            if (entry.getKey().equals("fluss-bucket-offset")) {
-                ObjectMapper mapper = new ObjectMapper();
-                List<Map<String, Long>> bucketOffsets =
-                        mapper.readValue(
-                                entry.getValue(), new TypeReference<List<Map<String, Long>>>() {});
-
-                for (Map<String, Long> bucketOffset : bucketOffsets) {
-                    for (Map.Entry<String, Long> offset : bucketOffset.entrySet()) {
-                        String[] splits = offset.getKey().split(PARTITION_SPEC_SEPARATOR);
-                        if (splits.length != 2) {
-                            committedLakeSnapshot.addBucket(
-                                    Integer.parseInt(splits[0]), offset.getValue());
-                        } else {
-                            committedLakeSnapshot.addPartitionBucket(
-                                    Long.parseLong(splits[0]),
-                                    Integer.parseInt(splits[1]),
-                                    offset.getValue());
-                        }
-                    }
+        String property = latestLakeSnapshotOfLake.properties().get(FLUSS_BUCKET_OFFSET_PROPERTY);
+        if (property != null) {
+            ObjectMapper mapper = new ObjectMapper();
+            List<Map<String, Long>> bucketOffsets =
+                    mapper.readValue(property, new TypeReference<List<Map<String, Long>>>() {});
+            for (Map<String, Long> entry : bucketOffsets) {
+                assert entry.size() == 1;
+                Map.Entry<String, Long> bucketOffset = entry.entrySet().iterator().next();
+                String[] partitionIdAndBucket =
+                        bucketOffset.getKey().split(Pattern.quote(PARTITION_SPEC_SEPARATOR));
+                if (partitionIdAndBucket.length == 1) {
+                    committedLakeSnapshot.addBucket(
+                            Integer.parseInt(partitionIdAndBucket[0]), bucketOffset.getValue());
+                } else {
+                    committedLakeSnapshot.addPartitionBucket(
+                            Long.parseLong(partitionIdAndBucket[0]),
+                            Integer.parseInt(partitionIdAndBucket[1]),
+                            bucketOffset.getValue());
                 }
             }
         }
-
         return committedLakeSnapshot;
     }
 
@@ -220,7 +220,8 @@ public class PaimonLakeCommitter implements LakeCommitter<PaimonWriteResult, Pai
                                     .copy(
                                             Collections.singletonMap(
                                                     CoreOptions.COMMIT_CALLBACKS.key(),
-                                                    PaimonCommitCallback.class.getName()));
+                                                    PaimonLakeCommitter.PaimonCommitCallback.class
+                                                            .getName()));
 
             return table;
         } catch (Exception e) {
