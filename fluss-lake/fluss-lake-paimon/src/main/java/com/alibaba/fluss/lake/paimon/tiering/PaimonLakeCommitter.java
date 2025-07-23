@@ -59,7 +59,8 @@ public class PaimonLakeCommitter implements LakeCommitter<PaimonWriteResult, Pai
     private FileStoreCommit fileStoreCommit;
     private final TablePath tablePath;
     private static final ThreadLocal<Long> currentCommitSnapshotId = new ThreadLocal<>();
-    public static final String FLUSS_BUCKET_OFFSET_PROPERTY = "fluss-bucket-offset";
+    private static final String FLUSS_BUCKET_OFFSET_PROPERTY = "fluss-bucket-offset";
+    private static final ObjectMapper mapper = new ObjectMapper();
 
     public PaimonLakeCommitter(PaimonCatalogProvider paimonCatalogProvider, TablePath tablePath)
             throws IOException {
@@ -72,31 +73,35 @@ public class PaimonLakeCommitter implements LakeCommitter<PaimonWriteResult, Pai
     public PaimonCommittable toCommittable(List<PaimonWriteResult> paimonWriteResults)
             throws IOException {
         ManifestCommittable committable = new ManifestCommittable(COMMIT_IDENTIFIER);
-        ObjectMapper mapper = new ObjectMapper();
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        JsonGenerator generator = mapper.createGenerator(out);
-        generator.writeStartArray();
         for (PaimonWriteResult paimonWriteResult : paimonWriteResults) {
             committable.addFileCommittable(paimonWriteResult.commitMessage());
-            Long partitionId = paimonWriteResult.tableBucket().getPartitionId();
-            int bucket = paimonWriteResult.tableBucket().getBucket();
-            generator.writeStartObject();
-            if (partitionId == null) {
-                generator.writeNumberField(
-                        String.valueOf(bucket), paimonWriteResult.latestOffset());
-            } else {
-                generator.writeNumberField(
-                        String.join(
-                                PARTITION_SPEC_SEPARATOR,
-                                Arrays.asList(String.valueOf(partitionId), String.valueOf(bucket))),
-                        paimonWriteResult.latestOffset());
-            }
-            generator.writeEndObject();
         }
-        generator.writeEndArray();
-        generator.flush();
-        committable.addProperty(FLUSS_BUCKET_OFFSET_PROPERTY, out.toString());
-        generator.close();
+        if (!paimonWriteResults.isEmpty()) {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            JsonGenerator generator = mapper.createGenerator(out);
+            generator.writeStartArray();
+            for (PaimonWriteResult paimonWriteResult : paimonWriteResults) {
+                Long partitionId = paimonWriteResult.tableBucket().getPartitionId();
+                int bucket = paimonWriteResult.tableBucket().getBucket();
+                generator.writeStartObject();
+                if (partitionId == null) {
+                    generator.writeNumberField(
+                            String.valueOf(bucket), paimonWriteResult.latestOffset());
+                } else {
+                    generator.writeNumberField(
+                            String.join(
+                                    PARTITION_SPEC_SEPARATOR,
+                                    Arrays.asList(
+                                            String.valueOf(partitionId), String.valueOf(bucket))),
+                            paimonWriteResult.latestOffset());
+                }
+                generator.writeEndObject();
+            }
+            generator.writeEndArray();
+            generator.flush();
+            committable.addProperty(FLUSS_BUCKET_OFFSET_PROPERTY, out.toString());
+            generator.close();
+        }
         return new PaimonCommittable(committable);
     }
 
@@ -152,7 +157,6 @@ public class PaimonLakeCommitter implements LakeCommitter<PaimonWriteResult, Pai
 
         String property = latestLakeSnapshotOfLake.properties().get(FLUSS_BUCKET_OFFSET_PROPERTY);
         if (property != null) {
-            ObjectMapper mapper = new ObjectMapper();
             List<Map<String, Long>> bucketOffsets =
                     mapper.readValue(property, new TypeReference<List<Map<String, Long>>>() {});
             for (Map<String, Long> entry : bucketOffsets) {

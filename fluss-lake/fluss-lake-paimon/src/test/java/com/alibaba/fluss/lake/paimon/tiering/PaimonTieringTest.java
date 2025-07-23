@@ -138,7 +138,7 @@ class PaimonTieringTest {
                                 put(3L, "p3");
                             }
                         }
-                        : new HashMap<>();
+                        : Collections.singletonMap(null, null);
         // first, write data
         for (int bucket = 0; bucket < bucketNum; bucket++) {
             for (Map.Entry<Long, String> entry : partitionIdAndName.entrySet()) {
