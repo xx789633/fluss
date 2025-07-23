@@ -68,7 +68,7 @@ public class PaimonLakeCommitter implements LakeCommitter<PaimonWriteResult, Pai
         for (PaimonWriteResult paimonWriteResult : paimonWriteResults) {
             committable.addFileCommittable(paimonWriteResult.commitMessage());
             committable.addProperty(
-                    paimonWriteResult.toString(), String.valueOf(paimonWriteResult.latestOffset()));
+                    paimonWriteResult.tableBucket().toString(), String.valueOf(paimonWriteResult.latestOffset()));
         }
         return new PaimonCommittable(committable);
     }
