@@ -92,9 +92,7 @@ class FlussTableLakeSnapshotCommitterTest extends FlinkTestBase {
                     expectedOffsets.put(new TableBucket(tableId, bucket), bucketOffset);
                 } else {
                     committedLakeSnapshot.addPartitionBucket(partition, bucket, bucketOffset);
-                    expectedOffsets.put(
-                            new TableBucket(tableId, partitionNameAndIds.get(partition), bucket),
-                            bucketOffset);
+                    expectedOffsets.put(new TableBucket(tableId, partition, bucket), bucketOffset);
                 }
             }
         }
