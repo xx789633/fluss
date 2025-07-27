@@ -19,6 +19,8 @@ package com.alibaba.fluss.lake.paimon.tiering;
 
 import com.alibaba.fluss.lake.serializer.SimpleVersionedSerializer;
 
+import org.apache.paimon.io.DataInputDeserializer;
+import org.apache.paimon.io.DataOutputSerializer;
 import org.apache.paimon.table.sink.CommitMessage;
 import org.apache.paimon.table.sink.CommitMessageSerializer;
 
@@ -30,6 +32,7 @@ public class PaimonWriteResultSerializer implements SimpleVersionedSerializer<Pa
     private static final int CURRENT_VERSION = 1;
 
     private final CommitMessageSerializer messageSer = new CommitMessageSerializer();
+    private final PaimonBucketOffsetSerializer bucketOffsetSer = new PaimonBucketOffsetSerializer();
 
     @Override
     public int getVersion() {
@@ -38,8 +41,20 @@ public class PaimonWriteResultSerializer implements SimpleVersionedSerializer<Pa
 
     @Override
     public byte[] serialize(PaimonWriteResult paimonWriteResult) throws IOException {
-        CommitMessage commitMessage = paimonWriteResult.commitMessage();
-        return messageSer.serialize(commitMessage);
+        final DataOutputSerializer out = new DataOutputSerializer(256);
+
+        // serialize write result
+        byte[] serializeBytes = messageSer.serialize(paimonWriteResult.commitMessage());
+        out.writeInt(serializeBytes.length);
+        out.write(serializeBytes);
+
+        serializeBytes = bucketOffsetSer.serialize(paimonWriteResult.bucketOffset());
+        out.writeInt(serializeBytes.length);
+        out.write(serializeBytes);
+
+        final byte[] result = out.getCopyOfBuffer();
+        out.clear();
+        return result;
     }
 
     @Override
@@ -52,7 +67,18 @@ public class PaimonWriteResultSerializer implements SimpleVersionedSerializer<Pa
                             + version
                             + ".");
         }
-        CommitMessage commitMessage = messageSer.deserialize(messageSer.getVersion(), serialized);
-        return new PaimonWriteResult(commitMessage);
+        DataInputDeserializer in = new DataInputDeserializer(serialized);
+
+        byte[] writeResultBytes = new byte[in.readInt()];
+        in.readFully(writeResultBytes);
+        CommitMessage commitMessage =
+                messageSer.deserialize(messageSer.getVersion(), writeResultBytes);
+
+        byte[] bucketOffsetBytes = new byte[in.readInt()];
+        in.readFully(bucketOffsetBytes);
+        PaimonBucketOffset bucketOffset =
+                bucketOffsetSer.deserialize(bucketOffsetSer.getVersion(), bucketOffsetBytes);
+
+        return new PaimonWriteResult(commitMessage, bucketOffset);
     }
 }
