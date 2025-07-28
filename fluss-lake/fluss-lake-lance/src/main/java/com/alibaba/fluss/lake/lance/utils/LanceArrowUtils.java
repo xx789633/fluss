@@ -37,7 +37,6 @@ import com.alibaba.fluss.types.TimeType;
 import com.alibaba.fluss.types.TimestampType;
 import com.alibaba.fluss.types.TinyIntType;
 
-import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.TimeUnit;
@@ -186,18 +185,5 @@ public class LanceArrowUtils {
                     String.format(
                             "Unsupported data type %s currently.", dataType.asSummaryString()));
         }
-    }
-
-    private static int getPrecision(DecimalVector decimalVector) {
-        int precision = -1;
-        try {
-            java.lang.reflect.Field precisionField =
-                    decimalVector.getClass().getDeclaredField("precision");
-            precisionField.setAccessible(true);
-            precision = (int) precisionField.get(decimalVector);
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            // should not happen, ignore
-        }
-        return precision;
     }
 }

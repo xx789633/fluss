@@ -40,7 +40,7 @@ import java.util.Optional;
 
 /** Lance dataset API adapter. */
 public class LanceDatasetAdapter {
-    private static final BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE);
+    private static final BufferAllocator allocator = new RootAllocator();
 
     public static void createDataset(String datasetUri, Schema schema, WriteParams params) {
         Dataset.create(allocator, datasetUri, schema, params).close();

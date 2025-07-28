@@ -31,6 +31,8 @@ import com.alibaba.fluss.metadata.TablePath;
 import com.alibaba.fluss.server.testutils.FlussClusterExtension;
 import com.alibaba.fluss.types.DataTypes;
 
+import org.apache.arrow.vector.types.DateUnit;
+import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -114,6 +116,20 @@ class LakeEnabledTableCreateITCase {
                                 Schema.newBuilder()
                                         .column("log_c1", DataTypes.INT())
                                         .column("log_c2", DataTypes.STRING())
+                                        .column("log_c3", DataTypes.TINYINT())
+                                        .column("log_c4", DataTypes.SMALLINT())
+                                        .column("log_c5", DataTypes.BIGINT())
+                                        .column("log_c6", DataTypes.BOOLEAN())
+                                        .column("log_c7", DataTypes.FLOAT())
+                                        .column("log_c8", DataTypes.DOUBLE())
+                                        .column("log_c9", DataTypes.CHAR(1))
+                                        .column("log_c10", DataTypes.BINARY(10))
+                                        .column("log_c11", DataTypes.BYTES())
+                                        .column("log_c12", DataTypes.DECIMAL(10, 2))
+                                        .column("log_c13", DataTypes.DATE())
+                                        .column("log_c14", DataTypes.TIME())
+                                        .column("log_c15", DataTypes.TIMESTAMP_LTZ())
+                                        .column("log_c16", DataTypes.TIMESTAMP())
                                         .build())
                         .property(ConfigOptions.TABLE_DATALAKE_ENABLED, true)
                         .distributedBy(BUCKET_NUM, "log_c1", "log_c2")
@@ -125,14 +141,53 @@ class LakeEnabledTableCreateITCase {
         // check the gotten log table
         Field logC1 = new Field("log_c1", FieldType.nullable(new ArrowType.Int(4 * 8, true)), null);
         Field logC2 = new Field("log_c2", FieldType.nullable(new ArrowType.Utf8()), null);
+        Field logC3 = new Field("log_c3", FieldType.nullable(new ArrowType.Int(8, true)), null);
+        Field logC4 = new Field("log_c4", FieldType.nullable(new ArrowType.Int(2 * 8, true)), null);
+        Field logC5 = new Field("log_c5", FieldType.nullable(new ArrowType.Int(8 * 8, true)), null);
+        Field logC6 = new Field("log_c6", FieldType.nullable(new ArrowType.Bool()), null);
+        Field logC7 =
+                new Field(
+                        "log_c7",
+                        FieldType.nullable(
+                                new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE)),
+                        null);
+        Field logC8 =
+                new Field(
+                        "log_c8",
+                        FieldType.nullable(
+                                new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)),
+                        null);
+        Field logC9 = new Field("log_c9", FieldType.nullable(new ArrowType.Utf8()), null);
+        Field logC10 =
+                new Field("log_c10", FieldType.nullable(new ArrowType.FixedSizeBinary(10)), null);
+        Field logC11 = new Field("log_c11", FieldType.nullable(new ArrowType.Binary()), null);
+        Field logC12 = new Field("log_c12", FieldType.nullable(new ArrowType.Decimal(10, 2)), null);
+        Field logC13 =
+                new Field("log_c13", FieldType.nullable(new ArrowType.Date(DateUnit.DAY)), null);
+        Field logC14 =
+                new Field(
+                        "log_c14",
+                        FieldType.nullable(new ArrowType.Time(TimeUnit.SECOND, 32)),
+                        null);
+        Field logC15 =
+                new Field(
+                        "log_c15",
+                        FieldType.nullable(new ArrowType.Timestamp(TimeUnit.MICROSECOND, null)),
+                        null);
+        Field logC16 =
+                new Field(
+                        "log_c16",
+                        FieldType.nullable(new ArrowType.Timestamp(TimeUnit.MICROSECOND, null)),
+                        null);
+
         // for __bucket, __offset, __timestamp
-        Field logC3 =
+        Field logC17 =
                 new Field(
                         BUCKET_COLUMN_NAME, FieldType.nullable(new ArrowType.Int(32, true)), null);
-        Field logC4 =
+        Field logC18 =
                 new Field(
                         OFFSET_COLUMN_NAME, FieldType.nullable(new ArrowType.Int(64, true)), null);
-        Field logC5 =
+        Field logC19 =
                 new Field(
                         TIMESTAMP_COLUMN_NAME,
                         FieldType.nullable(new ArrowType.Timestamp(TimeUnit.MICROSECOND, null)),
@@ -140,7 +195,10 @@ class LakeEnabledTableCreateITCase {
 
         org.apache.arrow.vector.types.pojo.Schema expectedSchema =
                 new org.apache.arrow.vector.types.pojo.Schema(
-                        Arrays.asList(logC1, logC2, logC3, logC4, logC5));
+                        Arrays.asList(
+                                logC1, logC2, logC3, logC4, logC5, logC6, logC7, logC8, logC9,
+                                logC10, logC11, logC12, logC13, logC14, logC15, logC16, logC17,
+                                logC18, logC19));
         assertThat(expectedSchema).isEqualTo(LanceDatasetAdapter.getSchema(config).get());
     }
 }

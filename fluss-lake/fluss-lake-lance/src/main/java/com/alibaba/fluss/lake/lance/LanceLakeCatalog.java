@@ -60,6 +60,7 @@ public class LanceLakeCatalog implements LakeCatalog {
     @Override
     public void createTable(TablePath tablePath, TableDescriptor tableDescriptor)
             throws TableAlreadyExistException {
+
         LanceConfig config =
                 LanceConfig.from(
                         options.toMap(), tablePath.getDatabaseName(), tablePath.getTableName());
@@ -72,7 +73,11 @@ public class LanceLakeCatalog implements LakeCatalog {
                         .getFields());
         // add system metadata columns to schema
         fields.addAll(SYSTEM_COLUMNS);
-        LanceDatasetAdapter.createDataset(config.getDatasetUri(), new Schema(fields), params);
+        try {
+            LanceDatasetAdapter.createDataset(config.getDatasetUri(), new Schema(fields), params);
+        } catch (IllegalArgumentException e) {
+            throw new TableAlreadyExistException("Table " + tablePath + " already exists.");
+        }
     }
 
     @Override
