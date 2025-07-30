@@ -18,7 +18,6 @@
 package com.alibaba.fluss.lake.lance;
 
 import com.alibaba.fluss.config.Configuration;
-import com.alibaba.fluss.exception.TableAlreadyExistException;
 import com.alibaba.fluss.lake.lakestorage.LakeCatalog;
 import com.alibaba.fluss.lake.lance.utils.LanceArrowUtils;
 import com.alibaba.fluss.lake.lance.utils.LanceDatasetAdapter;
@@ -58,9 +57,7 @@ public class LanceLakeCatalog implements LakeCatalog {
     }
 
     @Override
-    public void createTable(TablePath tablePath, TableDescriptor tableDescriptor)
-            throws TableAlreadyExistException {
-
+    public void createTable(TablePath tablePath, TableDescriptor tableDescriptor) {
         LanceConfig config =
                 LanceConfig.from(
                         options.toMap(), tablePath.getDatabaseName(), tablePath.getTableName());
@@ -75,8 +72,8 @@ public class LanceLakeCatalog implements LakeCatalog {
         fields.addAll(SYSTEM_COLUMNS);
         try {
             LanceDatasetAdapter.createDataset(config.getDatasetUri(), new Schema(fields), params);
-        } catch (IllegalArgumentException e) {
-            throw new TableAlreadyExistException("Table " + tablePath + " already exists.");
+        } catch (RuntimeException e) {
+            throw new RuntimeException("Table " + tablePath + " creation failed", e);
         }
     }
 
