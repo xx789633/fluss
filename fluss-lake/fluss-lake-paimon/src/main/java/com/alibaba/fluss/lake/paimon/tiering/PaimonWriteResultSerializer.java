@@ -32,7 +32,6 @@ public class PaimonWriteResultSerializer implements SimpleVersionedSerializer<Pa
     private static final int CURRENT_VERSION = 1;
 
     private final CommitMessageSerializer messageSer = new CommitMessageSerializer();
-    private final PaimonBucketOffsetSerializer bucketOffsetSer = new PaimonBucketOffsetSerializer();
 
     @Override
     public int getVersion() {
@@ -48,7 +47,7 @@ public class PaimonWriteResultSerializer implements SimpleVersionedSerializer<Pa
         out.writeInt(serializeBytes.length);
         out.write(serializeBytes);
 
-        serializeBytes = bucketOffsetSer.serialize(paimonWriteResult.bucketOffset());
+        serializeBytes = PaimonBucketOffsetJsonSerde.toJson(paimonWriteResult.bucketOffset());
         out.writeInt(serializeBytes.length);
         out.write(serializeBytes);
 
@@ -76,8 +75,7 @@ public class PaimonWriteResultSerializer implements SimpleVersionedSerializer<Pa
 
         byte[] bucketOffsetBytes = new byte[in.readInt()];
         in.readFully(bucketOffsetBytes);
-        PaimonBucketOffset bucketOffset =
-                bucketOffsetSer.deserialize(bucketOffsetSer.getVersion(), bucketOffsetBytes);
+        PaimonBucketOffset bucketOffset = PaimonBucketOffsetJsonSerde.fromJson(bucketOffsetBytes);
 
         return new PaimonWriteResult(commitMessage, bucketOffset);
     }

@@ -30,7 +30,7 @@ import java.util.Objects;
 public class CommittedLakeSnapshot {
 
     private final long lakeSnapshotId;
-    // <partition_name, bucket> -> log offset, partition_name will be null if it's not a
+    // <partition_id, bucket> -> log offset, partition_id will be null if it's not a
     // partition bucket
     private final Map<Tuple2<Long, Integer>, Long> logEndOffsets = new HashMap<>();
 
