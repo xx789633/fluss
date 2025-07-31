@@ -17,16 +17,11 @@
 
 package com.alibaba.fluss.lake.paimon.tiering;
 
-import com.alibaba.fluss.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.alibaba.fluss.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
-
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
 
 /** The bucket offset information to be stored in Paimon's snapshot property. */
-@JsonInclude(JsonInclude.Include.NON_NULL)
-@JsonIgnoreProperties(ignoreUnknown = true)
 public class PaimonBucketOffset implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -35,8 +30,6 @@ public class PaimonBucketOffset implements Serializable {
     private int bucket;
     private @Nullable Long partitionId;
     private @Nullable String partitionName;
-
-    public PaimonBucketOffset() {}
 
     public PaimonBucketOffset(
             long logOffset,
@@ -65,21 +58,5 @@ public class PaimonBucketOffset implements Serializable {
     @Nullable
     public String getPartitionName() {
         return partitionName;
-    }
-
-    public void setBucket(int bucket) {
-        this.bucket = bucket;
-    }
-
-    public void setLogOffset(long logOffset) {
-        this.logOffset = logOffset;
-    }
-
-    public void setPartitionId(Long partitionId) {
-        this.partitionId = partitionId;
-    }
-
-    public void setPartitionName(String partitionName) {
-        this.partitionName = partitionName;
     }
 }
