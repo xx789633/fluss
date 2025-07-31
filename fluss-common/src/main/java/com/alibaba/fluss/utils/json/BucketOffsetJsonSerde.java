@@ -15,13 +15,11 @@
  * limitations under the License.
  */
 
-package com.alibaba.fluss.lake.committer;
+package com.alibaba.fluss.utils.json;
 
+import com.alibaba.fluss.lake.committer.BucketOffset;
 import com.alibaba.fluss.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import com.alibaba.fluss.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
-import com.alibaba.fluss.utils.json.JsonDeserializer;
-import com.alibaba.fluss.utils.json.JsonSerdeUtils;
-import com.alibaba.fluss.utils.json.JsonSerializer;
 
 import java.io.IOException;
 

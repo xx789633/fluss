@@ -28,7 +28,6 @@ import com.alibaba.fluss.flink.tiering.event.FinishedTieringEvent;
 import com.alibaba.fluss.flink.tiering.source.TableBucketWriteResult;
 import com.alibaba.fluss.flink.tiering.source.TieringSource;
 import com.alibaba.fluss.lake.committer.BucketOffset;
-import com.alibaba.fluss.lake.committer.BucketOffsetJsonSerde;
 import com.alibaba.fluss.lake.committer.CommittedLakeSnapshot;
 import com.alibaba.fluss.lake.committer.LakeCommitter;
 import com.alibaba.fluss.lake.writer.LakeTieringFactory;
@@ -40,6 +39,7 @@ import com.alibaba.fluss.metadata.TablePath;
 import com.alibaba.fluss.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
 import com.alibaba.fluss.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import com.alibaba.fluss.utils.ExceptionUtils;
+import com.alibaba.fluss.utils.json.BucketOffsetJsonSerde;
 
 import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;

@@ -20,6 +20,7 @@ package com.alibaba.fluss.lake.committer;
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
+import java.util.Objects;
 
 /** The bucket offset information to be stored in Paimon's snapshot property. */
 public class BucketOffset implements Serializable {
@@ -59,5 +60,20 @@ public class BucketOffset implements Serializable {
     @Nullable
     public String getPartitionName() {
         return partitionName;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        BucketOffset that = (BucketOffset) o;
+        return bucket == that.bucket
+                && logOffset == that.logOffset
+                && Objects.equals(partitionId, that.partitionId)
+                && Objects.equals(partitionName, that.partitionName);
     }
 }
