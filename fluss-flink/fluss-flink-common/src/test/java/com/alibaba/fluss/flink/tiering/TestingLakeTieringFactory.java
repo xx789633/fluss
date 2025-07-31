@@ -26,6 +26,7 @@ import com.alibaba.fluss.lake.serializer.SimpleVersionedSerializer;
 import com.alibaba.fluss.lake.writer.LakeTieringFactory;
 import com.alibaba.fluss.lake.writer.LakeWriter;
 import com.alibaba.fluss.lake.writer.WriterInitContext;
+import com.alibaba.fluss.metadata.TableBucket;
 import com.alibaba.fluss.record.LogRecord;
 
 import javax.annotation.Nullable;
@@ -33,6 +34,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /** An implementation of {@link LakeTieringFactory} for testing purpose. */
 public class TestingLakeTieringFactory
@@ -118,7 +120,10 @@ public class TestingLakeTieringFactory
         }
 
         @Override
-        public long commit(TestingCommittable committable) throws IOException {
+        public long commit(
+                TestingCommittable committable,
+                List<Map.Entry<TableBucket, Long>> missingTableBucketsOffset)
+                throws IOException {
             return ++currentSnapshot;
         }
 

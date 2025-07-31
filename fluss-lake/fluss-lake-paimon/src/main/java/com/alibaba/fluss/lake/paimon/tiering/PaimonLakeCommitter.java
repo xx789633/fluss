@@ -19,6 +19,7 @@ package com.alibaba.fluss.lake.paimon.tiering;
 
 import com.alibaba.fluss.lake.committer.CommittedLakeSnapshot;
 import com.alibaba.fluss.lake.committer.LakeCommitter;
+import com.alibaba.fluss.metadata.TableBucket;
 import com.alibaba.fluss.metadata.TablePath;
 import com.alibaba.fluss.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
 import com.alibaba.fluss.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
@@ -42,6 +43,8 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static com.alibaba.fluss.lake.paimon.tiering.PaimonLakeTieringFactory.FLUSS_LAKE_TIERING_COMMIT_USER;
 import static com.alibaba.fluss.lake.paimon.utils.PaimonConversions.toPaimon;
@@ -60,6 +63,7 @@ public class PaimonLakeCommitter implements LakeCommitter<PaimonWriteResult, Pai
 
     private static final JsonFactory JACKSON_FACTORY = new JsonFactory();
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private List<PaimonBucketOffset> bucketOffsets;
 
     public PaimonLakeCommitter(PaimonCatalogProvider paimonCatalogProvider, TablePath tablePath)
             throws IOException {
@@ -75,24 +79,42 @@ public class PaimonLakeCommitter implements LakeCommitter<PaimonWriteResult, Pai
         for (PaimonWriteResult paimonWriteResult : paimonWriteResults) {
             committable.addFileCommittable(paimonWriteResult.commitMessage());
         }
-        if (!paimonWriteResults.isEmpty()) {
-            StringWriter sw = new StringWriter();
-            try (JsonGenerator gen = JACKSON_FACTORY.createGenerator(sw)) {
-                gen.writeStartArray();
-                for (PaimonWriteResult paimonWriteResult : paimonWriteResults) {
-                    PaimonBucketOffsetJsonSerde.INSTANCE.serialize(
-                            paimonWriteResult.bucketOffset(), gen);
-                }
-                gen.writeEndArray();
-            }
-            committable.addProperty(FLUSS_LAKE_SNAP_BUCKET_OFFSET_PROPERTY, sw.toString());
-        }
+        bucketOffsets =
+                paimonWriteResults.stream()
+                        .map(PaimonWriteResult::bucketOffset)
+                        .collect(Collectors.toList());
         return new PaimonCommittable(committable);
     }
 
     @Override
-    public long commit(PaimonCommittable committable) throws IOException {
+    public long commit(
+            PaimonCommittable committable,
+            List<Map.Entry<TableBucket, Long>> missingTableBucketsOffset)
+            throws IOException {
         ManifestCommittable manifestCommittable = committable.manifestCommittable();
+
+        StringWriter sw = new StringWriter();
+        try (JsonGenerator gen = JACKSON_FACTORY.createGenerator(sw)) {
+            gen.writeStartArray();
+            for (PaimonBucketOffset bucketOffset : bucketOffsets) {
+                PaimonBucketOffsetJsonSerde.INSTANCE.serialize(bucketOffset, gen);
+            }
+            if (missingTableBucketsOffset != null) {
+                for (Map.Entry<TableBucket, Long> entry : missingTableBucketsOffset) {
+                    PaimonBucketOffsetJsonSerde.INSTANCE.serialize(
+                            new PaimonBucketOffset(
+                                    entry.getValue(),
+                                    entry.getKey().getBucket(),
+                                    entry.getKey().getPartitionId(),
+                                    null),
+                            gen);
+                }
+            }
+            gen.writeEndArray();
+            gen.flush();
+            manifestCommittable.addProperty(FLUSS_LAKE_SNAP_BUCKET_OFFSET_PROPERTY, sw.toString());
+        }
+
         try {
             fileStoreCommit =
                     fileStoreTable
@@ -149,7 +171,7 @@ public class PaimonLakeCommitter implements LakeCommitter<PaimonWriteResult, Pai
             for (JsonNode node : OBJECT_MAPPER.readTree(property)) {
                 PaimonBucketOffset bucketOffset =
                         PaimonBucketOffsetJsonSerde.INSTANCE.deserialize(node);
-                if (bucketOffset.getPartitionName() != null) {
+                if (bucketOffset.getPartitionId() != null) {
                     committedLakeSnapshot.addPartitionBucket(
                             bucketOffset.getPartitionId(),
                             bucketOffset.getBucket(),

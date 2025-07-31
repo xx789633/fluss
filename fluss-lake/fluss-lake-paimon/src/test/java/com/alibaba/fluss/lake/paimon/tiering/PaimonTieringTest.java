@@ -175,7 +175,7 @@ class PaimonTieringTest {
             paimonCommittable =
                     committableSerializer.deserialize(
                             committableSerializer.getVersion(), serialized);
-            long snapshot = lakeCommitter.commit(paimonCommittable);
+            long snapshot = lakeCommitter.commit(paimonCommittable, null);
             assertThat(snapshot).isEqualTo(1);
         }
 
@@ -264,7 +264,7 @@ class PaimonTieringTest {
         try (LakeCommitter<PaimonWriteResult, PaimonCommittable> lakeCommitter =
                 createLakeCommitter(tablePath)) {
             PaimonCommittable committable = lakeCommitter.toCommittable(paimonWriteResults);
-            long snapshot = lakeCommitter.commit(committable);
+            long snapshot = lakeCommitter.commit(committable, null);
             assertThat(snapshot).isEqualTo(1);
         }
 
@@ -318,7 +318,7 @@ class PaimonTieringTest {
         try (LakeCommitter<PaimonWriteResult, PaimonCommittable> lakeCommitter =
                 createLakeCommitter(tablePath)) {
             PaimonCommittable committable = lakeCommitter.toCommittable(paimonWriteResults);
-            long snapshot = lakeCommitter.commit(committable);
+            long snapshot = lakeCommitter.commit(committable, null);
             assertThat(snapshot).isEqualTo(1);
         }
 

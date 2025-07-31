@@ -20,6 +20,7 @@ package com.alibaba.fluss.flink.tiering.committer;
 import com.alibaba.fluss.client.Connection;
 import com.alibaba.fluss.client.ConnectionFactory;
 import com.alibaba.fluss.client.admin.Admin;
+import com.alibaba.fluss.client.metadata.LakeSnapshot;
 import com.alibaba.fluss.config.Configuration;
 import com.alibaba.fluss.exception.LakeTableSnapshotNotExistException;
 import com.alibaba.fluss.flink.tiering.event.FailedTieringEvent;
@@ -64,8 +65,8 @@ import static com.alibaba.fluss.utils.Preconditions.checkState;
  *
  * <p>When it collects all {@link TableBucketWriteResult}s of a round of tiering for a table, it
  * will combine all the {@link WriteResult}s to {@link Committable} via method {@link
- * LakeCommitter#toCommittable(List)}, and then call method {@link LakeCommitter#commit(Object)} to
- * commit to lake.
+ * LakeCommitter#toCommittable(List)}, and then call method {@link LakeCommitter#commit(Object,
+ * List)} to commit to lake.
  *
  * <p>Finally, it will also commit the commited lake snapshot to Fluss cluster to make Fluss aware
  * of the tiering progress.
@@ -179,11 +180,42 @@ public class TieringCommitOperator<WriteResult, Committable>
                     committableWriteResults.stream()
                             .map(TableBucketWriteResult::writeResult)
                             .collect(Collectors.toList());
+
+            LakeSnapshot flussCurrentLakeSnapshot;
+            try {
+                flussCurrentLakeSnapshot = admin.getLatestLakeSnapshot(tablePath).get();
+            } catch (Exception e) {
+                Throwable throwable = e.getCause();
+                if (throwable instanceof LakeTableSnapshotNotExistException) {
+                    // do-nothing
+                    flussCurrentLakeSnapshot = null;
+                } else {
+                    throw e;
+                }
+            }
+            List<Map.Entry<TableBucket, Long>> missingTableBucketsOffset = null;
+            if (flussCurrentLakeSnapshot != null) {
+                Set<TableBucket> tableBuckets =
+                        committableWriteResults.stream()
+                                .map(TableBucketWriteResult::tableBucket)
+                                .collect(Collectors.toSet());
+                missingTableBucketsOffset =
+                        flussCurrentLakeSnapshot.getTableBucketsOffset().entrySet().stream()
+                                .filter(entry -> !tableBuckets.contains(entry.getKey()))
+                                .collect(Collectors.toList());
+            }
+
             // to committable
             Committable committable = lakeCommitter.toCommittable(writeResults);
             // before commit to lake, check fluss not missing any lake snapshot commited by fluss
-            checkFlussNotMissingLakeSnapshot(tablePath, lakeCommitter, committable);
-            long commitedSnapshotId = lakeCommitter.commit(committable);
+            checkFlussNotMissingLakeSnapshot(
+                    tablePath,
+                    lakeCommitter,
+                    committable,
+                    flussCurrentLakeSnapshot == null
+                            ? null
+                            : flussCurrentLakeSnapshot.getSnapshotId());
+            long commitedSnapshotId = lakeCommitter.commit(committable, missingTableBucketsOffset);
             // commit to fluss
             Map<TableBucket, Long> logEndOffsets = new HashMap<>();
             for (TableBucketWriteResult<WriteResult> writeResult : committableWriteResults) {
@@ -198,20 +230,9 @@ public class TieringCommitOperator<WriteResult, Committable>
     private void checkFlussNotMissingLakeSnapshot(
             TablePath tablePath,
             LakeCommitter<WriteResult, Committable> lakeCommitter,
-            Committable committable)
+            Committable committable,
+            Long flussCurrentLakeSnapshot)
             throws Exception {
-        Long flussCurrentLakeSnapshot;
-        try {
-            flussCurrentLakeSnapshot = admin.getLatestLakeSnapshot(tablePath).get().getSnapshotId();
-        } catch (Exception e) {
-            Throwable throwable = e.getCause();
-            if (throwable instanceof LakeTableSnapshotNotExistException) {
-                // do-nothing
-                flussCurrentLakeSnapshot = null;
-            } else {
-                throw e;
-            }
-        }
 
         // get Fluss missing lake snapshot in Lake
         CommittedLakeSnapshot missingCommittedSnapshot =
