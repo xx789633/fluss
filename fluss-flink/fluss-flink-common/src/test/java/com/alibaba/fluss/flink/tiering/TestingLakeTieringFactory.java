@@ -26,7 +26,6 @@ import com.alibaba.fluss.lake.serializer.SimpleVersionedSerializer;
 import com.alibaba.fluss.lake.writer.LakeTieringFactory;
 import com.alibaba.fluss.lake.writer.LakeWriter;
 import com.alibaba.fluss.lake.writer.WriterInitContext;
-import com.alibaba.fluss.metadata.TableBucket;
 import com.alibaba.fluss.record.LogRecord;
 
 import javax.annotation.Nullable;
@@ -120,9 +119,7 @@ public class TestingLakeTieringFactory
         }
 
         @Override
-        public long commit(
-                TestingCommittable committable,
-                List<Map.Entry<TableBucket, Long>> missingTableBucketsOffset)
+        public long commit(TestingCommittable committable, Map<String, String> properties)
                 throws IOException {
             return ++currentSnapshot;
         }

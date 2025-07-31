@@ -66,6 +66,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
+import static com.alibaba.fluss.flink.tiering.committer.TieringCommitOperator.toBucketOffsetsProperty;
 import static com.alibaba.fluss.lake.paimon.utils.PaimonConversions.toPaimon;
 import static com.alibaba.fluss.metadata.TableDescriptor.BUCKET_COLUMN_NAME;
 import static com.alibaba.fluss.metadata.TableDescriptor.OFFSET_COLUMN_NAME;
@@ -139,6 +140,7 @@ class PaimonTieringTest {
                             }
                         }
                         : Collections.singletonMap(null, null);
+        Map<TableBucket, Long> tableBucketOffsets = new HashMap<>();
         // first, write data
         for (int bucket = 0; bucket < bucketNum; bucket++) {
             for (Map.Entry<Long, String> entry : partitionIdAndName.entrySet()) {
@@ -153,6 +155,7 @@ class PaimonTieringTest {
                     List<LogRecord> writtenRecords = writeAndExpectRecords.f0;
                     List<LogRecord> expectRecords = writeAndExpectRecords.f1;
                     recordsByBucket.put(partitionBucket, expectRecords);
+                    tableBucketOffsets.put(new TableBucket(0, entry.getKey(), bucket), 10L);
                     for (LogRecord logRecord : writtenRecords) {
                         lakeWriter.write(logRecord);
                     }
@@ -175,7 +178,9 @@ class PaimonTieringTest {
             paimonCommittable =
                     committableSerializer.deserialize(
                             committableSerializer.getVersion(), serialized);
-            long snapshot = lakeCommitter.commit(paimonCommittable, null);
+            long snapshot =
+                    lakeCommitter.commit(
+                            paimonCommittable, toBucketOffsetsProperty(tableBucketOffsets));
             assertThat(snapshot).isEqualTo(1);
         }
 
@@ -205,7 +210,7 @@ class PaimonTieringTest {
             for (int bucket = 0; bucket < 3; bucket++) {
                 for (Long partitionId : partitionIdAndName.keySet()) {
                     // we only write 10 records, so expected log offset should be 9
-                    assertThat(offsets.get(Tuple2.of(partitionId, bucket))).isEqualTo(9);
+                    assertThat(offsets.get(Tuple2.of(partitionId, bucket))).isEqualTo(10);
                 }
             }
             assertThat(committedLakeSnapshot.getLakeSnapshotId()).isOne();
@@ -230,6 +235,7 @@ class PaimonTieringTest {
 
         Map<String, List<LogRecord>> recordsByPartition = new HashMap<>();
         List<PaimonWriteResult> paimonWriteResults = new ArrayList<>();
+        Map<TableBucket, Long> tableBucketOffsets = new HashMap<>();
 
         // Test data for different partitions using $ separator
         Map<Long, String> partitionIdAndName =
@@ -254,7 +260,7 @@ class PaimonTieringTest {
                 for (LogRecord logRecord : logRecords) {
                     lakeWriter.write(logRecord);
                 }
-
+                tableBucketOffsets.put(new TableBucket(0, entry.getKey(), bucket), 3L);
                 PaimonWriteResult result = lakeWriter.complete();
                 paimonWriteResults.add(result);
             }
@@ -264,7 +270,8 @@ class PaimonTieringTest {
         try (LakeCommitter<PaimonWriteResult, PaimonCommittable> lakeCommitter =
                 createLakeCommitter(tablePath)) {
             PaimonCommittable committable = lakeCommitter.toCommittable(paimonWriteResults);
-            long snapshot = lakeCommitter.commit(committable, null);
+            long snapshot =
+                    lakeCommitter.commit(committable, toBucketOffsetsProperty(tableBucketOffsets));
             assertThat(snapshot).isEqualTo(1);
         }
 
@@ -285,6 +292,7 @@ class PaimonTieringTest {
 
         Map<String, List<LogRecord>> recordsByPartition = new HashMap<>();
         List<PaimonWriteResult> paimonWriteResults = new ArrayList<>();
+        Map<TableBucket, Long> tableBucketOffsets = new HashMap<>();
 
         // Test data for different three-level partitions using $ separator
         Map<Long, String> partitionIdAndName =
@@ -308,6 +316,7 @@ class PaimonTieringTest {
                 for (LogRecord logRecord : logRecords) {
                     lakeWriter.write(logRecord);
                 }
+                tableBucketOffsets.put(new TableBucket(0, entry.getKey(), bucket), 2L);
 
                 PaimonWriteResult result = lakeWriter.complete();
                 paimonWriteResults.add(result);
@@ -318,7 +327,8 @@ class PaimonTieringTest {
         try (LakeCommitter<PaimonWriteResult, PaimonCommittable> lakeCommitter =
                 createLakeCommitter(tablePath)) {
             PaimonCommittable committable = lakeCommitter.toCommittable(paimonWriteResults);
-            long snapshot = lakeCommitter.commit(committable, null);
+            long snapshot =
+                    lakeCommitter.commit(committable, toBucketOffsetsProperty(tableBucketOffsets));
             assertThat(snapshot).isEqualTo(1);
         }
 

@@ -21,15 +21,12 @@ import com.alibaba.fluss.lake.paimon.tiering.append.AppendOnlyWriter;
 import com.alibaba.fluss.lake.paimon.tiering.mergetree.MergeTreeWriter;
 import com.alibaba.fluss.lake.writer.LakeWriter;
 import com.alibaba.fluss.lake.writer.WriterInitContext;
-import com.alibaba.fluss.metadata.TableBucket;
 import com.alibaba.fluss.metadata.TablePath;
 import com.alibaba.fluss.record.LogRecord;
 
 import org.apache.paimon.catalog.Catalog;
 import org.apache.paimon.table.FileStoreTable;
 import org.apache.paimon.table.sink.CommitMessage;
-
-import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.List;
@@ -41,16 +38,11 @@ public class PaimonLakeWriter implements LakeWriter<PaimonWriteResult> {
 
     private final Catalog paimonCatalog;
     private final RecordWriter<?> recordWriter;
-    private long logOffset;
-    private final TableBucket tableBucket;
-    private final @Nullable String partitionName;
 
     public PaimonLakeWriter(
             PaimonCatalogProvider paimonCatalogProvider, WriterInitContext writerInitContext)
             throws IOException {
         this.paimonCatalog = paimonCatalogProvider.get();
-        this.tableBucket = writerInitContext.tableBucket();
-        this.partitionName = writerInitContext.partition();
         FileStoreTable fileStoreTable = getTable(writerInitContext.tablePath());
 
         List<String> partitionKeys = fileStoreTable.partitionKeys();
@@ -73,7 +65,6 @@ public class PaimonLakeWriter implements LakeWriter<PaimonWriteResult> {
     public void write(LogRecord record) throws IOException {
         try {
             recordWriter.write(record);
-            logOffset = record.logOffset();
         } catch (Exception e) {
             throw new IOException("Failed to write Fluss record to Paimon.", e);
         }
@@ -87,13 +78,7 @@ public class PaimonLakeWriter implements LakeWriter<PaimonWriteResult> {
         } catch (Exception e) {
             throw new IOException("Failed to complete Paimon write.", e);
         }
-        return new PaimonWriteResult(
-                commitMessage,
-                new PaimonBucketOffset(
-                        logOffset,
-                        tableBucket.getBucket(),
-                        tableBucket.getPartitionId(),
-                        partitionName));
+        return new PaimonWriteResult(commitMessage);
     }
 
     @Override

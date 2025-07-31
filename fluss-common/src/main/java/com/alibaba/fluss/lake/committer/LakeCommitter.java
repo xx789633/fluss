@@ -18,7 +18,6 @@
 package com.alibaba.fluss.lake.committer;
 
 import com.alibaba.fluss.annotation.PublicEvolving;
-import com.alibaba.fluss.metadata.TableBucket;
 
 import javax.annotation.Nullable;
 
@@ -53,9 +52,7 @@ public interface LakeCommitter<WriteResult, CommittableT> extends AutoCloseable 
      * @return the committed snapshot ID
      * @throws IOException if an I/O error occurs
      */
-    long commit(
-            CommittableT committable, List<Map.Entry<TableBucket, Long>> missingTableBucketsOffset)
-            throws IOException;
+    long commit(CommittableT committable, Map<String, String> properties) throws IOException;
 
     /**
      * Aborts the given committable object.

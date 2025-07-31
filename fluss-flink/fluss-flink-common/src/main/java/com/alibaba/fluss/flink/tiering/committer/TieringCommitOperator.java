@@ -27,6 +27,8 @@ import com.alibaba.fluss.flink.tiering.event.FailedTieringEvent;
 import com.alibaba.fluss.flink.tiering.event.FinishedTieringEvent;
 import com.alibaba.fluss.flink.tiering.source.TableBucketWriteResult;
 import com.alibaba.fluss.flink.tiering.source.TieringSource;
+import com.alibaba.fluss.lake.committer.BucketOffset;
+import com.alibaba.fluss.lake.committer.BucketOffsetJsonSerde;
 import com.alibaba.fluss.lake.committer.CommittedLakeSnapshot;
 import com.alibaba.fluss.lake.committer.LakeCommitter;
 import com.alibaba.fluss.lake.writer.LakeTieringFactory;
@@ -35,6 +37,8 @@ import com.alibaba.fluss.metadata.PartitionInfo;
 import com.alibaba.fluss.metadata.TableBucket;
 import com.alibaba.fluss.metadata.TableInfo;
 import com.alibaba.fluss.metadata.TablePath;
+import com.alibaba.fluss.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
+import com.alibaba.fluss.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import com.alibaba.fluss.utils.ExceptionUtils;
 
 import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
@@ -46,6 +50,8 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -54,6 +60,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.alibaba.fluss.lake.committer.BucketOffset.FLUSS_LAKE_SNAP_BUCKET_OFFSET_PROPERTY;
 import static com.alibaba.fluss.utils.Preconditions.checkState;
 
 /**
@@ -66,7 +73,7 @@ import static com.alibaba.fluss.utils.Preconditions.checkState;
  * <p>When it collects all {@link TableBucketWriteResult}s of a round of tiering for a table, it
  * will combine all the {@link WriteResult}s to {@link Committable} via method {@link
  * LakeCommitter#toCommittable(List)}, and then call method {@link LakeCommitter#commit(Object,
- * List)} to commit to lake.
+ * Map)} to commit to lake.
  *
  * <p>Finally, it will also commit the commited lake snapshot to Fluss cluster to make Fluss aware
  * of the tiering progress.
@@ -83,6 +90,7 @@ public class TieringCommitOperator<WriteResult, Committable>
     private final FlussTableLakeSnapshotCommitter flussTableLakeSnapshotCommitter;
     private Connection connection;
     private Admin admin;
+    private static final JsonFactory JACKSON_FACTORY = new JsonFactory();
 
     // gateway to send event to flink source coordinator
     private final OperatorEventGateway operatorEventGateway;
@@ -181,29 +189,9 @@ public class TieringCommitOperator<WriteResult, Committable>
                             .map(TableBucketWriteResult::writeResult)
                             .collect(Collectors.toList());
 
-            LakeSnapshot flussCurrentLakeSnapshot;
-            try {
-                flussCurrentLakeSnapshot = admin.getLatestLakeSnapshot(tablePath).get();
-            } catch (Exception e) {
-                Throwable throwable = e.getCause();
-                if (throwable instanceof LakeTableSnapshotNotExistException) {
-                    // do-nothing
-                    flussCurrentLakeSnapshot = null;
-                } else {
-                    throw e;
-                }
-            }
-            List<Map.Entry<TableBucket, Long>> missingTableBucketsOffset = null;
-            if (flussCurrentLakeSnapshot != null) {
-                Set<TableBucket> tableBuckets =
-                        committableWriteResults.stream()
-                                .map(TableBucketWriteResult::tableBucket)
-                                .collect(Collectors.toSet());
-                missingTableBucketsOffset =
-                        flussCurrentLakeSnapshot.getTableBucketsOffset().entrySet().stream()
-                                .filter(entry -> !tableBuckets.contains(entry.getKey()))
-                                .collect(Collectors.toList());
-            }
+            LakeSnapshot flussCurrentLakeSnapshot = getLatestLakeSnapshot(tablePath);
+            Map<TableBucket, Long> logOffsets =
+                    mergeTableBucketOffsets(flussCurrentLakeSnapshot, committableWriteResults);
 
             // to committable
             Committable committable = lakeCommitter.toCommittable(writeResults);
@@ -215,7 +203,8 @@ public class TieringCommitOperator<WriteResult, Committable>
                     flussCurrentLakeSnapshot == null
                             ? null
                             : flussCurrentLakeSnapshot.getSnapshotId());
-            long commitedSnapshotId = lakeCommitter.commit(committable, missingTableBucketsOffset);
+            long commitedSnapshotId =
+                    lakeCommitter.commit(committable, toBucketOffsetsProperty(logOffsets));
             // commit to fluss
             Map<TableBucket, Long> logEndOffsets = new HashMap<>();
             for (TableBucketWriteResult<WriteResult> writeResult : committableWriteResults) {
@@ -225,6 +214,65 @@ public class TieringCommitOperator<WriteResult, Committable>
                     new FlussTableLakeSnapshot(tableId, commitedSnapshotId, logEndOffsets));
             return committable;
         }
+    }
+
+    public static Map<String, String> toBucketOffsetsProperty(
+            Map<TableBucket, Long> tableBucketOffsets) throws IOException {
+        StringWriter sw = new StringWriter();
+        try (JsonGenerator gen = JACKSON_FACTORY.createGenerator(sw)) {
+            gen.writeStartArray();
+            for (Map.Entry<TableBucket, Long> entry : tableBucketOffsets.entrySet()) {
+                BucketOffsetJsonSerde.INSTANCE.serialize(
+                        new BucketOffset(
+                                entry.getValue(),
+                                entry.getKey().getBucket(),
+                                entry.getKey().getPartitionId(),
+                                null),
+                        gen);
+            }
+            gen.writeEndArray();
+            gen.flush();
+        }
+        return new HashMap<String, String>() {
+            {
+                put(FLUSS_LAKE_SNAP_BUCKET_OFFSET_PROPERTY, sw.toString());
+            }
+        };
+    }
+
+    /**
+     * Merge the log offsets of latest snapshot with current written bucket offsets to get full log
+     * offsets.
+     */
+    private Map<TableBucket, Long> mergeTableBucketOffsets(
+            @Nullable LakeSnapshot latestLakeSnapshot,
+            List<TableBucketWriteResult<WriteResult>> currentWriteResults) {
+        Map<TableBucket, Long> tableBucketOffsets =
+                latestLakeSnapshot == null
+                        ? new HashMap<>()
+                        : new HashMap<>(latestLakeSnapshot.getTableBucketsOffset());
+        for (TableBucketWriteResult<WriteResult> tableBucketWriteResult : currentWriteResults) {
+            tableBucketOffsets.put(
+                    tableBucketWriteResult.tableBucket(), tableBucketWriteResult.logEndOffset());
+        }
+        return tableBucketOffsets;
+    }
+
+    @Nullable
+    private LakeSnapshot getLatestLakeSnapshot(TablePath tablePath) throws Exception {
+        LakeSnapshot flussCurrentLakeSnapshot;
+        try {
+            flussCurrentLakeSnapshot = admin.getLatestLakeSnapshot(tablePath).get();
+        } catch (Exception e) {
+            Throwable throwable = e.getCause();
+            if (throwable instanceof LakeTableSnapshotNotExistException) {
+                // do-nothing
+                flussCurrentLakeSnapshot = null;
+            } else {
+                throw e;
+            }
+        }
+        return flussCurrentLakeSnapshot;
     }
 
     private void checkFlussNotMissingLakeSnapshot(

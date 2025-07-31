@@ -19,8 +19,6 @@ package com.alibaba.fluss.lake.paimon.tiering;
 
 import com.alibaba.fluss.lake.serializer.SimpleVersionedSerializer;
 
-import org.apache.paimon.io.DataInputDeserializer;
-import org.apache.paimon.io.DataOutputSerializer;
 import org.apache.paimon.table.sink.CommitMessage;
 import org.apache.paimon.table.sink.CommitMessageSerializer;
 
@@ -40,20 +38,8 @@ public class PaimonWriteResultSerializer implements SimpleVersionedSerializer<Pa
 
     @Override
     public byte[] serialize(PaimonWriteResult paimonWriteResult) throws IOException {
-        final DataOutputSerializer out = new DataOutputSerializer(256);
-
-        // serialize write result
-        byte[] serializeBytes = messageSer.serialize(paimonWriteResult.commitMessage());
-        out.writeInt(serializeBytes.length);
-        out.write(serializeBytes);
-
-        serializeBytes = PaimonBucketOffsetJsonSerde.toJson(paimonWriteResult.bucketOffset());
-        out.writeInt(serializeBytes.length);
-        out.write(serializeBytes);
-
-        final byte[] result = out.getCopyOfBuffer();
-        out.clear();
-        return result;
+        CommitMessage commitMessage = paimonWriteResult.commitMessage();
+        return messageSer.serialize(commitMessage);
     }
 
     @Override
@@ -66,17 +52,7 @@ public class PaimonWriteResultSerializer implements SimpleVersionedSerializer<Pa
                             + version
                             + ".");
         }
-        DataInputDeserializer in = new DataInputDeserializer(serialized);
-
-        byte[] writeResultBytes = new byte[in.readInt()];
-        in.readFully(writeResultBytes);
-        CommitMessage commitMessage =
-                messageSer.deserialize(messageSer.getVersion(), writeResultBytes);
-
-        byte[] bucketOffsetBytes = new byte[in.readInt()];
-        in.readFully(bucketOffsetBytes);
-        PaimonBucketOffset bucketOffset = PaimonBucketOffsetJsonSerde.fromJson(bucketOffsetBytes);
-
-        return new PaimonWriteResult(commitMessage, bucketOffset);
+        CommitMessage commitMessage = messageSer.deserialize(messageSer.getVersion(), serialized);
+        return new PaimonWriteResult(commitMessage);
     }
 }

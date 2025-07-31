@@ -27,18 +27,12 @@ public class PaimonWriteResult implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private final CommitMessage commitMessage;
-    private final PaimonBucketOffset bucketOffset;
 
-    public PaimonWriteResult(CommitMessage commitMessage, PaimonBucketOffset bucketOffset) {
+    public PaimonWriteResult(CommitMessage commitMessage) {
         this.commitMessage = commitMessage;
-        this.bucketOffset = bucketOffset;
     }
 
     public CommitMessage commitMessage() {
         return commitMessage;
-    }
-
-    public PaimonBucketOffset bucketOffset() {
-        return bucketOffset;
     }
 }
