@@ -130,7 +130,8 @@ public class LanceArrowUtils {
 
         @Override
         public ArrowType visit(DecimalType decimalType) {
-            return new ArrowType.Decimal(decimalType.getPrecision(), decimalType.getScale());
+            return ArrowType.Decimal.createDecimal(
+                    decimalType.getPrecision(), decimalType.getScale(), null);
         }
 
         @Override

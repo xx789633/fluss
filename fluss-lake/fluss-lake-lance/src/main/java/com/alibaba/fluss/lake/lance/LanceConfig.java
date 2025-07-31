@@ -27,7 +27,7 @@ import java.util.Objects;
 
 /** Lance Configuration. */
 public class LanceConfig implements Serializable {
-    private static final long serialVersionUID = 827364827364823764L;
+    private static final long serialVersionUID = 1L;
     public static final String LANCE_FILE_SUFFIX = ".lance";
     public static final String LANCE_DEFAULT_WAREHOUSE = "/tmp/lance";
 
@@ -52,23 +52,24 @@ public class LanceConfig implements Serializable {
     private final String tableName;
     private final String datasetUri;
 
-    public LanceConfig(String databaseName, String tableName, Map<String, String> properties) {
+    public LanceConfig(
+            String databaseName,
+            String tableName,
+            String warehouse,
+            Map<String, String> properties) {
         this.databaseName = databaseName;
         this.tableName = tableName;
         this.options = properties;
 
-        this.datasetUri =
-                options.getOrDefault(warehouse, LANCE_DEFAULT_WAREHOUSE)
-                        + "/"
-                        + databaseName
-                        + "/"
-                        + tableName
-                        + LANCE_FILE_SUFFIX;
+        this.datasetUri = warehouse + "/" + databaseName + "/" + tableName + LANCE_FILE_SUFFIX;
     }
 
     public static LanceConfig from(
             Map<String, String> properties, String databaseName, String tableName) {
-        return new LanceConfig(databaseName, tableName, properties);
+        if (!properties.containsKey(warehouse)) {
+            throw new IllegalArgumentException("Missing required option " + warehouse);
+        }
+        return new LanceConfig(databaseName, tableName, properties.get(warehouse), properties);
     }
 
     public static int getBatchSize(LanceConfig config) {
