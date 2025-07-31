@@ -29,7 +29,6 @@ import java.util.Objects;
 public class LanceConfig implements Serializable {
     private static final long serialVersionUID = 1L;
     public static final String LANCE_FILE_SUFFIX = ".lance";
-    public static final String LANCE_DEFAULT_WAREHOUSE = "/tmp/lance";
 
     private static final String block_size = "block_size";
     private static final String version = "version";

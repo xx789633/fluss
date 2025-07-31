@@ -207,10 +207,6 @@
                                 <includes>
                                     <include>*:*</include>
                                 </includes>
-                                <excludes>
-                                    <exclude>com.alibaba.fluss:*</exclude>
-                                    <exclude>org.apache.flink:*</exclude>
-                                </excludes>
                             </artifactSet>
                             <filters>
                                 <filter>
