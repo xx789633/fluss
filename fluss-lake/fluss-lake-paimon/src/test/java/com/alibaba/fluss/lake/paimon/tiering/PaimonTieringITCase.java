@@ -158,6 +158,20 @@ class PaimonTieringITCase extends FlinkPaimonTieringTestBase {
                     writtenRowsByPartition.get(partitionName),
                     0);
         }
+
+        properties =
+                new HashMap<String, String>() {
+                    {
+                        put(
+                                FLUSS_LAKE_SNAP_BUCKET_OFFSET_PROPERTY,
+                                "["
+                                        + "{\"partition_id\":0,\"bucket_id\":0,\"log_offset\":3},"
+                                        + "{\"partition_id\":1,\"bucket_id\":0,\"log_offset\":3}"
+                                        + "]");
+                    }
+                };
+        checkSnapshotPropertyInPaimon(partitionedTablePath, properties);
+
         jobClient.cancel().get();
     }
 

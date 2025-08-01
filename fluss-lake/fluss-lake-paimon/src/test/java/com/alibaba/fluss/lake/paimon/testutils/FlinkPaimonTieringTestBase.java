@@ -472,6 +472,7 @@ public class FlinkPaimonTieringTestBase {
                                                 tablePath.getDatabaseName(),
                                                 tablePath.getTableName()));
         Snapshot snapshot = table.snapshotManager().latestSnapshot();
+        assertThat(snapshot).isNotNull();
         assertThat(snapshot.properties()).isEqualTo(expectedProperties);
     }
 }

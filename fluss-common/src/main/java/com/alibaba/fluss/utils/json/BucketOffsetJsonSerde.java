@@ -69,14 +69,4 @@ public class BucketOffsetJsonSerde
 
         generator.writeEndObject();
     }
-
-    /** Serialize the {@link BucketOffset} to json bytes. */
-    public static byte[] toJson(BucketOffset paimonBucketOffset) {
-        return JsonSerdeUtils.writeValueAsBytes(paimonBucketOffset, INSTANCE);
-    }
-
-    /** Deserialize the json bytes to {@link BucketOffset}. */
-    public static BucketOffset fromJson(byte[] json) {
-        return JsonSerdeUtils.readValue(json, INSTANCE);
-    }
 }

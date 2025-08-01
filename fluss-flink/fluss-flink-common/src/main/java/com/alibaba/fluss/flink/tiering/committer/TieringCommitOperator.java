@@ -227,11 +227,11 @@ public class TieringCommitOperator<WriteResult, Committable>
                                 entry.getValue(),
                                 entry.getKey().getBucket(),
                                 entry.getKey().getPartitionId(),
+                                // todo: fill partition name in #1448
                                 null),
                         gen);
             }
             gen.writeEndArray();
-            gen.flush();
         }
         return new HashMap<String, String>() {
             {

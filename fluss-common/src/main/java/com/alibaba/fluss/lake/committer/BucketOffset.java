@@ -22,16 +22,16 @@ import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.util.Objects;
 
-/** The bucket offset information to be stored in Paimon's snapshot property. */
+/** The bucket offset information to be expected to be stored in Lake's snapshot property. */
 public class BucketOffset implements Serializable {
 
     private static final long serialVersionUID = 1L;
-
-    private long logOffset;
-    private int bucket;
-    private @Nullable Long partitionId;
-    private @Nullable String partitionName;
     public static final String FLUSS_LAKE_SNAP_BUCKET_OFFSET_PROPERTY = "fluss-offsets";
+
+    private final long logOffset;
+    private final int bucket;
+    private final @Nullable Long partitionId;
+    private final @Nullable String partitionName;
 
     public BucketOffset(
             long logOffset,

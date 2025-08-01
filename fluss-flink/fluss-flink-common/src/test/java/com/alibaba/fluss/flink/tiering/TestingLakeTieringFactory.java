@@ -119,7 +119,7 @@ public class TestingLakeTieringFactory
         }
 
         @Override
-        public long commit(TestingCommittable committable, Map<String, String> properties)
+        public long commit(TestingCommittable committable, Map<String, String> snapshotProperties)
                 throws IOException {
             return ++currentSnapshot;
         }
