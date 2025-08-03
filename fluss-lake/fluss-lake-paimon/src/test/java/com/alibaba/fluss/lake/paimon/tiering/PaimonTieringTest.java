@@ -130,7 +130,7 @@ class PaimonTieringTest {
         }
 
         Map<Tuple2<String, Integer>, List<LogRecord>> recordsByBucket = new HashMap<>();
-        Map<Long, String> partitionIdAndName =
+        Map<Long, String> partitionNameById =
                 isPartitioned
                         ? new HashMap<Long, String>() {
                             {
@@ -143,7 +143,7 @@ class PaimonTieringTest {
         Map<TableBucket, Long> tableBucketOffsets = new HashMap<>();
         // first, write data
         for (int bucket = 0; bucket < bucketNum; bucket++) {
-            for (Map.Entry<Long, String> entry : partitionIdAndName.entrySet()) {
+            for (Map.Entry<Long, String> entry : partitionNameById.entrySet()) {
                 String partition = entry.getValue();
                 try (LakeWriter<PaimonWriteResult> lakeWriter =
                         createLakeWriter(tablePath, bucket, partition, entry.getKey())) {
@@ -180,13 +180,14 @@ class PaimonTieringTest {
                             committableSerializer.getVersion(), serialized);
             long snapshot =
                     lakeCommitter.commit(
-                            paimonCommittable, toBucketOffsetsProperty(tableBucketOffsets));
+                            paimonCommittable,
+                            toBucketOffsetsProperty(tableBucketOffsets, partitionNameById));
             assertThat(snapshot).isEqualTo(1);
         }
 
         // then, check data
         for (int bucket = 0; bucket < 3; bucket++) {
-            for (String partition : partitionIdAndName.values()) {
+            for (String partition : partitionNameById.values()) {
                 Tuple2<String, Integer> partitionBucket = Tuple2.of(partition, bucket);
                 List<LogRecord> expectRecords = recordsByBucket.get(partitionBucket);
                 CloseableIterator<InternalRow> actualRecords =
@@ -208,7 +209,7 @@ class PaimonTieringTest {
             assertThat(committedLakeSnapshot).isNotNull();
             Map<Tuple2<Long, Integer>, Long> offsets = committedLakeSnapshot.getLogEndOffsets();
             for (int bucket = 0; bucket < 3; bucket++) {
-                for (Long partitionId : partitionIdAndName.keySet()) {
+                for (Long partitionId : partitionNameById.keySet()) {
                     // we only write 10 records, so expected log offset should be 10
                     assertThat(offsets.get(Tuple2.of(partitionId, bucket))).isEqualTo(10);
                 }
@@ -238,7 +239,7 @@ class PaimonTieringTest {
         Map<TableBucket, Long> tableBucketOffsets = new HashMap<>();
 
         // Test data for different partitions using $ separator
-        Map<Long, String> partitionIdAndName =
+        Map<Long, String> partitionNameById =
                 new HashMap<Long, String>() {
                     {
                         put(1L, "us-east$2024");
@@ -249,7 +250,7 @@ class PaimonTieringTest {
 
         int bucket = 0;
 
-        for (Map.Entry<Long, String> entry : partitionIdAndName.entrySet()) {
+        for (Map.Entry<Long, String> entry : partitionNameById.entrySet()) {
             String partition = entry.getValue();
             try (LakeWriter<PaimonWriteResult> lakeWriter =
                     createLakeWriter(tablePath, bucket, partition, entry.getKey())) {
@@ -271,12 +272,14 @@ class PaimonTieringTest {
                 createLakeCommitter(tablePath)) {
             PaimonCommittable committable = lakeCommitter.toCommittable(paimonWriteResults);
             long snapshot =
-                    lakeCommitter.commit(committable, toBucketOffsetsProperty(tableBucketOffsets));
+                    lakeCommitter.commit(
+                            committable,
+                            toBucketOffsetsProperty(tableBucketOffsets, partitionNameById));
             assertThat(snapshot).isEqualTo(1);
         }
 
         // Verify data for each partition
-        for (String partition : partitionIdAndName.values()) {
+        for (String partition : partitionNameById.values()) {
             List<LogRecord> expectRecords = recordsByPartition.get(partition);
             CloseableIterator<InternalRow> actualRecords =
                     getPaimonRowsMultiPartition(tablePath, partition);
@@ -295,7 +298,7 @@ class PaimonTieringTest {
         Map<TableBucket, Long> tableBucketOffsets = new HashMap<>();
 
         // Test data for different three-level partitions using $ separator
-        Map<Long, String> partitionIdAndName =
+        Map<Long, String> partitionNameById =
                 new HashMap<Long, String>() {
                     {
                         put(1L, "us-east$2024$01");
@@ -304,7 +307,7 @@ class PaimonTieringTest {
                 };
         int bucket = 0;
 
-        for (Map.Entry<Long, String> entry : partitionIdAndName.entrySet()) {
+        for (Map.Entry<Long, String> entry : partitionNameById.entrySet()) {
             String partition = entry.getValue();
             try (LakeWriter<PaimonWriteResult> lakeWriter =
                     createLakeWriter(tablePath, bucket, partition, entry.getKey())) {
@@ -328,12 +331,14 @@ class PaimonTieringTest {
                 createLakeCommitter(tablePath)) {
             PaimonCommittable committable = lakeCommitter.toCommittable(paimonWriteResults);
             long snapshot =
-                    lakeCommitter.commit(committable, toBucketOffsetsProperty(tableBucketOffsets));
+                    lakeCommitter.commit(
+                            committable,
+                            toBucketOffsetsProperty(tableBucketOffsets, partitionNameById));
             assertThat(snapshot).isEqualTo(1);
         }
 
         // Verify data for each partition
-        for (String partition : partitionIdAndName.values()) {
+        for (String partition : partitionNameById.values()) {
             List<LogRecord> expectRecords = recordsByPartition.get(partition);
             CloseableIterator<InternalRow> actualRecords =
                     getPaimonRowsThreePartition(tablePath, partition);

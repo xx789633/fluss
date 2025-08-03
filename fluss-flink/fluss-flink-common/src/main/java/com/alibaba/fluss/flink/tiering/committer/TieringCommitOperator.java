@@ -203,8 +203,21 @@ public class TieringCommitOperator<WriteResult, Committable>
                     flussCurrentLakeSnapshot == null
                             ? null
                             : flussCurrentLakeSnapshot.getSnapshotId());
+
+            TableInfo tableInfo = admin.getTableInfo(tablePath).get();
+            Map<Long, String> partitionNameById = null;
+            if (tableInfo.isPartitioned()) {
+                partitionNameById =
+                        admin.listPartitionInfos(tablePath).get().stream()
+                                .collect(
+                                        Collectors.toMap(
+                                                PartitionInfo::getPartitionId,
+                                                PartitionInfo::getPartitionName));
+            }
+
             long commitedSnapshotId =
-                    lakeCommitter.commit(committable, toBucketOffsetsProperty(logOffsets));
+                    lakeCommitter.commit(
+                            committable, toBucketOffsetsProperty(logOffsets, partitionNameById));
             // commit to fluss
             Map<TableBucket, Long> logEndOffsets = new HashMap<>();
             for (TableBucketWriteResult<WriteResult> writeResult : committableWriteResults) {
@@ -217,7 +230,9 @@ public class TieringCommitOperator<WriteResult, Committable>
     }
 
     public static Map<String, String> toBucketOffsetsProperty(
-            Map<TableBucket, Long> tableBucketOffsets) throws IOException {
+            Map<TableBucket, Long> tableBucketOffsets, Map<Long, String> partitionNameById)
+            throws IOException {
+
         StringWriter sw = new StringWriter();
         try (JsonGenerator gen = JACKSON_FACTORY.createGenerator(sw)) {
             gen.writeStartArray();
@@ -227,8 +242,9 @@ public class TieringCommitOperator<WriteResult, Committable>
                                 entry.getValue(),
                                 entry.getKey().getBucket(),
                                 entry.getKey().getPartitionId(),
-                                // todo: fill partition name in #1448
-                                null),
+                                entry.getKey().getPartitionId() == null
+                                        ? null
+                                        : partitionNameById.get(entry.getKey().getPartitionId())),
                         gen);
             }
             gen.writeEndArray();
