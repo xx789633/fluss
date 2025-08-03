@@ -196,16 +196,10 @@ public class TieringCommitOperator<WriteResult, Committable>
             // to committable
             Committable committable = lakeCommitter.toCommittable(writeResults);
             // before commit to lake, check fluss not missing any lake snapshot commited by fluss
-            checkFlussNotMissingLakeSnapshot(
-                    tablePath,
-                    lakeCommitter,
-                    committable,
-                    flussCurrentLakeSnapshot == null
-                            ? null
-                            : flussCurrentLakeSnapshot.getSnapshotId());
 
             TableInfo tableInfo = admin.getTableInfo(tablePath).get();
             Map<Long, String> partitionNameById = null;
+            Map<String, Long> partitionIdByName = null;
             if (tableInfo.isPartitioned()) {
                 partitionNameById =
                         admin.listPartitionInfos(tablePath).get().stream()
@@ -213,7 +207,21 @@ public class TieringCommitOperator<WriteResult, Committable>
                                         Collectors.toMap(
                                                 PartitionInfo::getPartitionId,
                                                 PartitionInfo::getPartitionName));
+
+                partitionIdByName =
+                        partitionNameById.entrySet().stream()
+                                .collect(Collectors.toMap(Map.Entry::getValue, Map.Entry::getKey));
             }
+
+            checkFlussNotMissingLakeSnapshot(
+                    tablePath,
+                    lakeCommitter,
+                    committable,
+                    flussCurrentLakeSnapshot == null
+                            ? null
+                            : flussCurrentLakeSnapshot.getSnapshotId(),
+                    partitionIdByName,
+                    tableInfo);
 
             long commitedSnapshotId =
                     lakeCommitter.commit(
@@ -295,7 +303,9 @@ public class TieringCommitOperator<WriteResult, Committable>
             TablePath tablePath,
             LakeCommitter<WriteResult, Committable> lakeCommitter,
             Committable committable,
-            Long flussCurrentLakeSnapshot)
+            Long flussCurrentLakeSnapshot,
+            Map<String, Long> partitionIdByName,
+            TableInfo tableInfo)
             throws Exception {
 
         // get Fluss missing lake snapshot in Lake
@@ -308,16 +318,6 @@ public class TieringCommitOperator<WriteResult, Committable>
         // not to commit to lake to avoid data duplicated
         if (missingCommittedSnapshot != null) {
             // commit this missing snapshot to fluss
-            TableInfo tableInfo = admin.getTableInfo(tablePath).get();
-            Map<String, Long> partitionIdByName = null;
-            if (tableInfo.isPartitioned()) {
-                partitionIdByName =
-                        admin.listPartitionInfos(tablePath).get().stream()
-                                .collect(
-                                        Collectors.toMap(
-                                                PartitionInfo::getPartitionName,
-                                                PartitionInfo::getPartitionId));
-            }
             flussTableLakeSnapshotCommitter.commit(
                     tableInfo.getTableId(), partitionIdByName, missingCommittedSnapshot);
             // abort this committable to delete the written files
