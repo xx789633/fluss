@@ -65,7 +65,8 @@ public class LanceLakeCommitter implements LakeCommitter<LanceWriteResult, Lance
     }
 
     @Override
-    public long commit(LanceCommittable committable) throws IOException {
+    public long commit(LanceCommittable committable, Map<String, String> snapshotProperties)
+            throws IOException {
         // TODO: store bucketLogEndOffsets in Lance transaction properties, see
         // https://github.com/lancedb/lance/issues/4181
         return LanceDatasetAdapter.appendFragments(config, committable.committable());

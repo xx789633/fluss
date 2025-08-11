@@ -52,13 +52,13 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
+import static com.alibaba.fluss.flink.tiering.committer.TieringCommitOperator.toBucketOffsetsProperty;
 import static com.alibaba.fluss.metadata.TableDescriptor.BUCKET_COLUMN_NAME;
 import static com.alibaba.fluss.metadata.TableDescriptor.OFFSET_COLUMN_NAME;
 import static com.alibaba.fluss.metadata.TableDescriptor.TIMESTAMP_COLUMN_NAME;
@@ -106,11 +106,21 @@ public class LanceTieringTest {
         }
 
         Map<Tuple2<String, Integer>, List<LogRecord>> recordsByBucket = new HashMap<>();
-        List<String> partitions =
-                isPartitioned ? Arrays.asList("p1", "p2", "p3") : Collections.singletonList(null);
+        Map<Long, String> partitionIdAndName =
+                isPartitioned
+                        ? new HashMap<Long, String>() {
+                            {
+                                put(1L, "p1");
+                                put(2L, "p2");
+                                put(3L, "p3");
+                            }
+                        }
+                        : Collections.singletonMap(null, null);
+        Map<TableBucket, Long> tableBucketOffsets = new HashMap<>();
         // first, write data
         for (int bucket = 0; bucket < bucketNum; bucket++) {
-            for (String partition : partitions) {
+            for (Map.Entry<Long, String> entry : partitionIdAndName.entrySet()) {
+                String partition = entry.getValue();
                 try (LakeWriter<LanceWriteResult> lakeWriter =
                         createLakeWriter(tablePath, bucket, partition, schema)) {
                     Tuple2<String, Integer> partitionBucket = Tuple2.of(partition, bucket);
@@ -119,6 +129,7 @@ public class LanceTieringTest {
                     List<LogRecord> writtenRecords = writeAndExpectRecords.f0;
                     List<LogRecord> expectRecords = writeAndExpectRecords.f1;
                     recordsByBucket.put(partitionBucket, expectRecords);
+                    tableBucketOffsets.put(new TableBucket(0, entry.getKey(), bucket), 10L);
                     for (LogRecord logRecord : writtenRecords) {
                         lakeWriter.write(logRecord);
                     }
@@ -141,7 +152,9 @@ public class LanceTieringTest {
             lanceCommittable =
                     committableSerializer.deserialize(
                             committableSerializer.getVersion(), serialized);
-            long snapshot = lakeCommitter.commit(lanceCommittable);
+            long snapshot =
+                    lakeCommitter.commit(
+                            lanceCommittable, toBucketOffsetsProperty(tableBucketOffsets));
             assertThat(snapshot).isEqualTo(1);
         }
 
@@ -153,7 +166,7 @@ public class LanceTieringTest {
 
         // then, check data
         for (int bucket = 0; bucket < 3; bucket++) {
-            for (String partition : partitions) {
+            for (String partition : partitionIdAndName.values()) {
                 reader.loadNextBatch();
                 Tuple2<String, Integer> partitionBucket = Tuple2.of(partition, bucket);
                 List<LogRecord> expectRecords = recordsByBucket.get(partitionBucket);
@@ -168,11 +181,11 @@ public class LanceTieringTest {
             // use snapshot id 0 as the known snapshot id
             CommittedLakeSnapshot committedLakeSnapshot = lakeCommitter.getMissingLakeSnapshot(0L);
             assertThat(committedLakeSnapshot).isNotNull();
-            Map<Tuple2<String, Integer>, Long> offsets = committedLakeSnapshot.getLogEndOffsets();
+            Map<Tuple2<Long, Integer>, Long> offsets = committedLakeSnapshot.getLogEndOffsets();
             for (int bucket = 0; bucket < 3; bucket++) {
-                for (String partition : partitions) {
+                for (Long partitionId : partitionIdAndName.keySet()) {
                     // we only write 10 records, so expected log offset should be 9
-                    assertThat(offsets.get(Tuple2.of(partition, bucket))).isEqualTo(9);
+                    assertThat(offsets.get(Tuple2.of(partitionId, bucket))).isEqualTo(9);
                 }
             }
             assertThat(committedLakeSnapshot.getLakeSnapshotId()).isOne();
