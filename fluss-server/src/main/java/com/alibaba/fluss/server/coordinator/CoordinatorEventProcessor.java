@@ -34,7 +34,6 @@ import com.alibaba.fluss.metadata.TableBucketReplica;
 import com.alibaba.fluss.metadata.TableInfo;
 import com.alibaba.fluss.metadata.TablePartition;
 import com.alibaba.fluss.metadata.TablePath;
-import com.alibaba.fluss.metrics.MetricNames;
 import com.alibaba.fluss.rpc.messages.AdjustIsrResponse;
 import com.alibaba.fluss.rpc.messages.CommitKvSnapshotResponse;
 import com.alibaba.fluss.rpc.messages.CommitLakeTableSnapshotResponse;
@@ -60,7 +59,6 @@ import com.alibaba.fluss.server.coordinator.event.NewTabletServerEvent;
 import com.alibaba.fluss.server.coordinator.event.NotifyLeaderAndIsrResponseReceivedEvent;
 import com.alibaba.fluss.server.coordinator.event.watcher.TableChangeWatcher;
 import com.alibaba.fluss.server.coordinator.event.watcher.TabletServerChangeWatcher;
-import com.alibaba.fluss.server.coordinator.statemachine.ReplicaState;
 import com.alibaba.fluss.server.coordinator.statemachine.ReplicaStateMachine;
 import com.alibaba.fluss.server.coordinator.statemachine.TableBucketStateMachine;
 import com.alibaba.fluss.server.entity.AdjustIsrResultForBucket;
@@ -93,6 +91,7 @@ import javax.annotation.concurrent.NotThreadSafe;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -135,13 +134,6 @@ public class CoordinatorEventProcessor implements EventProcessor {
     private final String internalListenerName;
 
     private final CompletedSnapshotStoreManager completedSnapshotStoreManager;
-
-    // metrics
-    private volatile int tabletServerCount;
-    private volatile int offlineBucketCount;
-    private volatile int tableCount;
-    private volatile int bucketCount;
-    private volatile int replicasToDeleteCount;
 
     public CoordinatorEventProcessor(
             ZooKeeperClient zooKeeperClient,
@@ -198,18 +190,6 @@ public class CoordinatorEventProcessor implements EventProcessor {
         this.lakeTableTieringManager = lakeTableTieringManager;
         this.coordinatorMetricGroup = coordinatorMetricGroup;
         this.internalListenerName = conf.getString(ConfigOptions.INTERNAL_LISTENER_NAME);
-        registerMetrics();
-    }
-
-    private void registerMetrics() {
-        coordinatorMetricGroup.gauge(MetricNames.ACTIVE_COORDINATOR_COUNT, () -> 1);
-        coordinatorMetricGroup.gauge(
-                MetricNames.ACTIVE_TABLET_SERVER_COUNT, () -> tabletServerCount);
-        coordinatorMetricGroup.gauge(MetricNames.OFFLINE_BUCKET_COUNT, () -> offlineBucketCount);
-        coordinatorMetricGroup.gauge(MetricNames.BUCKET_COUNT, () -> bucketCount);
-        coordinatorMetricGroup.gauge(MetricNames.TABLE_COUNT, () -> tableCount);
-        coordinatorMetricGroup.gauge(
-                MetricNames.REPLICAS_TO_DELETE_COUNT, () -> replicasToDeleteCount);
     }
 
     public CoordinatorEventManager getCoordinatorEventManager() {
@@ -242,7 +222,6 @@ public class CoordinatorEventProcessor implements EventProcessor {
 
         // start table manager
         tableManager.startup();
-        updateMetrics();
 
         // start the event manager which will then process the event
         coordinatorEventManager.start();
@@ -447,92 +426,56 @@ public class CoordinatorEventProcessor implements EventProcessor {
 
     @Override
     public void process(CoordinatorEvent event) {
-        try {
-            if (event instanceof CreateTableEvent) {
-                processCreateTable((CreateTableEvent) event);
-            } else if (event instanceof CreatePartitionEvent) {
-                processCreatePartition((CreatePartitionEvent) event);
-            } else if (event instanceof DropTableEvent) {
-                processDropTable((DropTableEvent) event);
-            } else if (event instanceof DropPartitionEvent) {
-                processDropPartition((DropPartitionEvent) event);
-            } else if (event instanceof NotifyLeaderAndIsrResponseReceivedEvent) {
-                processNotifyLeaderAndIsrResponseReceivedEvent(
-                        (NotifyLeaderAndIsrResponseReceivedEvent) event);
-            } else if (event instanceof DeleteReplicaResponseReceivedEvent) {
-                processDeleteReplicaResponseReceived((DeleteReplicaResponseReceivedEvent) event);
-            } else if (event instanceof NewTabletServerEvent) {
-                processNewTabletServer((NewTabletServerEvent) event);
-            } else if (event instanceof DeadTabletServerEvent) {
-                processDeadTabletServer((DeadTabletServerEvent) event);
-            } else if (event instanceof AdjustIsrReceivedEvent) {
-                AdjustIsrReceivedEvent adjustIsrReceivedEvent = (AdjustIsrReceivedEvent) event;
-                CompletableFuture<AdjustIsrResponse> callback =
-                        adjustIsrReceivedEvent.getRespCallback();
-                completeFromCallable(
-                        callback,
-                        () ->
-                                makeAdjustIsrResponse(
-                                        tryProcessAdjustIsr(
-                                                adjustIsrReceivedEvent.getLeaderAndIsrMap())));
-            } else if (event instanceof CommitKvSnapshotEvent) {
-                CommitKvSnapshotEvent commitKvSnapshotEvent = (CommitKvSnapshotEvent) event;
-                CompletableFuture<CommitKvSnapshotResponse> callback =
-                        commitKvSnapshotEvent.getRespCallback();
-                completeFromCallable(
-                        callback, () -> tryProcessCommitKvSnapshot(commitKvSnapshotEvent));
-            } else if (event instanceof CommitRemoteLogManifestEvent) {
-                CommitRemoteLogManifestEvent commitRemoteLogManifestEvent =
-                        (CommitRemoteLogManifestEvent) event;
-                completeFromCallable(
-                        commitRemoteLogManifestEvent.getRespCallback(),
-                        () -> tryProcessCommitRemoteLogManifest(commitRemoteLogManifestEvent));
-            } else if (event instanceof CommitLakeTableSnapshotEvent) {
-                CommitLakeTableSnapshotEvent commitLakeTableSnapshotEvent =
-                        (CommitLakeTableSnapshotEvent) event;
-                completeFromCallable(
-                        commitLakeTableSnapshotEvent.getRespCallback(),
-                        () -> tryProcessCommitLakeTableSnapshot(commitLakeTableSnapshotEvent));
-            } else if (event instanceof AccessContextEvent) {
-                AccessContextEvent<?> accessContextEvent = (AccessContextEvent<?>) event;
-                processAccessContext(accessContextEvent);
-            } else {
-                LOG.warn("Unknown event type: {}", event.getClass().getName());
-            }
-        } finally {
-            updateMetrics();
+        if (event instanceof CreateTableEvent) {
+            processCreateTable((CreateTableEvent) event);
+        } else if (event instanceof CreatePartitionEvent) {
+            processCreatePartition((CreatePartitionEvent) event);
+        } else if (event instanceof DropTableEvent) {
+            processDropTable((DropTableEvent) event);
+        } else if (event instanceof DropPartitionEvent) {
+            processDropPartition((DropPartitionEvent) event);
+        } else if (event instanceof NotifyLeaderAndIsrResponseReceivedEvent) {
+            processNotifyLeaderAndIsrResponseReceivedEvent(
+                    (NotifyLeaderAndIsrResponseReceivedEvent) event);
+        } else if (event instanceof DeleteReplicaResponseReceivedEvent) {
+            processDeleteReplicaResponseReceived((DeleteReplicaResponseReceivedEvent) event);
+        } else if (event instanceof NewTabletServerEvent) {
+            processNewTabletServer((NewTabletServerEvent) event);
+        } else if (event instanceof DeadTabletServerEvent) {
+            processDeadTabletServer((DeadTabletServerEvent) event);
+        } else if (event instanceof AdjustIsrReceivedEvent) {
+            AdjustIsrReceivedEvent adjustIsrReceivedEvent = (AdjustIsrReceivedEvent) event;
+            CompletableFuture<AdjustIsrResponse> callback =
+                    adjustIsrReceivedEvent.getRespCallback();
+            completeFromCallable(
+                    callback,
+                    () ->
+                            makeAdjustIsrResponse(
+                                    tryProcessAdjustIsr(
+                                            adjustIsrReceivedEvent.getLeaderAndIsrMap())));
+        } else if (event instanceof CommitKvSnapshotEvent) {
+            CommitKvSnapshotEvent commitKvSnapshotEvent = (CommitKvSnapshotEvent) event;
+            CompletableFuture<CommitKvSnapshotResponse> callback =
+                    commitKvSnapshotEvent.getRespCallback();
+            completeFromCallable(callback, () -> tryProcessCommitKvSnapshot(commitKvSnapshotEvent));
+        } else if (event instanceof CommitRemoteLogManifestEvent) {
+            CommitRemoteLogManifestEvent commitRemoteLogManifestEvent =
+                    (CommitRemoteLogManifestEvent) event;
+            completeFromCallable(
+                    commitRemoteLogManifestEvent.getRespCallback(),
+                    () -> tryProcessCommitRemoteLogManifest(commitRemoteLogManifestEvent));
+        } else if (event instanceof CommitLakeTableSnapshotEvent) {
+            CommitLakeTableSnapshotEvent commitLakeTableSnapshotEvent =
+                    (CommitLakeTableSnapshotEvent) event;
+            completeFromCallable(
+                    commitLakeTableSnapshotEvent.getRespCallback(),
+                    () -> tryProcessCommitLakeTableSnapshot(commitLakeTableSnapshotEvent));
+        } else if (event instanceof AccessContextEvent) {
+            AccessContextEvent<?> accessContextEvent = (AccessContextEvent<?>) event;
+            processAccessContext(accessContextEvent);
+        } else {
+            LOG.warn("Unknown event type: {}", event.getClass().getName());
         }
-    }
-
-    private void updateMetrics() {
-        tabletServerCount = coordinatorContext.getLiveTabletServers().size();
-        tableCount = coordinatorContext.allTables().size();
-        bucketCount = coordinatorContext.bucketLeaderAndIsr().size();
-        offlineBucketCount = coordinatorContext.getOfflineBucketCount();
-
-        int replicasToDeletes = 0;
-        // for replica in partitions to be deleted
-        for (TablePartition tablePartition : coordinatorContext.getPartitionsToBeDeleted()) {
-            for (TableBucketReplica replica :
-                    coordinatorContext.getAllReplicasForPartition(
-                            tablePartition.getTableId(), tablePartition.getPartitionId())) {
-                replicasToDeletes =
-                        isReplicaToDelete(replica) ? replicasToDeletes + 1 : replicasToDeletes;
-            }
-        }
-        // for replica in tables to be deleted
-        for (long tableId : coordinatorContext.getTablesToBeDeleted()) {
-            for (TableBucketReplica replica : coordinatorContext.getAllReplicasForTable(tableId)) {
-                replicasToDeletes =
-                        isReplicaToDelete(replica) ? replicasToDeletes + 1 : replicasToDeletes;
-            }
-        }
-        this.replicasToDeleteCount = replicasToDeletes;
-    }
-
-    private boolean isReplicaToDelete(TableBucketReplica replica) {
-        ReplicaState replicaState = coordinatorContext.getReplicaState(replica);
-        return replicaState != null && replicaState != ReplicaDeletionSuccessful;
     }
 
     private void processCreateTable(CreateTableEvent createTableEvent) {
@@ -889,6 +832,7 @@ public class CoordinatorEventProcessor implements EventProcessor {
         // TODO verify leader epoch.
 
         List<AdjustIsrResultForBucket> result = new ArrayList<>();
+        Map<TableBucket, LeaderAndIsr> newLeaderAndIsrList = new HashMap<>();
         for (Map.Entry<TableBucket, LeaderAndIsr> entry : leaderAndIsrList.entrySet()) {
             TableBucket tableBucket = entry.getKey();
             LeaderAndIsr tryAdjustLeaderAndIsr = entry.getValue();
@@ -921,21 +865,37 @@ public class CoordinatorEventProcessor implements EventProcessor {
                             tryAdjustLeaderAndIsr.isr(),
                             coordinatorContext.getCoordinatorEpoch(),
                             currentLeaderAndIsr.bucketEpoch() + 1);
-            try {
-                zooKeeperClient.updateLeaderAndIsr(tableBucket, newLeaderAndIsr);
-            } catch (Exception e) {
-                LOG.error("Error when register leader and isr.", e);
-                result.add(new AdjustIsrResultForBucket(tableBucket, ApiError.fromThrowable(e)));
-            }
-
-            // update coordinator leader and isr cache.
-            coordinatorContext.putBucketLeaderAndIsr(tableBucket, newLeaderAndIsr);
-
-            // TODO update metadata for all alive tablet servers.
-
-            // Successful return.
-            result.add(new AdjustIsrResultForBucket(tableBucket, newLeaderAndIsr));
+            newLeaderAndIsrList.put(tableBucket, newLeaderAndIsr);
         }
+
+        try {
+            zooKeeperClient.batchUpdateLeaderAndIsr(newLeaderAndIsrList);
+            newLeaderAndIsrList.forEach(
+                    (tableBucket, newLeaderAndIsr) ->
+                            result.add(new AdjustIsrResultForBucket(tableBucket, newLeaderAndIsr)));
+        } catch (Exception batchException) {
+            LOG.error("Error when batch update leader and isr. Try one by one.", batchException);
+
+            for (Map.Entry<TableBucket, LeaderAndIsr> entry : newLeaderAndIsrList.entrySet()) {
+                TableBucket tableBucket = entry.getKey();
+                LeaderAndIsr newLeaderAndIsr = entry.getValue();
+                try {
+                    zooKeeperClient.updateLeaderAndIsr(tableBucket, newLeaderAndIsr);
+                } catch (Exception e) {
+                    LOG.error("Error when register leader and isr.", e);
+                    result.add(
+                            new AdjustIsrResultForBucket(tableBucket, ApiError.fromThrowable(e)));
+                }
+                // Successful return.
+                result.add(new AdjustIsrResultForBucket(tableBucket, newLeaderAndIsr));
+            }
+        }
+
+        // update coordinator leader and isr cache.
+        newLeaderAndIsrList.forEach(coordinatorContext::putBucketLeaderAndIsr);
+
+        // TODO update metadata for all alive tablet servers.
+
         return result;
     }
 

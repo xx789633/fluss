@@ -2,26 +2,9 @@
 slug: hands-on-fluss-lakehouse
 title: "From Stream to Lake: Hands-On with Fluss Tiering into Paimon on Minio"
 authors: [gyang94]
+image: ./assets/hands_on_fluss_lakehouse/streamhouse.png
 toc_max_heading_level: 5
 ---
-
-<!--
- Licensed to the Apache Software Foundation (ASF) under one
- or more contributor license agreements.  See the NOTICE file
- distributed with this work for additional information
- regarding copyright ownership.  The ASF licenses this file
- to you under the Apache License, Version 2.0 (the
- "License"); you may not use this file except in compliance
- with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
--->
 
 # From Stream to Lake: Hands-On with Fluss Tiering into Paimon on Minio
 
@@ -30,6 +13,8 @@ Fluss stores historical data in a lakehouse storage layer while keeping real-tim
 ![](assets/hands_on_fluss_lakehouse/streamhouse.png)
 
 In this hands-on tutorial, we'll walk you through setting up a local Fluss lakehouse environment, running some practical data operations, and getting first-hand experience with the complete Fluss lakehouse architecture. By the end, you'll have a working environment for experimenting with Fluss's powerful data processing capabilities.
+
+<!-- truncate -->
 
 ## Integrate with Paimon Minio Lakehouse
 
@@ -125,8 +110,8 @@ For this tutorial, we'll use **Fluss 0.7** and **Flink 1.20** to run the tiering
    - Copy these Paimon plugin jars from Fluss into `<FLINK_HOME>/lib`:
 
    ```
-   <FLUSS_HOME>/plugins/paimon/fluss-lake-paimon-0.7.0.jar
-   <FLUSS_HOME>/plugins/paimon/flink-shaded-hadoop-2-uber-2.8.3-10.0.jar
+   <FLINK_HOME>/lib/fluss-lake-paimon-0.7.0.jar
+   <FLINK_HOME>/lib/flink-shaded-hadoop-2-uber-2.8.3-10.0.jar
    ```
 
 4. Increase Task Slots

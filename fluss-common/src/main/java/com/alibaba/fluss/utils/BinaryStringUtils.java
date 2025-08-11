@@ -18,10 +18,12 @@
 package com.alibaba.fluss.utils;
 
 import com.alibaba.fluss.row.BinaryString;
+import com.alibaba.fluss.row.TimestampLtz;
 import com.alibaba.fluss.row.TimestampNtz;
 
 import java.time.DateTimeException;
 import java.util.List;
+import java.util.TimeZone;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -68,9 +70,15 @@ public class BinaryStringUtils {
         return date;
     }
 
-    /** Used by {@code CAST(x as TIMESTAMPNTZ)}. */
+    /** Used by {@code CAST(x as TIMESTAMP_NTZ)}. */
     public static TimestampNtz toTimestampNtz(BinaryString input, int precision)
             throws DateTimeException {
         return DateTimeUtils.parseTimestampData(input.toString(), precision);
+    }
+
+    /** Used by {@code CAST(x as TIMESTAMP_LTZ)}. */
+    public static TimestampLtz toTimestampLtz(
+            BinaryString input, int precision, TimeZone localTimeZone) throws DateTimeException {
+        return DateTimeUtils.parseTimestampData(input.toString(), precision, localTimeZone);
     }
 }

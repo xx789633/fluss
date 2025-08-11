@@ -18,9 +18,10 @@
 package com.alibaba.fluss.lake.iceberg;
 
 import com.alibaba.fluss.config.Configuration;
-import com.alibaba.fluss.lake.lakestorage.LakeCatalog;
 import com.alibaba.fluss.lake.lakestorage.LakeStorage;
+import com.alibaba.fluss.lake.source.LakeSource;
 import com.alibaba.fluss.lake.writer.LakeTieringFactory;
+import com.alibaba.fluss.metadata.TablePath;
 
 /** Iceberg implementation of {@link LakeStorage}. */
 public class IcebergLakeStorage implements LakeStorage {
@@ -37,7 +38,12 @@ public class IcebergLakeStorage implements LakeStorage {
     }
 
     @Override
-    public LakeCatalog createLakeCatalog() {
+    public IcebergLakeCatalog createLakeCatalog() {
+        return new IcebergLakeCatalog(icebergConfig);
+    }
+
+    @Override
+    public LakeSource<?> createLakeSource(TablePath tablePath) {
         throw new UnsupportedOperationException("Not implemented");
     }
 }
