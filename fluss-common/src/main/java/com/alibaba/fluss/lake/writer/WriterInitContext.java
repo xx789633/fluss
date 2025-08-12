@@ -69,5 +69,5 @@ public interface WriterInitContext {
      *
      * @return the table custom properties
      */
-    Map<String, String> properties();
+    Map<String, String> customProperties();
 }

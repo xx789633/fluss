@@ -693,7 +693,7 @@ class PaimonTieringTest {
                     }
 
                     @Override
-                    public Map<String, String> properties() {
+                    public Map<String, String> customProperties() {
                         // don't care about table custom properties for Paimon lake writer
                         return new HashMap<>();
                     }

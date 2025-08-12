@@ -33,19 +33,19 @@ public class TieringWriterInitContext implements WriterInitContext {
     private final TableBucket tableBucket;
     private final Schema schema;
     @Nullable private final String partition;
-    private final Map<String, String> properties;
+    private final Map<String, String> customProperties;
 
     public TieringWriterInitContext(
             TablePath tablePath,
             TableBucket tableBucket,
             @Nullable String partition,
             Schema schema,
-            Map<String, String> properties) {
+            Map<String, String> customProperties) {
         this.tablePath = tablePath;
         this.tableBucket = tableBucket;
         this.partition = partition;
         this.schema = schema;
-        this.properties = properties;
+        this.customProperties = customProperties;
     }
 
     @Override
@@ -70,7 +70,7 @@ public class TieringWriterInitContext implements WriterInitContext {
     }
 
     @Override
-    public Map<String, String> properties() {
-        return properties;
+    public Map<String, String> customProperties() {
+        return customProperties;
     }
 }
