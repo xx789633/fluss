@@ -35,6 +35,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
@@ -91,7 +92,10 @@ public class LanceTieringITCase extends FlinkLanceTieringTestBase {
             throws Exception {
         LanceConfig config =
                 LanceConfig.from(
-                        lanceConf.toMap(), tablePath.getDatabaseName(), tablePath.getTableName());
+                        lanceConf.toMap(),
+                        Collections.emptyMap(),
+                        tablePath.getDatabaseName(),
+                        tablePath.getTableName());
         ArrowReader reader = LanceDatasetAdapter.getArrowReader(config);
         VectorSchemaRoot readerRoot = reader.getVectorSchemaRoot();
         //        while (reader.loadNextBatch()) {

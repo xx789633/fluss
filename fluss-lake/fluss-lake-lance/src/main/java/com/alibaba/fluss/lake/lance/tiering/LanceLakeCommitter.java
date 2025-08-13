@@ -34,6 +34,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -50,7 +51,10 @@ public class LanceLakeCommitter implements LakeCommitter<LanceWriteResult, Lance
     public LanceLakeCommitter(Configuration options, TablePath tablePath) {
         this.config =
                 LanceConfig.from(
-                        options.toMap(), tablePath.getDatabaseName(), tablePath.getTableName());
+                        options.toMap(),
+                        Collections.emptyMap(),
+                        tablePath.getDatabaseName(),
+                        tablePath.getTableName());
     }
 
     @Override
@@ -104,13 +108,16 @@ public class LanceLakeCommitter implements LakeCommitter<LanceWriteResult, Lance
 
         LinkedHashMap<Integer, Long> bucketEndOffset = new LinkedHashMap<>();
 
-        Map<String, String> options = config.getOptions();
-        options.put("version", String.valueOf((latestLakeSnapshotIdOfLake.get() + 1)));
         ArrowReader reader =
                 LanceDatasetAdapter.getArrowReader(
-                        LanceConfig.from(options, config.getDatabaseName(), config.getTableName()),
+                        LanceConfig.from(
+                                config.getOptions(),
+                                Collections.emptyMap(),
+                                config.getDatabaseName(),
+                                config.getTableName()),
                         Arrays.asList(BUCKET_COLUMN_NAME, OFFSET_COLUMN_NAME),
-                        Arrays.asList());
+                        Collections.emptyList(),
+                        (int) (latestLakeSnapshotIdOfLake.get() + 1));
         VectorSchemaRoot readerRoot = reader.getVectorSchemaRoot();
         while (reader.loadNextBatch()) {
             IntVector bucketVector = (IntVector) readerRoot.getVector(BUCKET_COLUMN_NAME);

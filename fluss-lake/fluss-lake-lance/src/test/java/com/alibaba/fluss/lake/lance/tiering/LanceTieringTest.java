@@ -86,9 +86,12 @@ public class LanceTieringTest {
     void testTieringWriteTable(boolean isPartitioned) throws Exception {
         int bucketNum = 3;
         TablePath tablePath = TablePath.of("lance", "logTable");
+        Map<String, String> customProperties = new HashMap<>();
+        customProperties.put("lance.batch_size", "256");
         LanceConfig config =
                 LanceConfig.from(
                         configuration.toMap(),
+                        customProperties,
                         tablePath.getDatabaseName(),
                         tablePath.getTableName());
         Schema schema = createTable(tablePath, isPartitioned, null, config);
@@ -122,7 +125,7 @@ public class LanceTieringTest {
             for (Map.Entry<Long, String> entry : partitionIdAndName.entrySet()) {
                 String partition = entry.getValue();
                 try (LakeWriter<LanceWriteResult> lakeWriter =
-                        createLakeWriter(tablePath, bucket, partition, schema)) {
+                        createLakeWriter(tablePath, bucket, partition, schema, customProperties)) {
                     Tuple2<String, Integer> partitionBucket = Tuple2.of(partition, bucket);
                     Tuple2<List<LogRecord>, List<LogRecord>> writeAndExpectRecords =
                             genLogTableRecords(partition, bucket, 10);
@@ -154,7 +157,8 @@ public class LanceTieringTest {
                             committableSerializer.getVersion(), serialized);
             long snapshot =
                     lakeCommitter.commit(
-                            lanceCommittable, toBucketOffsetsProperty(tableBucketOffsets));
+                            lanceCommittable,
+                            toBucketOffsetsProperty(tableBucketOffsets, partitionIdAndName, null));
             assertThat(snapshot).isEqualTo(1);
         }
 
@@ -231,7 +235,11 @@ public class LanceTieringTest {
     }
 
     private LakeWriter<LanceWriteResult> createLakeWriter(
-            TablePath tablePath, int bucket, @Nullable String partition, Schema schema)
+            TablePath tablePath,
+            int bucket,
+            @Nullable String partition,
+            Schema schema,
+            Map<String, String> customProperties)
             throws IOException {
         return lanceLakeTieringFactory.createLakeWriter(
                 new WriterInitContext() {
@@ -255,6 +263,11 @@ public class LanceTieringTest {
                     @Override
                     public com.alibaba.fluss.metadata.Schema schema() {
                         return schema;
+                    }
+
+                    @Override
+                    public Map<String, String> customProperties() {
+                        return customProperties;
                     }
                 });
     }

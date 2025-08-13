@@ -37,7 +37,9 @@ import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.ipc.ArrowReader;
 import org.apache.arrow.vector.types.pojo.Schema;
 
-import java.util.Arrays;
+import javax.annotation.Nullable;
+
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -92,14 +94,21 @@ public class LanceDatasetAdapter {
     }
 
     public static ArrowReader getArrowReader(LanceConfig config) {
-        return getArrowReader(config, Arrays.asList(), Arrays.asList());
+        return getArrowReader(config, Collections.emptyList(), Collections.emptyList(), null);
     }
 
     public static ArrowReader getArrowReader(
-            LanceConfig config, List<String> columns, List<ColumnOrdering> columnOrderings) {
-        String uri = config.getDatasetUri();
-        ReadOptions options = LanceConfig.genReadOptionFromConfig(config);
-        try (Dataset datasetRead = Dataset.open(allocator, uri, options)) {
+            LanceConfig config,
+            List<String> columns,
+            List<ColumnOrdering> columnOrderings,
+            @Nullable Integer version) {
+        ReadOptions.Builder builder = new ReadOptions.Builder();
+        builder.setStorageOptions(LanceConfig.genStorageOptions(config));
+        if (version != null) {
+            builder.setVersion(version);
+        }
+        try (Dataset datasetRead =
+                Dataset.open(allocator, config.getDatasetUri(), builder.build())) {
             ScanOptions.Builder scanOptionBuilder = new ScanOptions.Builder();
             if (!columns.isEmpty()) {
                 scanOptionBuilder.columns(columns);

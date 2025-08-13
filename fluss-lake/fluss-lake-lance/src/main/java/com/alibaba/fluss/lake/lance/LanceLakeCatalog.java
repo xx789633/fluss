@@ -67,7 +67,10 @@ public class LanceLakeCatalog implements LakeCatalog {
 
         LanceConfig config =
                 LanceConfig.from(
-                        options.toMap(), tablePath.getDatabaseName(), tablePath.getTableName());
+                        options.toMap(),
+                        tableDescriptor.getCustomProperties(),
+                        tablePath.getDatabaseName(),
+                        tablePath.getTableName());
         WriteParams params = LanceConfig.genWriteParamsFromConfig(config);
 
         List<Field> fields = new ArrayList<>();

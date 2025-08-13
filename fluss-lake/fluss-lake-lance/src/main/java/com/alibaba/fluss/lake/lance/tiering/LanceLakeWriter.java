@@ -52,6 +52,7 @@ public class LanceLakeWriter implements LakeWriter<LanceWriteResult> {
         LanceConfig config =
                 LanceConfig.from(
                         options.toMap(),
+                        writerInitContext.customProperties(),
                         writerInitContext.tablePath().getDatabaseName(),
                         writerInitContext.tablePath().getTableName());
         int batchSize = LanceConfig.getBatchSize(config);
