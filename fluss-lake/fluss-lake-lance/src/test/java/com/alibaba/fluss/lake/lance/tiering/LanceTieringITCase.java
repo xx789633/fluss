@@ -20,6 +20,7 @@ package com.alibaba.fluss.lake.lance.tiering;
 import com.alibaba.fluss.config.Configuration;
 import com.alibaba.fluss.lake.lance.LanceConfig;
 import com.alibaba.fluss.lake.lance.testutils.FlinkLanceTieringTestBase;
+import com.alibaba.fluss.lake.lance.utils.LanceDatasetAdapter;
 import com.alibaba.fluss.metadata.TableBucket;
 import com.alibaba.fluss.metadata.TablePath;
 import com.alibaba.fluss.row.InternalRow;
@@ -37,9 +38,12 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
+import static com.alibaba.fluss.lake.committer.BucketOffset.FLUSS_LAKE_SNAP_BUCKET_OFFSET_PROPERTY;
 import static com.alibaba.fluss.testutils.DataTestUtils.row;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -80,20 +84,38 @@ public class LanceTieringITCase extends FlinkLanceTieringTestBase {
         // note: we can't update log start offset for unaware bucket mode log table
         assertReplicaStatus(t1Bucket, 30);
 
-        // check data in lance
-        checkDataInLanceAppendOnlyTable(t1, flussRows);
-
-        jobClient.cancel().get();
-    }
-
-    private void checkDataInLanceAppendOnlyTable(
-            TablePath tablePath, List<InternalRow> expectedRows) throws Exception {
         LanceConfig config =
                 LanceConfig.from(
                         lanceConf.toMap(),
                         Collections.emptyMap(),
-                        tablePath.getDatabaseName(),
-                        tablePath.getTableName());
+                        t1.getDatabaseName(),
+                        t1.getTableName());
+
+        // check data in lance
+        checkDataInLanceAppendOnlyTable(config, flussRows);
+        // check snapshot property in lance
+        Map<String, String> properties =
+                new HashMap<String, String>() {
+                    {
+                        put(
+                                FLUSS_LAKE_SNAP_BUCKET_OFFSET_PROPERTY,
+                                "[{\"bucket_id\":0,\"log_offset\":30}]");
+                    }
+                };
+        checkSnapshotPropertyInLance(config, properties);
+
+        jobClient.cancel().get();
+    }
+
+    private void checkSnapshotPropertyInLance(
+            LanceConfig config, Map<String, String> expectedProperties) throws Exception {
+        Map<String, String> transactionProperties =
+                LanceDatasetAdapter.getTransactionProperties(config, null);
+        assertThat(transactionProperties).isEqualTo(expectedProperties);
+    }
+
+    private void checkDataInLanceAppendOnlyTable(LanceConfig config, List<InternalRow> expectedRows)
+            throws Exception {
 
         try (Dataset dataset =
                 Dataset.open(

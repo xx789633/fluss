@@ -36,6 +36,8 @@ import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.ipc.ArrowReader;
 import org.apache.arrow.vector.types.pojo.Schema;
 
+import javax.annotation.Nullable;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -95,9 +97,12 @@ public class LanceDatasetAdapter {
         }
     }
 
-    public static Map<String, String> getTransactionProperties(LanceConfig config, int version) {
+    public static Map<String, String> getTransactionProperties(
+            LanceConfig config, @Nullable Long version) {
         ReadOptions.Builder builder = new ReadOptions.Builder();
-        builder.setVersion(version);
+        if (version != null) {
+            builder.setVersion(Math.toIntExact(version));
+        }
         builder.setStorageOptions(LanceConfig.genStorageOptions(config));
         try (Dataset dataset = Dataset.open(allocator, config.getDatasetUri(), builder.build())) {
             Transaction transaction = dataset.readTransaction().orElse(null);
