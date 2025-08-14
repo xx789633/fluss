@@ -36,6 +36,7 @@ import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.ipc.ArrowReader;
 import org.apache.arrow.vector.types.pojo.Schema;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -82,14 +83,15 @@ public class LanceDatasetAdapter {
             LanceConfig config, List<FragmentMetadata> fragments, Map<String, String> properties) {
         String uri = config.getDatasetUri();
         ReadOptions options = LanceConfig.genReadOptionFromConfig(config);
-        Dataset dataset = Dataset.open(allocator, uri, options);
-        Transaction transaction =
-                dataset.newTransactionBuilder()
-                        .operation(Append.builder().fragments(fragments).build())
-                        .transactionProperties(properties)
-                        .build();
-        try (Dataset appendedDataset = transaction.commit()) {
-            return appendedDataset.version() - 1;
+        try (Dataset dataset = Dataset.open(allocator, uri, options)) {
+            Transaction transaction =
+                    dataset.newTransactionBuilder()
+                            .operation(Append.builder().fragments(fragments).build())
+                            .transactionProperties(properties)
+                            .build();
+            try (Dataset appendedDataset = transaction.commit()) {
+                return appendedDataset.version() - 1;
+            }
         }
     }
 
@@ -97,8 +99,13 @@ public class LanceDatasetAdapter {
         ReadOptions.Builder builder = new ReadOptions.Builder();
         builder.setVersion(version);
         builder.setStorageOptions(LanceConfig.genStorageOptions(config));
-        Dataset dataset = Dataset.open(allocator, config.getDatasetUri(), builder.build());
-        dataset.readTransaction();
+        try (Dataset dataset = Dataset.open(allocator, config.getDatasetUri(), builder.build())) {
+            Transaction transaction = dataset.readTransaction().orElse(null);
+            if (transaction != null) {
+                return transaction.transactionProperties();
+            }
+            return Collections.emptyMap();
+        }
     }
 
     public static Optional<Long> getVersion(LanceConfig config) {

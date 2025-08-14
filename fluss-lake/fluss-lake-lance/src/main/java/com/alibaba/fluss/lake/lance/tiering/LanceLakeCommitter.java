@@ -104,7 +104,7 @@ public class LanceLakeCommitter implements LakeCommitter<LanceWriteResult, Lance
                 new CommittedLakeSnapshot(latestLakeSnapshotIdOfLake.get());
         String flussOffsetProperties =
                 LanceDatasetAdapter.getTransactionProperties(
-                                config, Math.toIntExact(latestLakeSnapshotIdOfLake.get()))
+                                config, Math.toIntExact(latestLakeSnapshotIdOfLake.get() + 1))
                         .get(FLUSS_LAKE_SNAP_BUCKET_OFFSET_PROPERTY);
         for (JsonNode node : OBJECT_MAPPER.readTree(flussOffsetProperties)) {
             BucketOffset bucketOffset = BucketOffsetJsonSerde.INSTANCE.deserialize(node);

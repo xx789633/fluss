@@ -93,7 +93,7 @@ public class LanceTieringTest {
                         customProperties,
                         tablePath.getDatabaseName(),
                         tablePath.getTableName());
-        Schema schema = createTable(tablePath, isPartitioned, null, config);
+        Schema schema = createTable(config);
 
         List<LanceWriteResult> lanceWriteResults = new ArrayList<>();
         SimpleVersionedSerializer<LanceWriteResult> writeResultSerializer =
@@ -118,7 +118,7 @@ public class LanceTieringTest {
                             }
                         }
                         : Collections.singletonMap(null, null);
-        List<String> partitionKeys = new ArrayList<>(partitionIdAndName.values());
+        List<String> partitionKeys = isPartitioned ? List.of("c3") : null;
         Map<TableBucket, Long> tableBucketOffsets = new HashMap<>();
         // first, write data
         for (int bucket = 0; bucket < bucketNum; bucket++) {
@@ -196,8 +196,8 @@ public class LanceTieringTest {
             Map<Tuple2<Long, Integer>, Long> offsets = committedLakeSnapshot.getLogEndOffsets();
             for (int bucket = 0; bucket < 3; bucket++) {
                 for (Long partitionId : partitionIdAndName.keySet()) {
-                    // we only write 10 records, so expected log offset should be 9
-                    assertThat(offsets.get(Tuple2.of(partitionId, bucket))).isEqualTo(9);
+                    // we only write 10 records, so expected log offset should be 10
+                    assertThat(offsets.get(Tuple2.of(partitionId, bucket))).isEqualTo(10);
                 }
             }
             assertThat(committedLakeSnapshot.getLakeSnapshotId()).isOne();
@@ -303,24 +303,18 @@ public class LanceTieringTest {
         return Tuple2.of(logRecords, logRecords);
     }
 
-    private Schema createTable(
-            TablePath tablePath,
-            boolean isPartitioned,
-            @Nullable Integer numBuckets,
-            LanceConfig config)
-            throws Exception {
+    private Schema createTable(LanceConfig config) throws Exception {
         List<Schema.Column> columns = new ArrayList<>();
         columns.add(new Schema.Column("c1", DataTypes.INT()));
         columns.add(new Schema.Column("c2", DataTypes.STRING()));
         columns.add(new Schema.Column("c3", DataTypes.STRING()));
         Schema.Builder schemaBuilder = Schema.newBuilder().fromColumns(columns);
         Schema schema = schemaBuilder.build();
-        doCreateLanceTable(tablePath, schema, config);
+        doCreateLanceTable(schema, config);
         return schema;
     }
 
-    private void doCreateLanceTable(TablePath tablePath, Schema schema, LanceConfig config)
-            throws Exception {
+    private void doCreateLanceTable(Schema schema, LanceConfig config) throws Exception {
         WriteParams params = LanceConfig.genWriteParamsFromConfig(config);
         LanceDatasetAdapter.createDataset(
                 config.getDatasetUri(), LanceArrowUtils.toArrowSchema(schema.getRowType()), params);
