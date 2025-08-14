@@ -32,6 +32,7 @@ import org.apache.arrow.vector.VectorUnloader;
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -44,7 +45,7 @@ public class LanceArrowWriterTest {
     @Test
     public void test() throws Exception {
         try (BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE)) {
-            List<DataField> fields = List.of(new DataField("column1", DataTypes.INT()));
+            List<DataField> fields = Arrays.asList(new DataField("column1", DataTypes.INT()));
 
             RowType rowType = new RowType(fields);
             final int totalRows = 125;
