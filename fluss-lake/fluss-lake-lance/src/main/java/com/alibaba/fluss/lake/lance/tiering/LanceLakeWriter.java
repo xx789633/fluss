@@ -23,9 +23,6 @@ import com.alibaba.fluss.lake.lance.utils.LanceDatasetAdapter;
 import com.alibaba.fluss.lake.writer.LakeWriter;
 import com.alibaba.fluss.lake.writer.WriterInitContext;
 import com.alibaba.fluss.record.LogRecord;
-import com.alibaba.fluss.types.DataField;
-import com.alibaba.fluss.types.DataTypes;
-import com.alibaba.fluss.types.RowType;
 
 import com.lancedb.lance.FragmentMetadata;
 import com.lancedb.lance.WriteParams;
@@ -37,10 +34,6 @@ import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
-
-import static com.alibaba.fluss.metadata.TableDescriptor.BUCKET_COLUMN_NAME;
-import static com.alibaba.fluss.metadata.TableDescriptor.OFFSET_COLUMN_NAME;
-import static com.alibaba.fluss.metadata.TableDescriptor.TIMESTAMP_COLUMN_NAME;
 
 /** Implementation of {@link LakeWriter} for Lance. */
 public class LanceLakeWriter implements LakeWriter<LanceWriteResult> {
@@ -61,20 +54,9 @@ public class LanceLakeWriter implements LakeWriter<LanceWriteResult> {
             throw new IOException("Fail to get dataset " + config.getDatasetUri() + " in Lance.");
         }
 
-        RowType.Builder rowTypeBuilder = RowType.builder();
-        for (DataField field : writerInitContext.schema().getRowType().getFields()) {
-            rowTypeBuilder.field(field.getName(), field.getType());
-        }
-        rowTypeBuilder.field(BUCKET_COLUMN_NAME, DataTypes.INT());
-        rowTypeBuilder.field(OFFSET_COLUMN_NAME, DataTypes.BIGINT());
-        rowTypeBuilder.field(TIMESTAMP_COLUMN_NAME, DataTypes.TIMESTAMP_LTZ());
-
         this.arrowWriter =
                 LanceDatasetAdapter.getArrowWriter(
-                        schema.get(),
-                        batchSize,
-                        writerInitContext.tableBucket(),
-                        rowTypeBuilder.build());
+                        schema.get(), batchSize, writerInitContext.schema().getRowType());
 
         WriteParams params = LanceConfig.genWriteParamsFromConfig(config);
         Callable<List<FragmentMetadata>> fragmentCreator =

@@ -20,11 +20,12 @@ package com.alibaba.fluss.lake.lance.tiering;
 import com.alibaba.fluss.config.Configuration;
 import com.alibaba.fluss.lake.lance.LanceConfig;
 import com.alibaba.fluss.lake.lance.testutils.FlinkLanceTieringTestBase;
-import com.alibaba.fluss.lake.lance.utils.LanceDatasetAdapter;
 import com.alibaba.fluss.metadata.TableBucket;
 import com.alibaba.fluss.metadata.TablePath;
 import com.alibaba.fluss.row.InternalRow;
 
+import com.lancedb.lance.Dataset;
+import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.ipc.ArrowReader;
@@ -59,8 +60,6 @@ public class LanceTieringITCase extends FlinkLanceTieringTestBase {
 
     @Test
     void testTiering() throws Exception {
-        List<InternalRow> rows = Arrays.asList(row(1, "v1"), row(2, "v2"), row(3, "v3"));
-
         // create log table
         TablePath t1 = TablePath.of(DEFAULT_DB, "logTable");
         long t1Id = createLogTable(t1);
@@ -68,7 +67,7 @@ public class LanceTieringITCase extends FlinkLanceTieringTestBase {
         List<InternalRow> flussRows = new ArrayList<>();
         // write records
         for (int i = 0; i < 10; i++) {
-            rows = Arrays.asList(row(1, "v1"), row(2, "v2"), row(3, "v3"));
+            List<InternalRow> rows = Arrays.asList(row(1, "v1"), row(2, "v2"), row(3, "v3"));
             flussRows.addAll(rows);
             // write records
             writeRows(t1, rows, true);
@@ -82,37 +81,42 @@ public class LanceTieringITCase extends FlinkLanceTieringTestBase {
         assertReplicaStatus(t1Bucket, 30);
 
         // check data in lance
-        checkDataInLanceAppendOnlyTable(t1, flussRows, 0);
+        checkDataInLanceAppendOnlyTable(t1, flussRows);
 
         jobClient.cancel().get();
     }
 
     private void checkDataInLanceAppendOnlyTable(
-            TablePath tablePath, List<InternalRow> expectedRows, long startingOffset)
-            throws Exception {
+            TablePath tablePath, List<InternalRow> expectedRows) throws Exception {
         LanceConfig config =
                 LanceConfig.from(
                         lanceConf.toMap(),
                         Collections.emptyMap(),
                         tablePath.getDatabaseName(),
                         tablePath.getTableName());
-        ArrowReader reader = LanceDatasetAdapter.getArrowReader(config);
-        VectorSchemaRoot readerRoot = reader.getVectorSchemaRoot();
-        //        while (reader.loadNextBatch()) {
-        //            System.out.print(readerRoot.contentToTSVString());
-        //        }
-        reader.loadNextBatch();
-        Iterator<InternalRow> flussRowIterator = expectedRows.iterator();
-        int rowCount = readerRoot.getRowCount();
-        for (int i = 0; i < rowCount; i++) {
-            InternalRow flussRow = flussRowIterator.next();
-            assertThat((int) (readerRoot.getVector(0).getObject(i))).isEqualTo(flussRow.getInt(0));
-            assertThat(((VarCharVector) readerRoot.getVector(1)).getObject(i).toString())
-                    .isEqualTo(flussRow.getString(1).toString());
-            // the idx 2 is __bucket, so use 3
-            assertThat((long) (readerRoot.getVector(3).getObject(i))).isEqualTo(startingOffset++);
+
+        try (Dataset dataset =
+                Dataset.open(
+                        new RootAllocator(),
+                        config.getDatasetUri(),
+                        LanceConfig.genReadOptionFromConfig(config))) {
+            ArrowReader reader = dataset.newScan().scanBatches();
+            VectorSchemaRoot readerRoot = reader.getVectorSchemaRoot();
+            //        while (reader.loadNextBatch()) {
+            //            System.out.print(readerRoot.contentToTSVString());
+            //        }
+            reader.loadNextBatch();
+            Iterator<InternalRow> flussRowIterator = expectedRows.iterator();
+            int rowCount = readerRoot.getRowCount();
+            for (int i = 0; i < rowCount; i++) {
+                InternalRow flussRow = flussRowIterator.next();
+                assertThat((int) (readerRoot.getVector(0).getObject(i)))
+                        .isEqualTo(flussRow.getInt(0));
+                assertThat(((VarCharVector) readerRoot.getVector(1)).getObject(i).toString())
+                        .isEqualTo(flussRow.getString(1).toString());
+            }
+            assertThat(reader.loadNextBatch()).isFalse();
+            assertThat(flussRowIterator.hasNext()).isFalse();
         }
-        assertThat(reader.loadNextBatch()).isFalse();
-        assertThat(flussRowIterator.hasNext()).isFalse();
     }
 }

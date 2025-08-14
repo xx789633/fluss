@@ -17,7 +17,6 @@
 
 package com.alibaba.fluss.lake.lance.tiering;
 
-import com.alibaba.fluss.metadata.TableBucket;
 import com.alibaba.fluss.record.LogRecord;
 import com.alibaba.fluss.types.RowType;
 
@@ -46,21 +45,15 @@ public class LanceArrowWriter extends ArrowReader {
     private final AtomicInteger count = new AtomicInteger(0);
     private final Semaphore writeToken;
     private final Semaphore loadToken;
-    private final int bucket;
 
     public LanceArrowWriter(
-            BufferAllocator allocator,
-            Schema schema,
-            int batchSize,
-            TableBucket tableBucket,
-            RowType rowType) {
+            BufferAllocator allocator, Schema schema, int batchSize, RowType rowType) {
         super(allocator);
         checkNotNull(schema);
         checkArgument(batchSize > 0);
         this.schema = schema;
         this.rowType = rowType;
         this.batchSize = batchSize;
-        this.bucket = tableBucket.getBucket();
         this.writeToken = new Semaphore(0);
         this.loadToken = new Semaphore(0);
     }
@@ -70,7 +63,7 @@ public class LanceArrowWriter extends ArrowReader {
         try {
             // wait util prepareLoadNextBatch to release write token,
             writeToken.acquire();
-            arrowWriter.writeRow(row.getRow(), bucket, row.logOffset(), row.timestamp());
+            arrowWriter.writeRow(row.getRow());
             if (count.incrementAndGet() == batchSize) {
                 // notify loadNextBatch to take the batch
                 loadToken.release();

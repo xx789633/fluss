@@ -18,35 +18,33 @@
 package com.alibaba.fluss.lake.lance.tiering;
 
 import com.alibaba.fluss.config.Configuration;
+import com.alibaba.fluss.lake.committer.BucketOffset;
 import com.alibaba.fluss.lake.committer.CommittedLakeSnapshot;
 import com.alibaba.fluss.lake.committer.LakeCommitter;
 import com.alibaba.fluss.lake.lance.LanceConfig;
 import com.alibaba.fluss.lake.lance.utils.LanceDatasetAdapter;
 import com.alibaba.fluss.metadata.TablePath;
+import com.alibaba.fluss.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
+import com.alibaba.fluss.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
+import com.alibaba.fluss.utils.json.BucketOffsetJsonSerde;
 
 import com.lancedb.lance.FragmentMetadata;
-import org.apache.arrow.vector.BigIntVector;
-import org.apache.arrow.vector.IntVector;
-import org.apache.arrow.vector.VectorSchemaRoot;
-import org.apache.arrow.vector.ipc.ArrowReader;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static com.alibaba.fluss.metadata.TableDescriptor.BUCKET_COLUMN_NAME;
-import static com.alibaba.fluss.metadata.TableDescriptor.OFFSET_COLUMN_NAME;
+import static com.alibaba.fluss.lake.committer.BucketOffset.FLUSS_LAKE_SNAP_BUCKET_OFFSET_PROPERTY;
 
 /** Implementation of {@link LakeCommitter} for Lance. */
 public class LanceLakeCommitter implements LakeCommitter<LanceWriteResult, LanceCommittable> {
     private final LanceConfig config;
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     public LanceLakeCommitter(Configuration options, TablePath tablePath) {
         this.config =
@@ -71,9 +69,8 @@ public class LanceLakeCommitter implements LakeCommitter<LanceWriteResult, Lance
     @Override
     public long commit(LanceCommittable committable, Map<String, String> snapshotProperties)
             throws IOException {
-        // TODO: store bucketLogEndOffsets in Lance transaction properties, see
-        // https://github.com/lancedb/lance/issues/4181
-        return LanceDatasetAdapter.appendFragments(config, committable.committable());
+        return LanceDatasetAdapter.commitAppend(
+                config, committable.committable(), snapshotProperties);
     }
 
     @Override
@@ -105,32 +102,22 @@ public class LanceLakeCommitter implements LakeCommitter<LanceWriteResult, Lance
 
         CommittedLakeSnapshot committedLakeSnapshot =
                 new CommittedLakeSnapshot(latestLakeSnapshotIdOfLake.get());
-
-        LinkedHashMap<Integer, Long> bucketEndOffset = new LinkedHashMap<>();
-
-        ArrowReader reader =
-                LanceDatasetAdapter.getArrowReader(
-                        LanceConfig.from(
-                                config.getOptions(),
-                                Collections.emptyMap(),
-                                config.getDatabaseName(),
-                                config.getTableName()),
-                        Arrays.asList(BUCKET_COLUMN_NAME, OFFSET_COLUMN_NAME),
-                        Collections.emptyList(),
-                        (int) (latestLakeSnapshotIdOfLake.get() + 1));
-        VectorSchemaRoot readerRoot = reader.getVectorSchemaRoot();
-        while (reader.loadNextBatch()) {
-            IntVector bucketVector = (IntVector) readerRoot.getVector(BUCKET_COLUMN_NAME);
-            BigIntVector offsetVector = (BigIntVector) readerRoot.getVector(OFFSET_COLUMN_NAME);
-            for (int i = 0; i < bucketVector.getValueCount(); i++) {
-                if (!bucketEndOffset.containsKey(bucketVector.get(i))
-                        || bucketEndOffset.get(bucketVector.get(i)) < offsetVector.get(i)) {
-                    bucketEndOffset.put(bucketVector.get(i), offsetVector.get(i));
-                }
+        String flussOffsetProperties =
+                LanceDatasetAdapter.getTransactionProperties(
+                                config, Math.toIntExact(latestLakeSnapshotIdOfLake.get()))
+                        .get(FLUSS_LAKE_SNAP_BUCKET_OFFSET_PROPERTY);
+        for (JsonNode node : OBJECT_MAPPER.readTree(flussOffsetProperties)) {
+            BucketOffset bucketOffset = BucketOffsetJsonSerde.INSTANCE.deserialize(node);
+            if (bucketOffset.getPartitionId() != null) {
+                committedLakeSnapshot.addPartitionBucket(
+                        bucketOffset.getPartitionId(),
+                        bucketOffset.getPartitionQualifiedName(),
+                        bucketOffset.getBucket(),
+                        bucketOffset.getLogOffset());
+            } else {
+                committedLakeSnapshot.addBucket(
+                        bucketOffset.getBucket(), bucketOffset.getLogOffset());
             }
-        }
-        for (Map.Entry<Integer, Long> entry : bucketEndOffset.entrySet()) {
-            committedLakeSnapshot.addBucket(entry.getKey(), entry.getValue());
         }
         return committedLakeSnapshot;
     }

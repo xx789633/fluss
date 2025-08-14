@@ -19,7 +19,6 @@ package com.alibaba.fluss.lake.lance.utils;
 
 import com.alibaba.fluss.lake.lance.LanceConfig;
 import com.alibaba.fluss.lake.lance.tiering.LanceArrowWriter;
-import com.alibaba.fluss.metadata.TableBucket;
 import com.alibaba.fluss.types.RowType;
 
 import com.lancedb.lance.Dataset;
@@ -27,9 +26,9 @@ import com.lancedb.lance.Fragment;
 import com.lancedb.lance.FragmentMetadata;
 import com.lancedb.lance.FragmentOperation;
 import com.lancedb.lance.ReadOptions;
+import com.lancedb.lance.Transaction;
 import com.lancedb.lance.WriteParams;
-import com.lancedb.lance.ipc.ColumnOrdering;
-import com.lancedb.lance.ipc.ScanOptions;
+import com.lancedb.lance.operation.Append;
 import org.apache.arrow.c.ArrowArrayStream;
 import org.apache.arrow.c.Data;
 import org.apache.arrow.memory.BufferAllocator;
@@ -37,10 +36,8 @@ import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.ipc.ArrowReader;
 import org.apache.arrow.vector.types.pojo.Schema;
 
-import javax.annotation.Nullable;
-
-import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /** Lance dataset API adapter. */
@@ -81,6 +78,29 @@ public class LanceDatasetAdapter {
         }
     }
 
+    public static long commitAppend(
+            LanceConfig config, List<FragmentMetadata> fragments, Map<String, String> properties) {
+        String uri = config.getDatasetUri();
+        ReadOptions options = LanceConfig.genReadOptionFromConfig(config);
+        Dataset dataset = Dataset.open(allocator, uri, options);
+        Transaction transaction =
+                dataset.newTransactionBuilder()
+                        .operation(Append.builder().fragments(fragments).build())
+                        .transactionProperties(properties)
+                        .build();
+        try (Dataset appendedDataset = transaction.commit()) {
+            return appendedDataset.version() - 1;
+        }
+    }
+
+    public static Map<String, String> getTransactionProperties(LanceConfig config, int version) {
+        ReadOptions.Builder builder = new ReadOptions.Builder();
+        builder.setVersion(version);
+        builder.setStorageOptions(LanceConfig.genStorageOptions(config));
+        Dataset dataset = Dataset.open(allocator, config.getDatasetUri(), builder.build());
+        dataset.readTransaction();
+    }
+
     public static Optional<Long> getVersion(LanceConfig config) {
         String uri = config.getDatasetUri();
         ReadOptions options = LanceConfig.genReadOptionFromConfig(config);
@@ -93,36 +113,8 @@ public class LanceDatasetAdapter {
         }
     }
 
-    public static ArrowReader getArrowReader(LanceConfig config) {
-        return getArrowReader(config, Collections.emptyList(), Collections.emptyList(), null);
-    }
-
-    public static ArrowReader getArrowReader(
-            LanceConfig config,
-            List<String> columns,
-            List<ColumnOrdering> columnOrderings,
-            @Nullable Integer version) {
-        ReadOptions.Builder builder = new ReadOptions.Builder();
-        builder.setStorageOptions(LanceConfig.genStorageOptions(config));
-        if (version != null) {
-            builder.setVersion(version);
-        }
-        try (Dataset datasetRead =
-                Dataset.open(allocator, config.getDatasetUri(), builder.build())) {
-            ScanOptions.Builder scanOptionBuilder = new ScanOptions.Builder();
-            if (!columns.isEmpty()) {
-                scanOptionBuilder.columns(columns);
-            }
-            if (!columnOrderings.isEmpty()) {
-                scanOptionBuilder.setColumnOrderings(columnOrderings);
-            }
-            return datasetRead.newScan(scanOptionBuilder.build()).scanBatches();
-        }
-    }
-
-    public static LanceArrowWriter getArrowWriter(
-            Schema schema, int batchSize, TableBucket tableBucket, RowType rowType) {
-        return new LanceArrowWriter(allocator, schema, batchSize, tableBucket, rowType);
+    public static LanceArrowWriter getArrowWriter(Schema schema, int batchSize, RowType rowType) {
+        return new LanceArrowWriter(allocator, schema, batchSize, rowType);
     }
 
     public static List<FragmentMetadata> createFragment(

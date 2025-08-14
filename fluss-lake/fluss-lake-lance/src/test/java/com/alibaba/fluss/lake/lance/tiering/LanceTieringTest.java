@@ -37,7 +37,9 @@ import com.alibaba.fluss.row.GenericRow;
 import com.alibaba.fluss.types.DataTypes;
 import com.alibaba.fluss.utils.types.Tuple2;
 
+import com.lancedb.lance.Dataset;
 import com.lancedb.lance.WriteParams;
+import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.ipc.ArrowReader;
@@ -59,9 +61,6 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 import static com.alibaba.fluss.flink.tiering.committer.TieringCommitOperator.toBucketOffsetsProperty;
-import static com.alibaba.fluss.metadata.TableDescriptor.BUCKET_COLUMN_NAME;
-import static com.alibaba.fluss.metadata.TableDescriptor.OFFSET_COLUMN_NAME;
-import static com.alibaba.fluss.metadata.TableDescriptor.TIMESTAMP_COLUMN_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** The UT for tiering to Lance via {@link LanceLakeTieringFactory}. */
@@ -78,7 +77,7 @@ public class LanceTieringTest {
     }
 
     private static Stream<Arguments> tieringWriteArgs() {
-        return Stream.of(Arguments.of(false));
+        return Stream.of(Arguments.of(false), Arguments.of(true));
     }
 
     @ParameterizedTest
@@ -119,6 +118,7 @@ public class LanceTieringTest {
                             }
                         }
                         : Collections.singletonMap(null, null);
+        List<String> partitionKeys = new ArrayList<>(partitionIdAndName.values());
         Map<TableBucket, Long> tableBucketOffsets = new HashMap<>();
         // first, write data
         for (int bucket = 0; bucket < bucketNum; bucket++) {
@@ -158,26 +158,34 @@ public class LanceTieringTest {
             long snapshot =
                     lakeCommitter.commit(
                             lanceCommittable,
-                            toBucketOffsetsProperty(tableBucketOffsets, partitionIdAndName, null));
+                            toBucketOffsetsProperty(
+                                    tableBucketOffsets, partitionIdAndName, partitionKeys));
             assertThat(snapshot).isEqualTo(1);
         }
 
-        ArrowReader reader = LanceDatasetAdapter.getArrowReader(config);
-        VectorSchemaRoot readerRoot = reader.getVectorSchemaRoot();
-        //        while (reader.loadNextBatch()) {
-        //            System.out.print(readerRoot.contentToTSVString());
-        //        }
+        try (Dataset dataset =
+                Dataset.open(
+                        new RootAllocator(),
+                        config.getDatasetUri(),
+                        LanceConfig.genReadOptionFromConfig(config))) {
+            ArrowReader reader = dataset.newScan().scanBatches();
+            VectorSchemaRoot readerRoot = reader.getVectorSchemaRoot();
+            //        while (reader.loadNextBatch()) {
+            //            System.out.print(readerRoot.contentToTSVString());
+            //        }
 
-        // then, check data
-        for (int bucket = 0; bucket < 3; bucket++) {
-            for (String partition : partitionIdAndName.values()) {
-                reader.loadNextBatch();
-                Tuple2<String, Integer> partitionBucket = Tuple2.of(partition, bucket);
-                List<LogRecord> expectRecords = recordsByBucket.get(partitionBucket);
-                verifyLogTableRecords(readerRoot, expectRecords, bucket, isPartitioned, partition);
+            // then, check data
+            for (int bucket = 0; bucket < 3; bucket++) {
+                for (String partition : partitionIdAndName.values()) {
+                    reader.loadNextBatch();
+                    Tuple2<String, Integer> partitionBucket = Tuple2.of(partition, bucket);
+                    List<LogRecord> expectRecords = recordsByBucket.get(partitionBucket);
+                    verifyLogTableRecords(
+                            readerRoot, expectRecords, bucket, isPartitioned, partition);
+                }
             }
+            assertThat(reader.loadNextBatch()).isFalse();
         }
-        assertThat(reader.loadNextBatch()).isFalse();
 
         // then, let's verify getMissingLakeSnapshot works
         try (LakeCommitter<LanceWriteResult, LanceCommittable> lakeCommitter =
@@ -223,9 +231,6 @@ public class LanceTieringTest {
                     .isEqualTo(expectRecord.getRow().getString(1).toString());
             assertThat(((VarCharVector) root.getVector(2)).getObject(i).toString())
                     .isEqualTo(expectRecord.getRow().getString(2).toString());
-            // check system columns: __bucket, __offset, __timestamp
-            assertThat((int) (root.getVector(3).getObject(i))).isEqualTo(expectBucket);
-            assertThat((long) (root.getVector(4).getObject(i))).isEqualTo(expectRecord.logOffset());
         }
     }
 
@@ -308,18 +313,14 @@ public class LanceTieringTest {
         columns.add(new Schema.Column("c1", DataTypes.INT()));
         columns.add(new Schema.Column("c2", DataTypes.STRING()));
         columns.add(new Schema.Column("c3", DataTypes.STRING()));
-
-        doCreateLanceTable(tablePath, columns, config);
-        return Schema.newBuilder().fromColumns(columns).build();
+        Schema.Builder schemaBuilder = Schema.newBuilder().fromColumns(columns);
+        Schema schema = schemaBuilder.build();
+        doCreateLanceTable(tablePath, schema, config);
+        return schema;
     }
 
-    private void doCreateLanceTable(
-            TablePath tablePath, List<Schema.Column> columns, LanceConfig config) throws Exception {
-        Schema.Builder schemaBuilder = Schema.newBuilder().fromColumns(columns);
-        schemaBuilder.column(BUCKET_COLUMN_NAME, DataTypes.INT());
-        schemaBuilder.column(OFFSET_COLUMN_NAME, DataTypes.BIGINT());
-        schemaBuilder.column(TIMESTAMP_COLUMN_NAME, DataTypes.TIMESTAMP_LTZ());
-        Schema schema = schemaBuilder.build();
+    private void doCreateLanceTable(TablePath tablePath, Schema schema, LanceConfig config)
+            throws Exception {
         WriteParams params = LanceConfig.genWriteParamsFromConfig(config);
         LanceDatasetAdapter.createDataset(
                 config.getDatasetUri(), LanceArrowUtils.toArrowSchema(schema.getRowType()), params);

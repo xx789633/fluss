@@ -18,7 +18,6 @@
 package com.alibaba.fluss.lake.lance.tiering;
 
 import com.alibaba.fluss.lake.lance.utils.LanceArrowUtils;
-import com.alibaba.fluss.metadata.TableBucket;
 import com.alibaba.fluss.record.GenericRecord;
 import com.alibaba.fluss.record.LogRecord;
 import com.alibaba.fluss.row.GenericRow;
@@ -33,14 +32,10 @@ import org.apache.arrow.vector.VectorUnloader;
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
 import org.junit.jupiter.api.Test;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static com.alibaba.fluss.metadata.TableDescriptor.BUCKET_COLUMN_NAME;
-import static com.alibaba.fluss.metadata.TableDescriptor.OFFSET_COLUMN_NAME;
-import static com.alibaba.fluss.metadata.TableDescriptor.TIMESTAMP_COLUMN_NAME;
 import static com.alibaba.fluss.record.ChangeType.APPEND_ONLY;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -49,12 +44,7 @@ public class LanceArrowWriterTest {
     @Test
     public void test() throws Exception {
         try (BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE)) {
-            List<DataField> fields =
-                    Arrays.asList(
-                            new DataField("column1", DataTypes.INT()),
-                            new DataField(BUCKET_COLUMN_NAME, DataTypes.INT()),
-                            new DataField(OFFSET_COLUMN_NAME, DataTypes.BIGINT()),
-                            new DataField(TIMESTAMP_COLUMN_NAME, DataTypes.TIMESTAMP_LTZ()));
+            List<DataField> fields = List.of(new DataField("column1", DataTypes.INT()));
 
             RowType rowType = new RowType(fields);
             final int totalRows = 125;
@@ -62,11 +52,7 @@ public class LanceArrowWriterTest {
 
             final LanceArrowWriter arrowWriter =
                     new LanceArrowWriter(
-                            allocator,
-                            LanceArrowUtils.toArrowSchema(rowType),
-                            batchSize,
-                            new TableBucket(0, 0L, 0),
-                            rowType);
+                            allocator, LanceArrowUtils.toArrowSchema(rowType), batchSize, rowType);
             AtomicInteger rowsWritten = new AtomicInteger(0);
             AtomicInteger rowsRead = new AtomicInteger(0);
             AtomicLong expectedBytesRead = new AtomicLong(0);

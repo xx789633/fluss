@@ -19,9 +19,7 @@ package com.alibaba.fluss.lake.lance.tiering;
 
 import com.alibaba.fluss.lake.lance.utils.LanceArrowUtils;
 import com.alibaba.fluss.lake.lance.writers.ArrowFieldWriter;
-import com.alibaba.fluss.row.GenericRow;
 import com.alibaba.fluss.row.InternalRow;
-import com.alibaba.fluss.row.TimestampLtz;
 import com.alibaba.fluss.types.RowType;
 
 import org.apache.arrow.vector.FieldVector;
@@ -34,7 +32,6 @@ public class ArrowWriter {
      */
     private final ArrowFieldWriter<InternalRow>[] fieldWriters;
 
-    private static final int LAKE_LANCE_SYSTEM_COLUMNS = 3;
     private int recordsCount;
     private VectorSchemaRoot root;
 
@@ -56,16 +53,10 @@ public class ArrowWriter {
     }
 
     /** Writes the specified row which is serialized into Arrow format. */
-    public void writeRow(InternalRow row, int bucket, long offset, long timestamp) {
-        int i;
-        for (i = 0; i < fieldWriters.length - LAKE_LANCE_SYSTEM_COLUMNS; i++) {
+    public void writeRow(InternalRow row) {
+        for (int i = 0; i < fieldWriters.length; i++) {
             fieldWriters[i].write(row, i, true);
         }
-        fieldWriters[i].write(GenericRow.of(bucket), 0, true);
-        i++;
-        fieldWriters[i].write(GenericRow.of(offset), 0, true);
-        i++;
-        fieldWriters[i].write(GenericRow.of(TimestampLtz.fromEpochMillis(timestamp)), 0, true);
         recordsCount++;
     }
 
