@@ -24,7 +24,6 @@ import com.alibaba.fluss.types.RowType;
 
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.Table;
-import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.data.GenericAppenderFactory;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.io.FileAppenderFactory;
@@ -48,9 +47,10 @@ public class AppendOnlyWriter extends RecordWriter {
             RowType flussRowType,
             TableBucket tableBucket,
             @Nullable String partition,
-            List<String> partitionKeys) {
+            List<String> partitionKeys,
+            FileFormat format) {
         super(
-                createTaskWriter(icebergTable, tableBucket),
+                createTaskWriter(icebergTable, tableBucket, format),
                 icebergTable.schema(),
                 flussRowType,
                 tableBucket,
@@ -59,13 +59,12 @@ public class AppendOnlyWriter extends RecordWriter {
     }
 
     private static TaskWriter<Record> createTaskWriter(
-            Table icebergTable, TableBucket tableBucket) {
+            Table icebergTable, TableBucket tableBucket, FileFormat format) {
         // Get target file size from table properties
         long targetFileSize = targetFileSize(icebergTable);
 
         FileAppenderFactory<Record> fileAppenderFactory =
                 new GenericAppenderFactory(icebergTable.schema());
-        FileFormat format = fileFormat(icebergTable);
         OutputFileFactory outputFileFactory =
                 OutputFileFactory.builderFor(
                                 icebergTable,
@@ -88,15 +87,6 @@ public class AppendOnlyWriter extends RecordWriter {
     public void write(LogRecord record) throws Exception {
         flussRecordAsIcebergRecord.setFlussRecord(record);
         taskWriter.write(flussRecordAsIcebergRecord);
-    }
-
-    private static FileFormat fileFormat(Table icebergTable) {
-        String formatString =
-                PropertyUtil.propertyAsString(
-                        icebergTable.properties(),
-                        TableProperties.DEFAULT_FILE_FORMAT,
-                        TableProperties.DEFAULT_FILE_FORMAT_DEFAULT);
-        return FileFormat.fromString(formatString);
     }
 
     private static long targetFileSize(Table icebergTable) {
