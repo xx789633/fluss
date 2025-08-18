@@ -169,9 +169,9 @@ class IcebergTieringTest {
             List<LogRecord> expectRecords = recordsByBucket.get(bucket);
             CloseableIterator<Record> actualRecords = getIcebergRows(icebergTable, bucket);
             if (isPrimaryKeyTable) {
-                verifyPrimaryKeyTableRecord(actualRecords, expectRecords, bucket);
+                verifyTableRecords(actualRecords, expectRecords, bucket);
             } else {
-                verifyLogTableRecords(actualRecords, expectRecords, bucket);
+                verifyTableRecords(actualRecords, expectRecords, bucket);
             }
         }
     }
@@ -331,7 +331,7 @@ class IcebergTieringTest {
                 .iterator();
     }
 
-    private void verifyLogTableRecords(
+    private void verifyTableRecords(
             CloseableIterator<Record> actualRecords,
             List<LogRecord> expectRecords,
             int expectBucket) {
@@ -354,35 +354,5 @@ class IcebergTieringTest {
                                     .toEpochMilli())
                     .isEqualTo(expectRecord.timestamp());
         }
-    }
-
-    private void verifyPrimaryKeyTableRecord(
-            CloseableIterator<Record> actualRecords,
-            List<LogRecord> expectRecords,
-            int expectBucket)
-            throws Exception {
-        for (LogRecord expectRecord : expectRecords) {
-            Record actualRow = actualRecords.next();
-            // check business columns:
-            assertThat(actualRow.get(0)).isEqualTo(expectRecord.getRow().getInt(0));
-            assertThat(actualRow.get(1).toString())
-                    .isEqualTo(expectRecord.getRow().getString(1).toString());
-
-            // For non-partitioned tables
-            assertThat(actualRow.get(2).toString())
-                    .isEqualTo(expectRecord.getRow().getString(2).toString());
-            // check system columns: __bucket, __offset, __timestamp
-            assertThat(actualRow.get(3)).isEqualTo(expectBucket);
-            assertThat(actualRow.get(4)).isEqualTo(expectRecord.logOffset());
-            assertThat(
-                            actualRow
-                                    .get(5, OffsetDateTime.class)
-                                    .atZoneSameInstant(ZoneOffset.UTC)
-                                    .toInstant()
-                                    .toEpochMilli())
-                    .isEqualTo(expectRecord.timestamp());
-        }
-        assertThat(actualRecords.hasNext()).isFalse();
-        actualRecords.close();
     }
 }
