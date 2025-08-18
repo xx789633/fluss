@@ -28,6 +28,8 @@ import com.alibaba.fluss.utils.json.BucketOffsetJsonSerde;
 import org.apache.iceberg.AppendFiles;
 import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.DataFile;
+import org.apache.iceberg.DeleteFile;
+import org.apache.iceberg.RowDelta;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
@@ -40,6 +42,7 @@ import org.apache.iceberg.io.WriteResult;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -77,6 +80,10 @@ public class IcebergLakeCommitter implements LakeCommitter<IcebergWriteResult, I
             for (DataFile dataFile : writeResult.dataFiles()) {
                 builder.addDataFile(dataFile);
             }
+            // Add delete files
+            for (DeleteFile deleteFile : writeResult.deleteFiles()) {
+                builder.addDeleteFile(deleteFile);
+            }
         }
 
         return builder.build();
@@ -88,22 +95,46 @@ public class IcebergLakeCommitter implements LakeCommitter<IcebergWriteResult, I
         try {
             // Refresh table to get latest metadata
             icebergTable.refresh();
-            // Simple append-only case: only data files, no delete files or compaction
-            AppendFiles appendFiles = icebergTable.newAppend();
-            for (DataFile dataFile : committable.getDataFiles()) {
-                appendFiles.appendFile(dataFile);
-            }
-            if (!committable.getDeleteFiles().isEmpty()) {
-                throw new IllegalStateException(
-                        "Delete files are not supported in append-only mode. "
-                                + "Found "
-                                + committable.getDeleteFiles().size()
-                                + " delete files.");
-            }
 
-            addFlussProperties(appendFiles, snapshotProperties);
+            if (committable.getDeleteFiles().isEmpty()) {
+                // Simple append-only case: only data files, no delete files or compaction
+                AppendFiles appendFiles = icebergTable.newAppend();
+                for (DataFile dataFile : committable.getDataFiles()) {
+                    appendFiles.appendFile(dataFile);
+                }
+                if (!committable.getDeleteFiles().isEmpty()) {
+                    throw new IllegalStateException(
+                            "Delete files are not supported in append-only mode. "
+                                    + "Found "
+                                    + committable.getDeleteFiles().size()
+                                    + " delete files.");
+                }
 
-            appendFiles.commit();
+                addFlussProperties(appendFiles, snapshotProperties);
+
+                appendFiles.commit();
+            } else {
+                // Row delta validations are not needed for streaming changes that write equality
+                // deletes.
+                // Equality deletes are applied to data in all previous sequence numbers, so retries
+                // may
+                // push deletes further in the future, but do not affect correctness. Position
+                // deletes
+                // committed to the table in this path are used only to delete rows from data files
+                // that are
+                // being added in this commit. There is no way for data files added along with the
+                // delete
+                // files to be concurrently removed, so there is no need to validate the files
+                // referenced by
+                // the position delete files that are being committed.
+                RowDelta rowDelta = icebergTable.newRowDelta();
+                Arrays.stream(committable.getDataFiles().toArray(DataFile[]::new))
+                        .forEach(rowDelta::addRows);
+                Arrays.stream(committable.getDeleteFiles().toArray(DeleteFile[]::new))
+                        .forEach(rowDelta::addDeletes);
+                snapshotProperties.forEach(rowDelta::set);
+                rowDelta.commit();
+            }
 
             Long commitSnapshotId = currentCommitSnapshotId.get();
             currentCommitSnapshotId.remove();
