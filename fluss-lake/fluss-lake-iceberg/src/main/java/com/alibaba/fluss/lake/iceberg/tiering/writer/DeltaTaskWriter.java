@@ -20,7 +20,6 @@ package com.alibaba.fluss.lake.iceberg.tiering.writer;
 import com.alibaba.fluss.lake.iceberg.tiering.RecordWriter;
 import com.alibaba.fluss.metadata.TableBucket;
 import com.alibaba.fluss.record.LogRecord;
-import com.alibaba.fluss.shaded.guava32.com.google.common.collect.Lists;
 import com.alibaba.fluss.types.RowType;
 
 import org.apache.iceberg.FileFormat;
@@ -31,10 +30,10 @@ import org.apache.iceberg.data.Record;
 import org.apache.iceberg.io.FileAppenderFactory;
 import org.apache.iceberg.io.OutputFileFactory;
 import org.apache.iceberg.io.TaskWriter;
-import org.apache.iceberg.util.ArrayUtil;
 
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /** A {@link RecordWriter} to write to Iceberg's primary-key table. */
@@ -63,17 +62,19 @@ public class DeltaTaskWriter extends RecordWriter {
             FileFormat format,
             OutputFileFactory outputFileFactory,
             long targetFileSize) {
-
+        int[] equalityFieldIds =
+                icebergTable.schema().identifierFieldIds().stream()
+                        .mapToInt(Integer::intValue)
+                        .toArray();
         FileAppenderFactory<Record> appenderFactory =
                 new GenericAppenderFactory(
                         icebergTable.schema(),
                         icebergTable.spec(),
-                        ArrayUtil.toIntArray(
-                                Lists.newArrayList(icebergTable.schema().identifierFieldIds())),
+                        equalityFieldIds,
                         icebergTable.schema(),
                         null);
 
-        List<String> columns = Lists.newArrayList();
+        List<String> columns = new ArrayList<>();
         for (Integer fieldId : icebergTable.schema().identifierFieldIds()) {
             columns.add(icebergTable.schema().findField(fieldId).name());
         }
@@ -99,9 +100,8 @@ public class DeltaTaskWriter extends RecordWriter {
                 deltaWriter.write(flussRecordAsIcebergRecord);
                 break;
             case UPDATE_BEFORE:
-                deltaWriter.delete(flussRecordAsIcebergRecord);
-                break;
             case DELETE:
+                // TODO we can project the record and only write the equality delete fields
                 deltaWriter.delete(flussRecordAsIcebergRecord);
                 break;
             default:

@@ -23,7 +23,6 @@ import com.alibaba.fluss.lake.writer.LakeWriter;
 import com.alibaba.fluss.lake.writer.WriterInitContext;
 import com.alibaba.fluss.metadata.TablePath;
 import com.alibaba.fluss.record.LogRecord;
-import com.alibaba.fluss.shaded.guava32.com.google.common.collect.Lists;
 
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.PartitionSpec;
@@ -37,6 +36,7 @@ import org.apache.iceberg.util.PropertyUtil;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -64,7 +64,7 @@ public class IcebergLakeWriter implements LakeWriter<IcebergWriteResult> {
 
     private RecordWriter createRecordWriter(WriterInitContext writerInitContext) {
         Schema schema = icebergTable.schema();
-        List<Integer> equalityFieldIds = Lists.newArrayList(schema.identifierFieldIds());
+        List<Integer> equalityFieldIds = new ArrayList<>(schema.identifierFieldIds());
         PartitionSpec spec = icebergTable.spec();
 
         // Get target file size from table properties
@@ -90,6 +90,8 @@ public class IcebergLakeWriter implements LakeWriter<IcebergWriteResult> {
                         format,
                         outputFileFactory,
                         targetFileSize);
+            } else {
+                return null;
             }
         } else {
             if (spec.isUnpartitioned()) {
@@ -102,9 +104,10 @@ public class IcebergLakeWriter implements LakeWriter<IcebergWriteResult> {
                         format,
                         outputFileFactory,
                         targetFileSize);
+            } else {
+                return null;
             }
         }
-        return null;
     }
 
     @Override

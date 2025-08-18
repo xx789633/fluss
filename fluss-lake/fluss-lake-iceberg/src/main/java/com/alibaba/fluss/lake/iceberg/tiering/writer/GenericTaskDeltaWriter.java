@@ -56,11 +56,6 @@ class GenericTaskDeltaWriter extends BaseTaskWriter<Record> {
         deltaWriter.delete(row);
     }
 
-    // The caller of this function is responsible for passing in a record with only the key fields
-    public void deleteKey(Record key) throws IOException {
-        deltaWriter.deleteKey(key);
-    }
-
     @Override
     public void close() throws IOException {
         deltaWriter.close();
@@ -73,13 +68,13 @@ class GenericTaskDeltaWriter extends BaseTaskWriter<Record> {
         }
 
         @Override
-        protected StructLike asStructLike(Record row) {
-            return row;
+        protected StructLike asStructLike(Record record) {
+            return record;
         }
 
         @Override
-        protected StructLike asStructLikeKey(Record data) {
-            return data;
+        protected StructLike asStructLikeKey(Record record) {
+            return record;
         }
     }
 }

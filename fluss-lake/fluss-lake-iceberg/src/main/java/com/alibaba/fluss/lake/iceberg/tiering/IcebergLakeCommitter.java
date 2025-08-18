@@ -31,6 +31,7 @@ import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DeleteFile;
 import org.apache.iceberg.RowDelta;
 import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.SnapshotUpdate;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
@@ -102,31 +103,21 @@ public class IcebergLakeCommitter implements LakeCommitter<IcebergWriteResult, I
                 for (DataFile dataFile : committable.getDataFiles()) {
                     appendFiles.appendFile(dataFile);
                 }
-                if (!committable.getDeleteFiles().isEmpty()) {
-                    throw new IllegalStateException(
-                            "Delete files are not supported in append-only mode. "
-                                    + "Found "
-                                    + committable.getDeleteFiles().size()
-                                    + " delete files.");
-                }
 
                 addFlussProperties(appendFiles, snapshotProperties);
 
                 appendFiles.commit();
             } else {
-                // Row delta validations are not needed for streaming changes that write equality
-                // deletes.
-                // Equality deletes are applied to data in all previous sequence numbers, so retries
-                // may
-                // push deletes further in the future, but do not affect correctness. Position
-                // deletes
-                // committed to the table in this path are used only to delete rows from data files
-                // that are
-                // being added in this commit. There is no way for data files added along with the
-                // delete
-                // files to be concurrently removed, so there is no need to validate the files
-                // referenced by
-                // the position delete files that are being committed.
+                /**
+                 * Row delta validations are not needed for streaming changes that write equality
+                 * deletes. Equality deletes are applied to data in all previous sequence numbers,
+                 * so retries may push deletes further in the future, but do not affect correctness.
+                 * Position deletes committed to the table in this path are used only to delete rows
+                 * from data files that are being added in this commit. There is no way for data
+                 * files added along with the delete files to be concurrently removed, so there is
+                 * no need to validate the files referenced by the position delete files that are
+                 * being committed.
+                 */
                 RowDelta rowDelta = icebergTable.newRowDelta();
                 Arrays.stream(committable.getDataFiles().stream().toArray(DataFile[]::new))
                         .forEach(rowDelta::addRows);
@@ -147,10 +138,10 @@ public class IcebergLakeCommitter implements LakeCommitter<IcebergWriteResult, I
     }
 
     private void addFlussProperties(
-            AppendFiles appendFiles, Map<String, String> snapshotProperties) {
-        appendFiles.set("commit-user", FLUSS_LAKE_TIERING_COMMIT_USER);
+            SnapshotUpdate<?> operation, Map<String, String> snapshotProperties) {
+        operation.set("commit-user", FLUSS_LAKE_TIERING_COMMIT_USER);
         for (Map.Entry<String, String> entry : snapshotProperties.entrySet()) {
-            appendFiles.set(entry.getKey(), entry.getValue());
+            operation.set(entry.getKey(), entry.getValue());
         }
     }
 

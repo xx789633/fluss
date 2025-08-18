@@ -105,12 +105,16 @@ class IcebergTieringTest {
     @ParameterizedTest
     @MethodSource("tieringWriteArgs")
     void testTieringWriteTable(boolean isPrimaryKeyTable) throws Exception {
-        TablePath tablePath = TablePath.of("iceberg", "test_table");
+        int bucketNum = 3;
+        TablePath tablePath =
+                TablePath.of(
+                        "iceberg",
+                        String.format(
+                                "test_tiering_table_%s",
+                                isPrimaryKeyTable ? "primary_key" : "log"));
         createTable(tablePath, isPrimaryKeyTable);
 
         Table icebergTable = icebergCatalog.loadTable(toIceberg(tablePath));
-
-        int bucketNum = 3;
 
         Map<Integer, List<LogRecord>> recordsByBucket = new HashMap<>();
 
@@ -126,14 +130,14 @@ class IcebergTieringTest {
                 Tuple2<List<LogRecord>, List<LogRecord>> writeAndExpectRecords =
                         isPrimaryKeyTable
                                 ? genPrimaryKeyTableRecords(bucket)
-                                : genLogTableRecords(bucket, 5);
+                                : genLogTableRecords(bucket, 10);
 
                 List<LogRecord> writtenRecords = writeAndExpectRecords.f0;
                 List<LogRecord> expectRecords = writeAndExpectRecords.f1;
+                recordsByBucket.put(bucket, expectRecords);
                 for (LogRecord record : writtenRecords) {
                     writer.write(record);
                 }
-                recordsByBucket.put(bucket, expectRecords);
                 IcebergWriteResult result = writer.complete();
                 byte[] serialized = writeResultSerializer.serialize(result);
                 icebergWriteResults.add(
@@ -167,7 +171,7 @@ class IcebergTieringTest {
             if (isPrimaryKeyTable) {
                 verifyPrimaryKeyTableRecord(actualRecords, expectRecords, bucket);
             } else {
-                verifyLogTableRecords(actualRecords, bucket, expectRecords);
+                verifyLogTableRecords(actualRecords, expectRecords, bucket);
             }
         }
     }
@@ -329,8 +333,8 @@ class IcebergTieringTest {
 
     private void verifyLogTableRecords(
             CloseableIterator<Record> actualRecords,
-            int expectBucket,
-            List<LogRecord> expectRecords) {
+            List<LogRecord> expectRecords,
+            int expectBucket) {
         for (LogRecord expectRecord : expectRecords) {
             Record actualRecord = actualRecords.next();
             // check business columns:
