@@ -71,9 +71,9 @@ public class LanceArrowWriterTest {
                                         arrowWriter.write(logRecord);
                                     }
                                     arrowWriter.setFinished();
-                                } catch (Exception e) {
-                                    e.printStackTrace();
-                                    throw e;
+                                } catch (Throwable t) {
+                                    throw new RuntimeException(
+                                            "Lance arrow writer thread failed.", t);
                                 }
                             });
 
