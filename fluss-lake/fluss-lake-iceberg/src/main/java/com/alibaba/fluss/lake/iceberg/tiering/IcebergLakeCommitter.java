@@ -128,9 +128,9 @@ public class IcebergLakeCommitter implements LakeCommitter<IcebergWriteResult, I
                 // referenced by
                 // the position delete files that are being committed.
                 RowDelta rowDelta = icebergTable.newRowDelta();
-                Arrays.stream(committable.getDataFiles().toArray(DataFile[]::new))
+                Arrays.stream(committable.getDataFiles().stream().toArray(DataFile[]::new))
                         .forEach(rowDelta::addRows);
-                Arrays.stream(committable.getDeleteFiles().toArray(DeleteFile[]::new))
+                Arrays.stream(committable.getDeleteFiles().stream().toArray(DeleteFile[]::new))
                         .forEach(rowDelta::addDeletes);
                 snapshotProperties.forEach(rowDelta::set);
                 rowDelta.commit();
