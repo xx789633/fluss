@@ -23,8 +23,8 @@ import com.alibaba.fluss.lake.writer.LakeWriter;
 import com.alibaba.fluss.lake.writer.WriterInitContext;
 import com.alibaba.fluss.metadata.TablePath;
 import com.alibaba.fluss.record.LogRecord;
+import com.alibaba.fluss.shaded.guava32.com.google.common.collect.Lists;
 
-import com.google.common.collect.Lists;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;

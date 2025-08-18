@@ -20,9 +20,9 @@ package com.alibaba.fluss.lake.iceberg.tiering.writer;
 import com.alibaba.fluss.lake.iceberg.tiering.RecordWriter;
 import com.alibaba.fluss.metadata.TableBucket;
 import com.alibaba.fluss.record.LogRecord;
+import com.alibaba.fluss.shaded.guava32.com.google.common.collect.Lists;
 import com.alibaba.fluss.types.RowType;
 
-import com.google.common.collect.Lists;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
@@ -99,8 +99,10 @@ public class DeltaTaskWriter extends RecordWriter {
                 break;
             case UPDATE_BEFORE:
                 deltaWriter.delete(flussRecordAsIcebergRecord);
+                break;
             case DELETE:
                 deltaWriter.delete(flussRecordAsIcebergRecord);
+                break;
             default:
                 throw new UnsupportedOperationException(
                         "Unknown row kind: " + record.getChangeType());
