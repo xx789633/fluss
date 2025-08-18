@@ -124,9 +124,6 @@ public class LanceTieringITCase extends FlinkLanceTieringTestBase {
                         LanceConfig.genReadOptionFromConfig(config))) {
             ArrowReader reader = dataset.newScan().scanBatches();
             VectorSchemaRoot readerRoot = reader.getVectorSchemaRoot();
-            //        while (reader.loadNextBatch()) {
-            //            System.out.print(readerRoot.contentToTSVString());
-            //        }
             reader.loadNextBatch();
             Iterator<InternalRow> flussRowIterator = expectedRows.iterator();
             int rowCount = readerRoot.getRowCount();

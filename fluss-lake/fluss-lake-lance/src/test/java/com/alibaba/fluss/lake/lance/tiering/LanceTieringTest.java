@@ -171,9 +171,6 @@ public class LanceTieringTest {
                         LanceConfig.genReadOptionFromConfig(config))) {
             ArrowReader reader = dataset.newScan().scanBatches();
             VectorSchemaRoot readerRoot = reader.getVectorSchemaRoot();
-            //        while (reader.loadNextBatch()) {
-            //            System.out.print(readerRoot.contentToTSVString());
-            //        }
 
             // then, check data
             for (int bucket = 0; bucket < 3; bucket++) {
@@ -311,13 +308,10 @@ public class LanceTieringTest {
         columns.add(new Schema.Column("c3", DataTypes.STRING()));
         Schema.Builder schemaBuilder = Schema.newBuilder().fromColumns(columns);
         Schema schema = schemaBuilder.build();
-        doCreateLanceTable(schema, config);
-        return schema;
-    }
-
-    private void doCreateLanceTable(Schema schema, LanceConfig config) throws Exception {
         WriteParams params = LanceConfig.genWriteParamsFromConfig(config);
         LanceDatasetAdapter.createDataset(
                 config.getDatasetUri(), LanceArrowUtils.toArrowSchema(schema.getRowType()), params);
+
+        return schema;
     }
 }

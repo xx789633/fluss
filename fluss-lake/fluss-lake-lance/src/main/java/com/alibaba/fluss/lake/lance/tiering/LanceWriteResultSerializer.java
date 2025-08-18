@@ -50,7 +50,7 @@ public class LanceWriteResultSerializer implements SimpleVersionedSerializer<Lan
         try {
             return (LanceWriteResult) ois.readObject();
         } catch (ClassNotFoundException e) {
-            throw new RuntimeException(e);
+            throw new IOException("Couldn't deserialize LanceWriteResult", e);
         }
     }
 }

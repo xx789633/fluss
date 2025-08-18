@@ -25,16 +25,21 @@ import com.alibaba.fluss.types.RowType;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 
-/** An Arrow writer for InternalRow. */
+/** An Arrow writer for {@link InternalRow}. */
 public class ArrowWriter {
-    /**
-     * An array of writers which are responsible for the serialization of each column of the rows.
-     */
+    private final VectorSchemaRoot root;
+
     private final ArrowFieldWriter<InternalRow>[] fieldWriters;
 
     private int recordsCount;
-    private VectorSchemaRoot root;
 
+    /**
+     * Writer which serializes the Fluss rows to Arrow record batches.
+     *
+     * @param fieldWriters An array of writers which are responsible for the serialization of each
+     *     column of the rows
+     * @param root Container that holds a set of vectors for the rows
+     */
     public ArrowWriter(ArrowFieldWriter<InternalRow>[] fieldWriters, VectorSchemaRoot root) {
         this.fieldWriters = fieldWriters;
         this.root = root;

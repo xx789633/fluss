@@ -28,14 +28,11 @@ import com.alibaba.fluss.types.RowType;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.VectorSchemaRoot;
-import org.apache.arrow.vector.VectorUnloader;
-import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 
 import static com.alibaba.fluss.record.ChangeType.APPEND_ONLY;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -43,7 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** The UT for Lance Arrow Writer. */
 public class LanceArrowWriterTest {
     @Test
-    public void test() throws Exception {
+    public void testLanceArrowWriter() throws Exception {
         try (BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE)) {
             List<DataField> fields = Arrays.asList(new DataField("column1", DataTypes.INT()));
 
@@ -56,7 +53,6 @@ public class LanceArrowWriterTest {
                             allocator, LanceArrowUtils.toArrowSchema(rowType), batchSize, rowType);
             AtomicInteger rowsWritten = new AtomicInteger(0);
             AtomicInteger rowsRead = new AtomicInteger(0);
-            AtomicLong expectedBytesRead = new AtomicLong(0);
 
             Thread writerThread =
                     new Thread(
@@ -89,11 +85,6 @@ public class LanceArrowWriterTest {
                                         VectorSchemaRoot root = arrowWriter.getVectorSchemaRoot();
                                         int rowCount = root.getRowCount();
                                         rowsRead.addAndGet(rowCount);
-                                        try (ArrowRecordBatch recordBatch =
-                                                new VectorUnloader(root).getRecordBatch()) {
-                                            expectedBytesRead.addAndGet(
-                                                    recordBatch.computeBodyLength());
-                                        }
                                         for (int i = 0; i < rowCount; i++) {
                                             int value =
                                                     (int) root.getVector("column1").getObject(i);

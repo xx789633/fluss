@@ -61,7 +61,7 @@ public class LanceCommittableSerializer implements SimpleVersionedSerializer<Lan
         try {
             return new LanceCommittable((List<FragmentMetadata>) ois.readObject());
         } catch (ClassNotFoundException e) {
-            throw new RuntimeException(e);
+            throw new IOException("Couldn't deserialize LanceCommittable", e);
         }
     }
 }

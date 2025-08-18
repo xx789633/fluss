@@ -38,7 +38,7 @@ import java.util.concurrent.FutureTask;
 /** Implementation of {@link LakeWriter} for Lance. */
 public class LanceLakeWriter implements LakeWriter<LanceWriteResult> {
     private final LanceArrowWriter arrowWriter;
-    FutureTask<List<FragmentMetadata>> fragmentCreationTask;
+    private final FutureTask<List<FragmentMetadata>> fragmentCreationTask;
 
     public LanceLakeWriter(Configuration options, WriterInitContext writerInitContext)
             throws IOException {

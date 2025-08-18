@@ -74,9 +74,7 @@ public class LanceLakeCommitter implements LakeCommitter<LanceWriteResult, Lance
     }
 
     @Override
-    public void abort(LanceCommittable committable) throws IOException {
-        throw new UnsupportedOperationException();
-    }
+    public void abort(LanceCommittable committable) throws IOException {}
 
     @SuppressWarnings("checkstyle:LocalVariableName")
     @Nullable
