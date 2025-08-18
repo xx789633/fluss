@@ -30,6 +30,7 @@ import org.apache.iceberg.io.OutputFileFactory;
 
 import java.io.IOException;
 
+/** A generic task equality delta writer. * */
 class GenericTaskDeltaWriter extends BaseTaskWriter<Record> {
     private final GenericEqualityDeltaWriter deltaWriter;
 

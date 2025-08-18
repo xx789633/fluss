@@ -37,6 +37,7 @@ import javax.annotation.Nullable;
 
 import java.util.List;
 
+/** A {@link RecordWriter} to write to Iceberg's primary-key table. */
 public class DeltaTaskWriter extends RecordWriter {
 
     public DeltaTaskWriter(
