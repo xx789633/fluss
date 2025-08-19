@@ -26,6 +26,7 @@ import com.alibaba.fluss.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMa
 import com.alibaba.fluss.utils.json.BucketOffsetJsonSerde;
 
 import org.apache.iceberg.AppendFiles;
+import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DeleteFile;
 import org.apache.iceberg.RowDelta;
@@ -46,7 +47,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static com.alibaba.fluss.lake.committer.BucketOffset.FLUSS_LAKE_SNAP_BUCKET_OFFSET_PROPERTY;
 import static com.alibaba.fluss.lake.iceberg.utils.IcebergConversions.toIceberg;
@@ -147,9 +147,17 @@ public class IcebergLakeCommitter implements LakeCommitter<IcebergWriteResult, I
 
     @Override
     public void abort(IcebergCommittable committable) {
-        Stream.concat(committable.getDataFiles().stream(), committable.getDeleteFiles().stream())
-                .collect(Collectors.toList())
-                .forEach(file -> icebergTable.io().deleteFile(file.path().toString()));
+        List<String> dataFilesToDelete =
+                committable.getDataFiles().stream()
+                        .map(file -> file.path().toString())
+                        .collect(Collectors.toList());
+        CatalogUtil.deleteFiles(icebergTable.io(), dataFilesToDelete, "data file", true);
+
+        List<String> deleteFilesToDelete =
+                committable.getDeleteFiles().stream()
+                        .map(file -> file.path().toString())
+                        .collect(Collectors.toList());
+        CatalogUtil.deleteFiles(icebergTable.io(), deleteFilesToDelete, "delete file", true);
     }
 
     @Nullable
