@@ -28,22 +28,29 @@ import com.alibaba.fluss.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode
 import com.alibaba.fluss.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import com.alibaba.fluss.utils.json.BucketOffsetJsonSerde;
 
+import com.lancedb.lance.Dataset;
 import com.lancedb.lance.FragmentMetadata;
+import com.lancedb.lance.ReadOptions;
+import com.lancedb.lance.Transaction;
+import com.lancedb.lance.Version;
+import org.apache.arrow.memory.RootAllocator;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static com.alibaba.fluss.lake.committer.BucketOffset.FLUSS_LAKE_SNAP_BUCKET_OFFSET_PROPERTY;
+import static com.alibaba.fluss.lake.writer.LakeTieringFactory.FLUSS_LAKE_TIERING_COMMIT_USER;
 
 /** Implementation of {@link LakeCommitter} for Lance. */
 public class LanceLakeCommitter implements LakeCommitter<LanceWriteResult, LanceCommittable> {
     private final LanceConfig config;
+    private final RootAllocator allocator = new RootAllocator();
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     public LanceLakeCommitter(Configuration options, TablePath tablePath) {
@@ -69,8 +76,9 @@ public class LanceLakeCommitter implements LakeCommitter<LanceWriteResult, Lance
     @Override
     public long commit(LanceCommittable committable, Map<String, String> snapshotProperties)
             throws IOException {
-        return LanceDatasetAdapter.commitAppend(
-                config, committable.committable(), snapshotProperties);
+        Map<String, String> properties = new HashMap<>(snapshotProperties);
+        properties.put("commit-user", FLUSS_LAKE_TIERING_COMMIT_USER);
+        return LanceDatasetAdapter.commitAppend(config, committable.committable(), properties);
     }
 
     @Override
@@ -81,12 +89,10 @@ public class LanceLakeCommitter implements LakeCommitter<LanceWriteResult, Lance
     @Override
     public CommittedLakeSnapshot getMissingLakeSnapshot(@Nullable Long latestLakeSnapshotIdOfFluss)
             throws IOException {
-        Optional<Long> latestLakeSnapshotIdOfLake = LanceDatasetAdapter.getVersion(config);
+        Transaction latestLakeSnapshotIdOfLake =
+                getCommittedLatestSnapshotOfLake(FLUSS_LAKE_TIERING_COMMIT_USER);
 
-        if (!latestLakeSnapshotIdOfLake.isPresent()) {
-            throw new IOException("Fail to get dataset " + config.getDatasetUri() + " in Lance.");
-        } else if (latestLakeSnapshotIdOfLake.get() == 0) {
-            // no any snapshot, return null directly
+        if (latestLakeSnapshotIdOfLake == null) {
             return null;
         }
 
@@ -94,15 +100,15 @@ public class LanceLakeCommitter implements LakeCommitter<LanceWriteResult, Lance
         // but the latest snapshot is not greater than latestLakeSnapshotIdOfFluss, no any missing
         // snapshot, return directly
         if (latestLakeSnapshotIdOfFluss != null
-                && latestLakeSnapshotIdOfLake.get() <= latestLakeSnapshotIdOfFluss) {
+                && latestLakeSnapshotIdOfLake.readVersion() <= latestLakeSnapshotIdOfFluss) {
             return null;
         }
 
         CommittedLakeSnapshot committedLakeSnapshot =
-                new CommittedLakeSnapshot(latestLakeSnapshotIdOfLake.get());
+                new CommittedLakeSnapshot(latestLakeSnapshotIdOfLake.readVersion());
         String flussOffsetProperties =
-                LanceDatasetAdapter.getTransactionProperties(
-                                config, latestLakeSnapshotIdOfLake.get() + 1)
+                latestLakeSnapshotIdOfLake
+                        .transactionProperties()
                         .get(FLUSS_LAKE_SNAP_BUCKET_OFFSET_PROPERTY);
         for (JsonNode node : OBJECT_MAPPER.readTree(flussOffsetProperties)) {
             BucketOffset bucketOffset = BucketOffsetJsonSerde.INSTANCE.deserialize(node);
@@ -118,6 +124,32 @@ public class LanceLakeCommitter implements LakeCommitter<LanceWriteResult, Lance
             }
         }
         return committedLakeSnapshot;
+    }
+
+    @Nullable
+    private Transaction getCommittedLatestSnapshotOfLake(String commitUser) {
+        Transaction latestFlussSnapshot = null;
+
+        ReadOptions.Builder builder = new ReadOptions.Builder();
+        builder.setStorageOptions(LanceConfig.genStorageOptions(config));
+        try (Dataset dataset = Dataset.open(allocator, config.getDatasetUri(), builder.build())) {
+            for (Version version : dataset.listVersions()) {
+                builder.setVersion((int) version.getId());
+                try (Dataset datasetVersion =
+                        Dataset.open(allocator, config.getDatasetUri(), builder.build())) {
+                    Transaction transaction = datasetVersion.readTransaction().orElse(null);
+                    if (transaction != null
+                            && commitUser.equals(
+                                    transaction.transactionProperties().get("commit-user"))) {
+                        if (latestFlussSnapshot == null
+                                || transaction.readVersion() > latestFlussSnapshot.readVersion()) {
+                            latestFlussSnapshot = transaction;
+                        }
+                    }
+                }
+            }
+        }
+        return latestFlussSnapshot;
     }
 
     @Override

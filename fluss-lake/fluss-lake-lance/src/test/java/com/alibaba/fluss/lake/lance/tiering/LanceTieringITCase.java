@@ -20,12 +20,13 @@ package com.alibaba.fluss.lake.lance.tiering;
 import com.alibaba.fluss.config.Configuration;
 import com.alibaba.fluss.lake.lance.LanceConfig;
 import com.alibaba.fluss.lake.lance.testutils.FlinkLanceTieringTestBase;
-import com.alibaba.fluss.lake.lance.utils.LanceDatasetAdapter;
 import com.alibaba.fluss.metadata.TableBucket;
 import com.alibaba.fluss.metadata.TablePath;
 import com.alibaba.fluss.row.InternalRow;
 
 import com.lancedb.lance.Dataset;
+import com.lancedb.lance.ReadOptions;
+import com.lancedb.lance.Transaction;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
@@ -44,6 +45,7 @@ import java.util.List;
 import java.util.Map;
 
 import static com.alibaba.fluss.lake.committer.BucketOffset.FLUSS_LAKE_SNAP_BUCKET_OFFSET_PROPERTY;
+import static com.alibaba.fluss.lake.writer.LakeTieringFactory.FLUSS_LAKE_TIERING_COMMIT_USER;
 import static com.alibaba.fluss.testutils.DataTestUtils.row;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -52,6 +54,7 @@ public class LanceTieringITCase extends FlinkLanceTieringTestBase {
     protected static final String DEFAULT_DB = "fluss";
     private static StreamExecutionEnvironment execEnv;
     private static Configuration lanceConf;
+    private static final RootAllocator allocator = new RootAllocator();
 
     @BeforeAll
     protected static void beforeAll() {
@@ -100,6 +103,7 @@ public class LanceTieringITCase extends FlinkLanceTieringTestBase {
                         put(
                                 FLUSS_LAKE_SNAP_BUCKET_OFFSET_PROPERTY,
                                 "[{\"bucket_id\":0,\"log_offset\":30}]");
+                        put("commit-user", FLUSS_LAKE_TIERING_COMMIT_USER);
                     }
                 };
         checkSnapshotPropertyInLance(config, properties);
@@ -109,9 +113,13 @@ public class LanceTieringITCase extends FlinkLanceTieringTestBase {
 
     private void checkSnapshotPropertyInLance(
             LanceConfig config, Map<String, String> expectedProperties) throws Exception {
-        Map<String, String> transactionProperties =
-                LanceDatasetAdapter.getTransactionProperties(config, null);
-        assertThat(transactionProperties).isEqualTo(expectedProperties);
+        ReadOptions.Builder builder = new ReadOptions.Builder();
+        builder.setStorageOptions(LanceConfig.genStorageOptions(config));
+        try (Dataset dataset = Dataset.open(allocator, config.getDatasetUri(), builder.build())) {
+            Transaction transaction = dataset.readTransaction().orElse(null);
+            assertThat(transaction).isNotNull();
+            assertThat(transaction.transactionProperties()).isEqualTo(expectedProperties);
+        }
     }
 
     private void checkDataInLanceAppendOnlyTable(LanceConfig config, List<InternalRow> expectedRows)
@@ -119,7 +127,7 @@ public class LanceTieringITCase extends FlinkLanceTieringTestBase {
 
         try (Dataset dataset =
                 Dataset.open(
-                        new RootAllocator(),
+                        allocator,
                         config.getDatasetUri(),
                         LanceConfig.genReadOptionFromConfig(config))) {
             ArrowReader reader = dataset.newScan().scanBatches();

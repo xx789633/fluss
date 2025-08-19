@@ -36,9 +36,6 @@ import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.ipc.ArrowReader;
 import org.apache.arrow.vector.types.pojo.Schema;
 
-import javax.annotation.Nullable;
-
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -94,34 +91,6 @@ public class LanceDatasetAdapter {
             try (Dataset appendedDataset = transaction.commit()) {
                 return appendedDataset.version() - 1;
             }
-        }
-    }
-
-    public static Map<String, String> getTransactionProperties(
-            LanceConfig config, @Nullable Long version) {
-        ReadOptions.Builder builder = new ReadOptions.Builder();
-        if (version != null) {
-            builder.setVersion(Math.toIntExact(version));
-        }
-        builder.setStorageOptions(LanceConfig.genStorageOptions(config));
-        try (Dataset dataset = Dataset.open(allocator, config.getDatasetUri(), builder.build())) {
-            Transaction transaction = dataset.readTransaction().orElse(null);
-            if (transaction != null) {
-                return transaction.transactionProperties();
-            }
-            return Collections.emptyMap();
-        }
-    }
-
-    public static Optional<Long> getVersion(LanceConfig config) {
-        String uri = config.getDatasetUri();
-        ReadOptions options = LanceConfig.genReadOptionFromConfig(config);
-        try (Dataset datasetRead = Dataset.open(allocator, uri, options)) {
-            // Dataset.create returns version 1
-            return Optional.of(datasetRead.latestVersion() - 1);
-        } catch (IllegalArgumentException e) {
-            // dataset not found
-            return Optional.empty();
         }
     }
 
