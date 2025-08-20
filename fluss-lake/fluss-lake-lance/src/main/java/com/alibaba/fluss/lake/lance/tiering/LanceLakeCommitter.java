@@ -50,7 +50,7 @@ import static com.alibaba.fluss.lake.writer.LakeTieringFactory.FLUSS_LAKE_TIERIN
 /** Implementation of {@link LakeCommitter} for Lance. */
 public class LanceLakeCommitter implements LakeCommitter<LanceWriteResult, LanceCommittable> {
     private final LanceConfig config;
-    private static String commitUser = "commit-user";
+    private static final String committerName = "commit-user";
     private final RootAllocator allocator = new RootAllocator();
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
@@ -78,7 +78,7 @@ public class LanceLakeCommitter implements LakeCommitter<LanceWriteResult, Lance
     public long commit(LanceCommittable committable, Map<String, String> snapshotProperties)
             throws IOException {
         Map<String, String> properties = new HashMap<>(snapshotProperties);
-        properties.put(commitUser, FLUSS_LAKE_TIERING_COMMIT_USER);
+        properties.put(committerName, FLUSS_LAKE_TIERING_COMMIT_USER);
         return LanceDatasetAdapter.commitAppend(config, committable.committable(), properties);
     }
 
@@ -133,22 +133,21 @@ public class LanceLakeCommitter implements LakeCommitter<LanceWriteResult, Lance
     @Nullable
     private Transaction getCommittedLatestSnapshotOfLake(String commitUser) {
         Transaction latestFlussSnapshot = null;
-
         ReadOptions.Builder builder = new ReadOptions.Builder();
         builder.setStorageOptions(LanceConfig.genStorageOptions(config));
         try (Dataset dataset = Dataset.open(allocator, config.getDatasetUri(), builder.build())) {
-            for (Version version : dataset.listVersions()) {
+            List<Version> versions = dataset.listVersions();
+            for (int i = versions.size() - 1; i >= 0; i--) {
+                Version version = versions.get(i);
                 builder.setVersion((int) version.getId());
-                try (Dataset datasetVersion =
+                try (Dataset datasetRead =
                         Dataset.open(allocator, config.getDatasetUri(), builder.build())) {
-                    Transaction transaction = datasetVersion.readTransaction().orElse(null);
+                    Transaction transaction = datasetRead.readTransaction().orElse(null);
                     if (transaction != null
                             && commitUser.equals(
-                                    transaction.transactionProperties().get(commitUser))) {
-                        if (latestFlussSnapshot == null
-                                || transaction.readVersion() > latestFlussSnapshot.readVersion()) {
-                            latestFlussSnapshot = transaction;
-                        }
+                                    transaction.transactionProperties().get(committerName))) {
+                        latestFlussSnapshot = transaction;
+                        break;
                     }
                 }
             }
