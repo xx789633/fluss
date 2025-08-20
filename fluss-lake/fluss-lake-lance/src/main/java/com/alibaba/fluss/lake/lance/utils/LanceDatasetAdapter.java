@@ -69,6 +69,7 @@ public class LanceDatasetAdapter {
                             .transactionProperties(properties)
                             .build();
             try (Dataset appendedDataset = transaction.commit()) {
+                // lance dataset version starts from 1
                 return appendedDataset.version() - 1;
             }
         }
