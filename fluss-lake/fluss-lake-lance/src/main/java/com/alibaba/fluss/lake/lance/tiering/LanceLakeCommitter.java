@@ -50,6 +50,7 @@ import static com.alibaba.fluss.lake.writer.LakeTieringFactory.FLUSS_LAKE_TIERIN
 /** Implementation of {@link LakeCommitter} for Lance. */
 public class LanceLakeCommitter implements LakeCommitter<LanceWriteResult, LanceCommittable> {
     private final LanceConfig config;
+    private static String commitUser = "commit-user";
     private final RootAllocator allocator = new RootAllocator();
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
@@ -77,12 +78,15 @@ public class LanceLakeCommitter implements LakeCommitter<LanceWriteResult, Lance
     public long commit(LanceCommittable committable, Map<String, String> snapshotProperties)
             throws IOException {
         Map<String, String> properties = new HashMap<>(snapshotProperties);
-        properties.put("commit-user", FLUSS_LAKE_TIERING_COMMIT_USER);
+        properties.put(commitUser, FLUSS_LAKE_TIERING_COMMIT_USER);
         return LanceDatasetAdapter.commitAppend(config, committable.committable(), properties);
     }
 
     @Override
-    public void abort(LanceCommittable committable) throws IOException {}
+    public void abort(LanceCommittable committable) throws IOException {
+        // TODO lance does not have the API to proactively delete the written files yet, see
+        // https://github.com/lancedb/lance/issues/4508
+    }
 
     @SuppressWarnings("checkstyle:LocalVariableName")
     @Nullable
@@ -140,7 +144,7 @@ public class LanceLakeCommitter implements LakeCommitter<LanceWriteResult, Lance
                     Transaction transaction = datasetVersion.readTransaction().orElse(null);
                     if (transaction != null
                             && commitUser.equals(
-                                    transaction.transactionProperties().get("commit-user"))) {
+                                    transaction.transactionProperties().get(commitUser))) {
                         if (latestFlussSnapshot == null
                                 || transaction.readVersion() > latestFlussSnapshot.readVersion()) {
                             latestFlussSnapshot = transaction;
@@ -153,5 +157,7 @@ public class LanceLakeCommitter implements LakeCommitter<LanceWriteResult, Lance
     }
 
     @Override
-    public void close() throws Exception {}
+    public void close() throws Exception {
+        allocator.close();
+    }
 }

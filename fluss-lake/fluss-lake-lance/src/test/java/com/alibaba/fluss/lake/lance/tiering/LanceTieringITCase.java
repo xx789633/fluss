@@ -50,7 +50,7 @@ import static com.alibaba.fluss.testutils.DataTestUtils.row;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** IT case for tiering tables to lance. */
-public class LanceTieringITCase extends FlinkLanceTieringTestBase {
+class LanceTieringITCase extends FlinkLanceTieringTestBase {
     protected static final String DEFAULT_DB = "fluss";
     private static StreamExecutionEnvironment execEnv;
     private static Configuration lanceConf;
@@ -124,7 +124,6 @@ public class LanceTieringITCase extends FlinkLanceTieringTestBase {
 
     private void checkDataInLanceAppendOnlyTable(LanceConfig config, List<InternalRow> expectedRows)
             throws Exception {
-
         try (Dataset dataset =
                 Dataset.open(
                         allocator,

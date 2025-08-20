@@ -39,11 +39,11 @@ public class LanceCommittableSerializer implements SimpleVersionedSerializer<Lan
 
     @Override
     public byte[] serialize(LanceCommittable lanceCommittable) throws IOException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        ObjectOutputStream oos = new ObjectOutputStream(baos);
-        oos.writeObject(lanceCommittable.committable());
-        oos.close();
-        return baos.toByteArray();
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                ObjectOutputStream oos = new ObjectOutputStream(baos)) {
+            oos.writeObject(lanceCommittable.committable());
+            return baos.toByteArray();
+        }
     }
 
     @Override
@@ -56,9 +56,9 @@ public class LanceCommittableSerializer implements SimpleVersionedSerializer<Lan
                             + version
                             + ".");
         }
-        ByteArrayInputStream bais = new ByteArrayInputStream(serialized);
-        ObjectInputStream ois = new ObjectInputStream(bais);
-        try {
+        try (ByteArrayInputStream bais = new ByteArrayInputStream(serialized);
+                ObjectInputStream ois = new ObjectInputStream(bais)) {
+            //noinspection unchecked
             return new LanceCommittable((List<FragmentMetadata>) ois.readObject());
         } catch (ClassNotFoundException e) {
             throw new IOException("Couldn't deserialize LanceCommittable", e);

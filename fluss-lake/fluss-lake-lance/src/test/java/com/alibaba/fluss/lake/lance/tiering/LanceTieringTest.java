@@ -65,7 +65,7 @@ import static com.alibaba.fluss.flink.tiering.committer.TieringCommitOperator.to
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** The UT for tiering to Lance via {@link LanceLakeTieringFactory}. */
-public class LanceTieringTest {
+class LanceTieringTest {
     private @TempDir File tempWarehouseDir;
     private LanceLakeTieringFactory lanceLakeTieringFactory;
     private Configuration configuration;

@@ -24,7 +24,6 @@ import com.alibaba.fluss.types.RowType;
 import com.lancedb.lance.Dataset;
 import com.lancedb.lance.Fragment;
 import com.lancedb.lance.FragmentMetadata;
-import com.lancedb.lance.FragmentOperation;
 import com.lancedb.lance.ReadOptions;
 import com.lancedb.lance.Transaction;
 import com.lancedb.lance.WriteParams;
@@ -56,25 +55,6 @@ public class LanceDatasetAdapter {
         } catch (IllegalArgumentException e) {
             // dataset not found
             return Optional.empty();
-        }
-    }
-
-    public static long appendFragments(LanceConfig config, List<FragmentMetadata> fragments) {
-        FragmentOperation.Append appendOp = new FragmentOperation.Append(fragments);
-        String uri = config.getDatasetUri();
-        ReadOptions options = LanceConfig.genReadOptionFromConfig(config);
-        try (Dataset datasetRead = Dataset.open(allocator, uri, options)) {
-            Dataset datasetWrite =
-                    Dataset.commit(
-                            allocator,
-                            config.getDatasetUri(),
-                            appendOp,
-                            java.util.Optional.of(datasetRead.version()),
-                            options.getStorageOptions());
-            long version = datasetWrite.version();
-            datasetWrite.close();
-            // Dataset.create returns version 1
-            return version - 1;
         }
     }
 

@@ -50,7 +50,7 @@ public class LanceLakeWriter implements LakeWriter<LanceWriteResult> {
                         writerInitContext.tablePath().getTableName());
         int batchSize = LanceConfig.getBatchSize(config);
         Optional<Schema> schema = LanceDatasetAdapter.getSchema(config);
-        if (!schema.isPresent()) {
+        if (schema.isEmpty()) {
             throw new IOException("Fail to get dataset " + config.getDatasetUri() + " in Lance.");
         }
 

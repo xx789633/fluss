@@ -32,8 +32,6 @@ public class LanceConfig implements Serializable {
 
     private static final String block_size = "block_size";
     private static final String version = "version";
-    private static final String index_cache_size = "index_cache_size";
-    private static final String metadata_cache_size = "metadata_cache_size";
     private static final String max_row_per_file = "max_row_per_file";
     private static final String max_rows_per_group = "max_rows_per_group";
     private static final String max_bytes_per_file = "max_bytes_per_file";
@@ -83,14 +81,6 @@ public class LanceConfig implements Serializable {
         return options;
     }
 
-    public String getDatabaseName() {
-        return databaseName;
-    }
-
-    public String getTableName() {
-        return tableName;
-    }
-
     public String getDatasetUri() {
         return datasetUri;
     }
@@ -103,12 +93,6 @@ public class LanceConfig implements Serializable {
         }
         if (maps.containsKey(version)) {
             builder.setVersion(Integer.parseInt(maps.get(version)));
-        }
-        if (maps.containsKey(index_cache_size)) {
-            builder.setIndexCacheSize(Integer.parseInt(maps.get(index_cache_size)));
-        }
-        if (maps.containsKey(metadata_cache_size)) {
-            builder.setMetadataCacheSize(Integer.parseInt(maps.get(metadata_cache_size)));
         }
         builder.setStorageOptions(genStorageOptions(config));
         return builder.build();

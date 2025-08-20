@@ -36,18 +36,17 @@ public class LanceWriteResultSerializer implements SimpleVersionedSerializer<Lan
 
     @Override
     public byte[] serialize(LanceWriteResult lanceWriteResult) throws IOException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        ObjectOutputStream oos = new ObjectOutputStream(baos);
-        oos.writeObject(lanceWriteResult);
-        oos.close();
-        return baos.toByteArray();
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                ObjectOutputStream oos = new ObjectOutputStream(baos); ) {
+            oos.writeObject(lanceWriteResult);
+            return baos.toByteArray();
+        }
     }
 
     @Override
     public LanceWriteResult deserialize(int version, byte[] serialized) throws IOException {
-        ByteArrayInputStream bais = new ByteArrayInputStream(serialized);
-        ObjectInputStream ois = new ObjectInputStream(bais);
-        try {
+        try (ByteArrayInputStream bais = new ByteArrayInputStream(serialized);
+                ObjectInputStream ois = new ObjectInputStream(bais)) {
             return (LanceWriteResult) ois.readObject();
         } catch (ClassNotFoundException e) {
             throw new IOException("Couldn't deserialize LanceWriteResult", e);
