@@ -224,16 +224,7 @@ public class LanceArrowUtils {
     }
 
     private static int getPrecision(DecimalVector decimalVector) {
-        int precision = -1;
-        try {
-            java.lang.reflect.Field precisionField =
-                    decimalVector.getClass().getDeclaredField("precision");
-            precisionField.setAccessible(true);
-            precision = (int) precisionField.get(decimalVector);
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            // should not happen, ignore
-        }
-        return precision;
+        return decimalVector.getPrecision();
     }
 
     public static ArrowFieldWriter<InternalRow> createArrowFieldWriter(

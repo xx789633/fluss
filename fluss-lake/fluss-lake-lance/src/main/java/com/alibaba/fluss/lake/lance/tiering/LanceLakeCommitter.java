@@ -34,6 +34,7 @@ import com.lancedb.lance.ReadOptions;
 import com.lancedb.lance.Transaction;
 import com.lancedb.lance.Version;
 import org.apache.arrow.memory.RootAllocator;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 
 import javax.annotation.Nullable;
 
@@ -93,10 +94,10 @@ public class LanceLakeCommitter implements LakeCommitter<LanceWriteResult, Lance
     @Override
     public CommittedLakeSnapshot getMissingLakeSnapshot(@Nullable Long latestLakeSnapshotIdOfFluss)
             throws IOException {
-        Transaction latestLakeSnapshotIdOfLake =
+        ImmutablePair<Version, Transaction> latestLakeSnapshotIdOfLake =
                 getCommittedLatestSnapshotOfLake(FLUSS_LAKE_TIERING_COMMIT_USER);
 
-        if (latestLakeSnapshotIdOfLake == null) {
+        if (latestLakeSnapshotIdOfLake.equals(ImmutablePair.nullPair())) {
             return null;
         }
 
@@ -104,14 +105,15 @@ public class LanceLakeCommitter implements LakeCommitter<LanceWriteResult, Lance
         // but the latest snapshot is not greater than latestLakeSnapshotIdOfFluss, no any missing
         // snapshot, return directly
         if (latestLakeSnapshotIdOfFluss != null
-                && latestLakeSnapshotIdOfLake.readVersion() <= latestLakeSnapshotIdOfFluss) {
+                && latestLakeSnapshotIdOfLake.getLeft().getId() <= latestLakeSnapshotIdOfFluss) {
             return null;
         }
 
         CommittedLakeSnapshot committedLakeSnapshot =
-                new CommittedLakeSnapshot(latestLakeSnapshotIdOfLake.readVersion());
+                new CommittedLakeSnapshot(latestLakeSnapshotIdOfLake.getLeft().getId());
         String flussOffsetProperties =
                 latestLakeSnapshotIdOfLake
+                        .getRight()
                         .transactionProperties()
                         .get(FLUSS_LAKE_SNAP_BUCKET_OFFSET_PROPERTY);
         for (JsonNode node : OBJECT_MAPPER.readTree(flussOffsetProperties)) {
@@ -131,8 +133,8 @@ public class LanceLakeCommitter implements LakeCommitter<LanceWriteResult, Lance
     }
 
     @Nullable
-    private Transaction getCommittedLatestSnapshotOfLake(String commitUser) {
-        Transaction latestFlussSnapshot = null;
+    private ImmutablePair<Version, Transaction> getCommittedLatestSnapshotOfLake(
+            String commitUser) {
         ReadOptions.Builder builder = new ReadOptions.Builder();
         builder.setStorageOptions(LanceConfig.genStorageOptions(config));
         try (Dataset dataset = Dataset.open(allocator, config.getDatasetUri(), builder.build())) {
@@ -146,13 +148,12 @@ public class LanceLakeCommitter implements LakeCommitter<LanceWriteResult, Lance
                     if (transaction != null
                             && commitUser.equals(
                                     transaction.transactionProperties().get(committerName))) {
-                        latestFlussSnapshot = transaction;
-                        break;
+                        return ImmutablePair.of(version, transaction);
                     }
                 }
             }
         }
-        return latestFlussSnapshot;
+        return ImmutablePair.nullPair();
     }
 
     @Override

@@ -105,7 +105,7 @@ class LanceTieringTest {
         try (LakeCommitter<LanceWriteResult, LanceCommittable> lakeCommitter =
                 createLakeCommitter(tablePath)) {
             // should no any missing snapshot
-            assertThat(lakeCommitter.getMissingLakeSnapshot(1L)).isNull();
+            assertThat(lakeCommitter.getMissingLakeSnapshot(2L)).isNull();
         }
 
         Map<Tuple2<String, Integer>, List<LogRecord>> recordsByBucket = new HashMap<>();
@@ -161,7 +161,8 @@ class LanceTieringTest {
                             lanceCommittable,
                             toBucketOffsetsProperty(
                                     tableBucketOffsets, partitionIdAndName, partitionKeys));
-            assertThat(snapshot).isEqualTo(1);
+            // lance dataset version starts from 1
+            assertThat(snapshot).isEqualTo(2);
         }
 
         try (Dataset dataset =
@@ -188,8 +189,8 @@ class LanceTieringTest {
         // then, let's verify getMissingLakeSnapshot works
         try (LakeCommitter<LanceWriteResult, LanceCommittable> lakeCommitter =
                 createLakeCommitter(tablePath)) {
-            // use snapshot id 0 as the known snapshot id
-            CommittedLakeSnapshot committedLakeSnapshot = lakeCommitter.getMissingLakeSnapshot(0L);
+            // use snapshot id 1 as the known snapshot id
+            CommittedLakeSnapshot committedLakeSnapshot = lakeCommitter.getMissingLakeSnapshot(1L);
             assertThat(committedLakeSnapshot).isNotNull();
             Map<Tuple2<Long, Integer>, Long> offsets = committedLakeSnapshot.getLogEndOffsets();
             for (int bucket = 0; bucket < 3; bucket++) {
@@ -198,16 +199,16 @@ class LanceTieringTest {
                     assertThat(offsets.get(Tuple2.of(partitionId, bucket))).isEqualTo(10);
                 }
             }
-            assertThat(committedLakeSnapshot.getLakeSnapshotId()).isOne();
+            assertThat(committedLakeSnapshot.getLakeSnapshotId()).isEqualTo(2L);
 
             // use null as the known snapshot id
             CommittedLakeSnapshot committedLakeSnapshot2 =
                     lakeCommitter.getMissingLakeSnapshot(null);
             assertThat(committedLakeSnapshot2).isEqualTo(committedLakeSnapshot);
 
-            // use snapshot id 1 as the known snapshot id
-            committedLakeSnapshot = lakeCommitter.getMissingLakeSnapshot(1L);
-            // no any missing committed offset since the latest snapshot is 1L
+            // use snapshot id 2 as the known snapshot id
+            committedLakeSnapshot = lakeCommitter.getMissingLakeSnapshot(2L);
+            // no any missing committed offset since the latest snapshot is 2L
             assertThat(committedLakeSnapshot).isNull();
         }
     }
