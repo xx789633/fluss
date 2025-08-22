@@ -126,7 +126,7 @@ public class FlussRecordAsIcebergRecord implements Record {
         } else if (dataType instanceof TinyIntType) {
             return (int) internalRow.getByte(pos);
         } else if (dataType instanceof SmallIntType) {
-            return internalRow.getShort(pos);
+            return (int) internalRow.getShort(pos);
         } else if (dataType instanceof IntType) {
             return internalRow.getInt(pos);
         } else if (dataType instanceof BigIntType) {
