@@ -40,6 +40,7 @@ import com.alibaba.fluss.server.replica.Replica;
 import com.alibaba.fluss.server.testutils.FlussClusterExtension;
 import com.alibaba.fluss.server.zk.ZooKeeperClient;
 import com.alibaba.fluss.types.DataTypes;
+import com.alibaba.fluss.utils.DateTimeUtils;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.core.execution.JobClient;
@@ -64,6 +65,8 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.file.Files;
 import java.time.Duration;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -236,6 +239,10 @@ public class FlinkIcebergTieringTestBase {
                                         .column("f_timestamp_ntz1", DataTypes.TIMESTAMP(3))
                                         .column("f_timestamp_ntz2", DataTypes.TIMESTAMP(6))
                                         .column("f_binary", DataTypes.BINARY(4))
+                                        .column("f_date", DataTypes.DATE())
+                                        .column("f_time", DataTypes.TIME())
+                                        .column("f_char", DataTypes.CHAR(3))
+                                        .column("f_bytes", DataTypes.BYTES())
                                         .primaryKey("f_int")
                                         .build())
                         .distributedBy(bucketNum)
@@ -347,6 +354,14 @@ public class FlinkIcebergTieringTestBase {
                 assertThat(record.get(13)).isEqualTo(row.getTimestampNtz(13, 6).toLocalDateTime());
                 // Iceberg's Record interface expects ByteBuffer for binary types.
                 assertThat(record.get(14)).isEqualTo(ByteBuffer.wrap(row.getBinary(14, 4)));
+                assertThat(record.get(15))
+                        .isEqualTo(DateTimeUtils.toLocalDate(row.getInt(15)))
+                        .isEqualTo(LocalDate.of(2023, 10, 25));
+                assertThat(record.get(16))
+                        .isEqualTo(DateTimeUtils.toLocalTime(row.getInt(16)))
+                        .isEqualTo(LocalTime.of(9, 30, 0, 0));
+                assertThat(record.get(17)).isEqualTo(row.getChar(17, 3).toString());
+                assertThat(record.get(18)).isEqualTo(ByteBuffer.wrap(row.getBytes(18)));
             }
             assertThat(records.hasNext()).isFalse();
         }

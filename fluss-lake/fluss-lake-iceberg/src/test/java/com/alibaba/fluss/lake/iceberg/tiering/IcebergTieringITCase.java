@@ -25,11 +25,13 @@ import com.alibaba.fluss.metadata.Schema;
 import com.alibaba.fluss.metadata.TableBucket;
 import com.alibaba.fluss.metadata.TableDescriptor;
 import com.alibaba.fluss.metadata.TablePath;
+import com.alibaba.fluss.row.BinaryString;
 import com.alibaba.fluss.row.Decimal;
 import com.alibaba.fluss.row.InternalRow;
 import com.alibaba.fluss.row.TimestampLtz;
 import com.alibaba.fluss.row.TimestampNtz;
 import com.alibaba.fluss.types.DataTypes;
+import com.alibaba.fluss.utils.TypeUtils;
 import com.alibaba.fluss.utils.types.Tuple2;
 
 import org.apache.flink.core.execution.JobClient;
@@ -87,7 +89,11 @@ class IcebergTieringITCase extends FlinkIcebergTieringTestBase {
                                 TimestampLtz.fromEpochMillis(1698235273400L, 7000),
                                 TimestampNtz.fromMillis(1698235273501L),
                                 TimestampNtz.fromMillis(1698235273501L, 8000),
-                                new byte[] {5, 6, 7, 8}),
+                                new byte[] {5, 6, 7, 8},
+                                TypeUtils.castFromString("2023-10-25", DataTypes.DATE()),
+                                TypeUtils.castFromString("09:30:00.0", DataTypes.TIME()),
+                                BinaryString.fromString("abc"),
+                                new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
                         row(
                                 true,
                                 (byte) 100,
@@ -103,7 +109,11 @@ class IcebergTieringITCase extends FlinkIcebergTieringTestBase {
                                 TimestampLtz.fromEpochMillis(1698235273400L, 7000),
                                 TimestampNtz.fromMillis(1698235273501L),
                                 TimestampNtz.fromMillis(1698235273501L, 8000),
-                                new byte[] {5, 6, 7, 8}),
+                                new byte[] {5, 6, 7, 8},
+                                TypeUtils.castFromString("2023-10-25", DataTypes.DATE()),
+                                TypeUtils.castFromString("09:30:00.0", DataTypes.TIME()),
+                                BinaryString.fromString("abc"),
+                                new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
                         row(
                                 true,
                                 (byte) 100,
@@ -119,7 +129,11 @@ class IcebergTieringITCase extends FlinkIcebergTieringTestBase {
                                 TimestampLtz.fromEpochMillis(1698235273400L, 7000),
                                 TimestampNtz.fromMillis(1698235273501L),
                                 TimestampNtz.fromMillis(1698235273501L, 8000),
-                                new byte[] {5, 6, 7, 8}));
+                                new byte[] {5, 6, 7, 8},
+                                TypeUtils.castFromString("2023-10-25", DataTypes.DATE()),
+                                TypeUtils.castFromString("09:30:00.0", DataTypes.TIME()),
+                                BinaryString.fromString("abc"),
+                                new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}));
         writeRows(t1, rows, false);
         waitUntilSnapshot(t1Id, 1, 0);
 
@@ -163,7 +177,11 @@ class IcebergTieringITCase extends FlinkIcebergTieringTestBase {
                                     TimestampLtz.fromEpochMillis(1698235273400L, 7000),
                                     TimestampNtz.fromMillis(1698235273501L),
                                     TimestampNtz.fromMillis(1698235273501L, 8000),
-                                    new byte[] {5, 6, 7, 8}),
+                                    new byte[] {5, 6, 7, 8},
+                                    TypeUtils.castFromString("2023-10-25", DataTypes.DATE()),
+                                    TypeUtils.castFromString("09:30:00.0", DataTypes.TIME()),
+                                    BinaryString.fromString("abc"),
+                                    new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
                             row(
                                     true,
                                     (byte) 100,
@@ -179,7 +197,11 @@ class IcebergTieringITCase extends FlinkIcebergTieringTestBase {
                                     TimestampLtz.fromEpochMillis(1698235273400L, 7000),
                                     TimestampNtz.fromMillis(1698235273501L),
                                     TimestampNtz.fromMillis(1698235273501L, 8000),
-                                    new byte[] {5, 6, 7, 8}),
+                                    new byte[] {5, 6, 7, 8},
+                                    TypeUtils.castFromString("2023-10-25", DataTypes.DATE()),
+                                    TypeUtils.castFromString("09:30:00.0", DataTypes.TIME()),
+                                    BinaryString.fromString("abc"),
+                                    new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
                             row(
                                     true,
                                     (byte) 100,
@@ -195,7 +217,11 @@ class IcebergTieringITCase extends FlinkIcebergTieringTestBase {
                                     TimestampLtz.fromEpochMillis(1698235273400L, 7000),
                                     TimestampNtz.fromMillis(1698235273501L),
                                     TimestampNtz.fromMillis(1698235273501L, 8000),
-                                    new byte[] {5, 6, 7, 8}));
+                                    new byte[] {5, 6, 7, 8},
+                                    TypeUtils.castFromString("2023-10-25", DataTypes.DATE()),
+                                    TypeUtils.castFromString("09:30:00.0", DataTypes.TIME()),
+                                    BinaryString.fromString("abc"),
+                                    new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}));
             // write records
             writeRows(t1, rows, false);
 
