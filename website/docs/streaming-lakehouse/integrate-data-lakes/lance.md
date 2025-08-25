@@ -17,7 +17,7 @@ datalake.format: lance
 
 datalake.lance.warehouse: /tmp/lance
 
-# To S3 as Lance storage backend, you need to specify the following properties
+# To use S3 as Lance storage backend, you need to specify the following properties
 # datalake.lance.warehouse: s3://<bucket>
 # datalake.lance.endpoint: <endpoint>
 # datalake.lance.allow_http: true
@@ -42,9 +42,9 @@ CREATE TABLE fluss_order_with_lake (
 );
 ```
 
-Then, the datalake tiering service continuously tiers data from Fluss to Lance. The parameter `table.datalake.freshness` controls the frequency that Fluss writes data to Lance tables. By default, the data freshness is 3 minutes.  
+> **NOTE**: Fluss v0.8 only supports tiering log tables to Lance.
 
-> **NOTE**: Fluss v0.8 only supports tiering log tables.
+Then, the datalake tiering service continuously tiers data from Fluss to Lance. The parameter `table.datalake.freshness` controls the frequency that Fluss writes data to Lance tables. By default, the data freshness is 3 minutes.
 
 You can also specify Lance table properties when creating a datalake-enabled Fluss table by using the `lance.` prefix within the Fluss table properties clause.
 
