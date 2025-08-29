@@ -21,7 +21,6 @@ import org.apache.fluss.lake.paimon.tiering.append.AppendOnlyWriter;
 import org.apache.fluss.lake.paimon.tiering.mergetree.MergeTreeWriter;
 import org.apache.fluss.lake.writer.LakeWriter;
 import org.apache.fluss.lake.writer.WriterInitContext;
-import org.apache.fluss.metadata.TableInfo;
 import org.apache.fluss.metadata.TablePath;
 import org.apache.fluss.record.LogRecord;
 
@@ -35,7 +34,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.fluss.config.ConfigOptions.TABLE_DATALAKE_AUTO_COMPACTION;
 import static org.apache.fluss.lake.paimon.utils.PaimonConversions.toPaimon;
 
 /** Implementation of {@link LakeWriter} for Paimon. */
@@ -49,7 +47,9 @@ public class PaimonLakeWriter implements LakeWriter<PaimonWriteResult> {
             throws IOException {
         this.paimonCatalog = paimonCatalogProvider.get();
         FileStoreTable fileStoreTable =
-                getTable(writerInitContext.tablePath(), writerInitContext.tableInfo());
+                getTable(
+                        writerInitContext.tablePath(),
+                        writerInitContext.tableInfo().isAutoCompactionEnabled());
 
         List<String> partitionKeys = fileStoreTable.partitionKeys();
 
@@ -101,15 +101,14 @@ public class PaimonLakeWriter implements LakeWriter<PaimonWriteResult> {
         }
     }
 
-    private FileStoreTable getTable(TablePath tablePath, TableInfo tableInfo) throws IOException {
+    private FileStoreTable getTable(TablePath tablePath, boolean isAutoCompaction)
+            throws IOException {
         try {
             FileStoreTable table = (FileStoreTable) paimonCatalog.getTable(toPaimon(tablePath));
             Map<String, String> compactionOptions =
                     Collections.singletonMap(
                             CoreOptions.WRITE_ONLY.key(),
-                            tableInfo.getProperties().getBoolean(TABLE_DATALAKE_AUTO_COMPACTION)
-                                    ? Boolean.FALSE.toString()
-                                    : Boolean.TRUE.toString());
+                            isAutoCompaction ? Boolean.FALSE.toString() : Boolean.TRUE.toString());
             return table.copy(compactionOptions);
         } catch (Exception e) {
             throw new IOException("Failed to get table " + tablePath + " in Paimon.", e);

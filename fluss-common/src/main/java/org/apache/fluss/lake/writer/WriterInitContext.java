@@ -26,7 +26,8 @@ import javax.annotation.Nullable;
 
 /**
  * The WriterInitContext interface provides the context needed to create a LakeWriter. It includes
- * methods to obtain the table path, table bucket, and an optional partition.
+ * methods to obtain the table path, table bucket, an optional partition, and table metadata
+ * information.
  *
  * @since 0.7
  */
@@ -56,9 +57,9 @@ public interface WriterInitContext {
     String partition();
 
     /**
-     * Returns the table info.
+     * Returns the Fluss table info.
      *
-     * @return the table info
+     * @return the Fluss table info
      */
     TableInfo tableInfo();
 }
