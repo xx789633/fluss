@@ -21,6 +21,7 @@ import org.apache.fluss.lake.paimon.tiering.append.AppendOnlyWriter;
 import org.apache.fluss.lake.paimon.tiering.mergetree.MergeTreeWriter;
 import org.apache.fluss.lake.writer.LakeWriter;
 import org.apache.fluss.lake.writer.WriterInitContext;
+import org.apache.fluss.metadata.TableInfo;
 import org.apache.fluss.metadata.TablePath;
 import org.apache.fluss.record.LogRecord;
 
@@ -33,10 +34,8 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 import static org.apache.fluss.config.ConfigOptions.TABLE_DATALAKE_AUTO_COMPACTION;
-import static org.apache.fluss.lake.paimon.PaimonLakeCatalog.FLUSS_CONF_PREFIX;
 import static org.apache.fluss.lake.paimon.utils.PaimonConversions.toPaimon;
 
 /** Implementation of {@link LakeWriter} for Paimon. */
@@ -49,7 +48,8 @@ public class PaimonLakeWriter implements LakeWriter<PaimonWriteResult> {
             PaimonCatalogProvider paimonCatalogProvider, WriterInitContext writerInitContext)
             throws IOException {
         this.paimonCatalog = paimonCatalogProvider.get();
-        FileStoreTable fileStoreTable = getTable(writerInitContext.tablePath());
+        FileStoreTable fileStoreTable =
+                getTable(writerInitContext.tablePath(), writerInitContext.tableInfo());
 
         List<String> partitionKeys = fileStoreTable.partitionKeys();
 
@@ -101,20 +101,13 @@ public class PaimonLakeWriter implements LakeWriter<PaimonWriteResult> {
         }
     }
 
-    private FileStoreTable getTable(TablePath tablePath) throws IOException {
+    private FileStoreTable getTable(TablePath tablePath, TableInfo tableInfo) throws IOException {
         try {
             FileStoreTable table = (FileStoreTable) paimonCatalog.getTable(toPaimon(tablePath));
             Map<String, String> compactionOptions =
                     Collections.singletonMap(
                             CoreOptions.WRITE_ONLY.key(),
-                            Objects.equals(
-                                            table.schema()
-                                                    .options()
-                                                    .get(
-                                                            FLUSS_CONF_PREFIX
-                                                                    + TABLE_DATALAKE_AUTO_COMPACTION
-                                                                            .key()),
-                                            "true")
+                            tableInfo.getProperties().getBoolean(TABLE_DATALAKE_AUTO_COMPACTION)
                                     ? Boolean.FALSE.toString()
                                     : Boolean.TRUE.toString());
             return table.copy(compactionOptions);

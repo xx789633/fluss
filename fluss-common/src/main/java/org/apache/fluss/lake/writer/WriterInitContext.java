@@ -18,13 +18,11 @@
 package org.apache.fluss.lake.writer;
 
 import org.apache.fluss.annotation.PublicEvolving;
-import org.apache.fluss.metadata.Schema;
 import org.apache.fluss.metadata.TableBucket;
+import org.apache.fluss.metadata.TableInfo;
 import org.apache.fluss.metadata.TablePath;
 
 import javax.annotation.Nullable;
-
-import java.util.Map;
 
 /**
  * The WriterInitContext interface provides the context needed to create a LakeWriter. It includes
@@ -58,16 +56,9 @@ public interface WriterInitContext {
     String partition();
 
     /**
-     * Returns the table schema.
+     * Returns the table info.
      *
-     * @return the table schema
+     * @return the table info
      */
-    Schema schema();
-
-    /**
-     * Returns the table custom properties.
-     *
-     * @return the table custom properties
-     */
-    Map<String, String> customProperties();
+    TableInfo tableInfo();
 }
