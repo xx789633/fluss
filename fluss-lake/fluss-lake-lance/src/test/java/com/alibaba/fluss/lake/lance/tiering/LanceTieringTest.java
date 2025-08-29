@@ -105,7 +105,7 @@ class LanceTieringTest {
                         .property(ConfigOptions.TABLE_DATALAKE_ENABLED, true)
                         .customProperties(customProperties)
                         .build();
-        TableInfo tableInfo = TableInfo.of(tablePath, 0, 1, descriptor,1L, 1L);
+        TableInfo tableInfo = TableInfo.of(tablePath, 0, 1, descriptor, 1L, 1L);
 
         List<LanceWriteResult> lanceWriteResults = new ArrayList<>();
         SimpleVersionedSerializer<LanceWriteResult> writeResultSerializer =
@@ -250,10 +250,7 @@ class LanceTieringTest {
     }
 
     private LakeWriter<LanceWriteResult> createLakeWriter(
-            TablePath tablePath,
-            int bucket,
-            @Nullable String partition,
-            TableInfo tableInfo)
+            TablePath tablePath, int bucket, @Nullable String partition, TableInfo tableInfo)
             throws IOException {
         return lanceLakeTieringFactory.createLakeWriter(
                 new WriterInitContext() {

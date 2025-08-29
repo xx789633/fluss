@@ -124,14 +124,15 @@ class IcebergTieringTest {
 
         TableDescriptor descriptor =
                 TableDescriptor.builder()
-                        .schema(org.apache.fluss.metadata.Schema.newBuilder()
-                                .column("c1", DataTypes.INT())
-                                .column("c2", DataTypes.STRING())
-                                .column("c3", DataTypes.STRING())
-                                .build())
+                        .schema(
+                                org.apache.fluss.metadata.Schema.newBuilder()
+                                        .column("c1", DataTypes.INT())
+                                        .column("c2", DataTypes.STRING())
+                                        .column("c3", DataTypes.STRING())
+                                        .build())
                         .property(ConfigOptions.TABLE_DATALAKE_ENABLED, true)
                         .build();
-        TableInfo tableInfo = TableInfo.of(tablePath, 0, 1, descriptor,1L, 1L);
+        TableInfo tableInfo = TableInfo.of(tablePath, 0, 1, descriptor, 1L, 1L);
 
         Table icebergTable = icebergCatalog.loadTable(toIceberg(tablePath));
 
@@ -212,7 +213,11 @@ class IcebergTieringTest {
     }
 
     private LakeWriter<IcebergWriteResult> createLakeWriter(
-            TablePath tablePath, int bucket, @Nullable String partition, @Nullable Long partitionId, TableInfo tableInfo)
+            TablePath tablePath,
+            int bucket,
+            @Nullable String partition,
+            @Nullable Long partitionId,
+            TableInfo tableInfo)
             throws IOException {
         return icebergLakeTieringFactory.createLakeWriter(
                 new WriterInitContext() {
