@@ -84,3 +84,6 @@ The compatibility between the Fluss client and the Fluss server is described in 
 |------------|------------|------------|-------------|
 | Client 0.6 | ✔️         | ✔️         |             |
 | Client 0.7 | ✔️         | ✔️         |             |
+
+## Compatibility between Fluss datalake tiering service
+1. As of Fluss 0.8, the compaction work during datalake tiering is disabled by default. You can enable it by setting the parameter `table.datalake.auto-compaction` to `true`.
