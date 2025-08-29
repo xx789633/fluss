@@ -95,7 +95,7 @@ public class TableConfig {
     }
 
     /** Whether auto compaction is enabled. */
-    public boolean getDataLakeAutoCompaction() {
+    public boolean isDataLakeAutoCompactionEnabled() {
         return config.get(ConfigOptions.TABLE_DATALAKE_AUTO_COMPACTION);
     }
 
