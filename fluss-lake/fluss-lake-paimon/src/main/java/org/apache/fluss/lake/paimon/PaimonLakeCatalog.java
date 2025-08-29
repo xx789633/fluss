@@ -62,7 +62,7 @@ public class PaimonLakeCatalog implements LakeCatalog {
     private final Catalog paimonCatalog;
 
     // for fluss config
-    private static final String FLUSS_CONF_PREFIX = "fluss.";
+    public static final String FLUSS_CONF_PREFIX = "fluss.";
     // for paimon config
     private static final String PAIMON_CONF_PREFIX = "paimon.";
 
