@@ -49,7 +49,7 @@ public class PaimonLakeWriter implements LakeWriter<PaimonWriteResult> {
         FileStoreTable fileStoreTable =
                 getTable(
                         writerInitContext.tablePath(),
-                        writerInitContext.tableInfo().isAutoCompactionEnabled());
+                        writerInitContext.tableInfo().getTableConfig().getDataLakeAutoCompaction());
 
         List<String> partitionKeys = fileStoreTable.partitionKeys();
 

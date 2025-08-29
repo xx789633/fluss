@@ -215,11 +215,6 @@ public final class TableInfo {
         return isPartitioned() && tableConfig.getAutoPartitionStrategy().isAutoPartitionEnabled();
     }
 
-    /** Check if auto compaction is enabled. */
-    public boolean isAutoCompactionEnabled() {
-        return tableConfig.getDataLakeAutoCompaction();
-    }
-
     /**
      * Get the partition keys of the table. This will be an empty set if the table is not
      * partitioned.
