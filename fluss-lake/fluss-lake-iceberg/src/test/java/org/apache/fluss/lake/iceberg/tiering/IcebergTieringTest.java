@@ -130,6 +130,7 @@ class IcebergTieringTest {
                                         .column("c2", DataTypes.STRING())
                                         .column("c3", DataTypes.STRING())
                                         .build())
+                        .distributedBy(BUCKET_NUM)
                         .property(ConfigOptions.TABLE_DATALAKE_ENABLED, true)
                         .build();
         TableInfo tableInfo = TableInfo.of(tablePath, 0, 1, descriptor, 1L, 1L);

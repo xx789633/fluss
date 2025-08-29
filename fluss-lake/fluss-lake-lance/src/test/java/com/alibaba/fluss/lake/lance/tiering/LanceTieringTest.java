@@ -102,6 +102,7 @@ class LanceTieringTest {
         TableDescriptor descriptor =
                 TableDescriptor.builder()
                         .schema(schema)
+                        .distributedBy(bucketNum)
                         .property(ConfigOptions.TABLE_DATALAKE_ENABLED, true)
                         .customProperties(customProperties)
                         .build();

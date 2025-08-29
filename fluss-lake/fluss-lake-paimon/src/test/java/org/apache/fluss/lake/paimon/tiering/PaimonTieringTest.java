@@ -129,6 +129,7 @@ class PaimonTieringTest {
                                         .column("c2", org.apache.fluss.types.DataTypes.STRING())
                                         .column("c3", org.apache.fluss.types.DataTypes.STRING())
                                         .build())
+                        .distributedBy(bucketNum)
                         .property(ConfigOptions.TABLE_DATALAKE_ENABLED, true)
                         .build();
         TableInfo tableInfo = TableInfo.of(tablePath, 0, 1, descriptor, 1L, 1L);
@@ -257,6 +258,7 @@ class PaimonTieringTest {
                                         .column("year", org.apache.fluss.types.DataTypes.STRING())
                                         .build())
                         .partitionedBy("region", "year")
+                        .distributedBy(1)
                         .property(ConfigOptions.TABLE_DATALAKE_ENABLED, true)
                         .build();
         TableInfo tableInfo = TableInfo.of(tablePath, 0, 1, descriptor, 1L, 1L);
@@ -333,6 +335,7 @@ class PaimonTieringTest {
                                         .column("month", org.apache.fluss.types.DataTypes.STRING())
                                         .build())
                         .partitionedBy("region", "year", "month")
+                        .distributedBy(1)
                         .property(ConfigOptions.TABLE_DATALAKE_ENABLED, true)
                         .build();
         TableInfo tableInfo = TableInfo.of(tablePath, 0, 1, descriptor, 1L, 1L);
