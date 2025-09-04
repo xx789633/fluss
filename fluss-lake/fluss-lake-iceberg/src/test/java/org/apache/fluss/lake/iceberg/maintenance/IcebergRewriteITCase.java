@@ -18,15 +18,9 @@
 
 package org.apache.fluss.lake.iceberg.maintenance;
 
-import org.apache.flink.core.execution.JobClient;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.fluss.config.Configuration;
 import org.apache.fluss.lake.iceberg.testutils.FlinkIcebergTieringTestBase;
-import org.apache.fluss.lake.iceberg.tiering.IcebergCatalogProvider;
-import org.apache.fluss.lake.iceberg.tiering.writer.TaskWriterFactory;
 import org.apache.fluss.metadata.TableBucket;
 import org.apache.fluss.metadata.TablePath;
-
 import org.apache.fluss.row.BinaryString;
 import org.apache.fluss.row.Decimal;
 import org.apache.fluss.row.InternalRow;
@@ -34,44 +28,16 @@ import org.apache.fluss.row.TimestampLtz;
 import org.apache.fluss.row.TimestampNtz;
 import org.apache.fluss.types.DataTypes;
 import org.apache.fluss.utils.TypeUtils;
-import org.apache.iceberg.AppendFiles;
-import org.apache.iceberg.DataFile;
-import org.apache.iceberg.FileScanTask;
-import org.apache.iceberg.PartitionSpec;
-import org.apache.iceberg.RewriteFiles;
-import org.apache.iceberg.Schema;
-import org.apache.iceberg.Table;
-import org.apache.iceberg.catalog.Catalog;
-import org.apache.iceberg.catalog.Namespace;
-import org.apache.iceberg.catalog.SupportsNamespaces;
-import org.apache.iceberg.catalog.TableIdentifier;
-import org.apache.iceberg.data.IcebergGenerics;
-import org.apache.iceberg.data.Record;
-import org.apache.iceberg.expressions.Expressions;
-import org.apache.iceberg.io.CloseableIterable;
-import org.apache.iceberg.io.TaskWriter;
-import org.apache.iceberg.types.Types;
+
+import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
-import static org.apache.fluss.lake.committer.BucketOffset.FLUSS_LAKE_SNAP_BUCKET_OFFSET_PROPERTY;
-import static org.apache.fluss.lake.iceberg.utils.IcebergConversions.toIceberg;
-import static org.apache.fluss.metadata.TableDescriptor.BUCKET_COLUMN_NAME;
-import static org.apache.fluss.metadata.TableDescriptor.OFFSET_COLUMN_NAME;
-import static org.apache.fluss.metadata.TableDescriptor.TIMESTAMP_COLUMN_NAME;
 import static org.apache.fluss.testutils.DataTestUtils.row;
-import static org.apache.fluss.utils.Preconditions.checkState;
-import static org.assertj.core.api.Assertions.assertThat;
 
 /** Integration test to for Iceberg compaction. */
 class IcebergRewriteITCase extends FlinkIcebergTieringTestBase {

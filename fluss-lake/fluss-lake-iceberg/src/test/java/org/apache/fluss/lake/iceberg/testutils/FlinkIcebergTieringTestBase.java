@@ -250,6 +250,7 @@ public class FlinkIcebergTieringTestBase {
                         .distributedBy(bucketNum)
                         .property(ConfigOptions.TABLE_DATALAKE_ENABLED.key(), "true")
                         .property(ConfigOptions.TABLE_DATALAKE_FRESHNESS, Duration.ofMillis(500))
+                        .property(ConfigOptions.TABLE_DATALAKE_AUTO_COMPACTION.key(), "true")
                         .build();
         return createTable(tablePath, table1Descriptor);
     }
@@ -386,7 +387,8 @@ public class FlinkIcebergTieringTestBase {
         }
     }
 
-    protected void checkFileInIcebergTable(TablePath tablePath, int expectedFileCount) throws IOException {
+    protected void checkFileInIcebergTable(TablePath tablePath, int expectedFileCount)
+            throws IOException {
         org.apache.iceberg.Table table = icebergCatalog.loadTable(toIceberg(tablePath));
         int count = 0;
         try (CloseableIterable<FileScanTask> tasks = table.newScan().planFiles()) {
