@@ -45,6 +45,7 @@ import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.iceberg.DataFile;
+import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.TableScan;
 import org.apache.iceberg.catalog.Catalog;
@@ -52,6 +53,7 @@ import org.apache.iceberg.data.IcebergGenerics;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.data.parquet.GenericParquetReaders;
 import org.apache.iceberg.hadoop.HadoopCatalog;
+import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.CloseableIterator;
 import org.apache.iceberg.parquet.Parquet;
 import org.junit.jupiter.api.AfterAll;
@@ -60,6 +62,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.Closeable;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.file.Files;
@@ -381,6 +384,17 @@ public class FlinkIcebergTieringTestBase {
             }
             assertThat(flussRowIterator.hasNext()).isFalse();
         }
+    }
+
+    protected void checkFileInIcebergTable(TablePath tablePath, int expectedFileCount) throws IOException {
+        org.apache.iceberg.Table table = icebergCatalog.loadTable(toIceberg(tablePath));
+        int count = 0;
+        try (CloseableIterable<FileScanTask> tasks = table.newScan().planFiles()) {
+            for (FileScanTask ignored : tasks) {
+                count++;
+            }
+        }
+        assertThat(count).isEqualTo(expectedFileCount);
     }
 
     protected void checkDataInIcebergAppendOnlyPartitionedTable(
