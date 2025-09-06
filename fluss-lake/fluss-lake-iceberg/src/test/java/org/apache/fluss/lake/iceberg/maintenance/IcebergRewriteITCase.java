@@ -34,7 +34,8 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-import java.util.Arrays;
+import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.apache.fluss.testutils.DataTestUtils.row;
@@ -60,69 +61,7 @@ class IcebergRewriteITCase extends FlinkIcebergTieringTestBase {
         long t1Id = createPkTable(t1);
         TableBucket t1Bucket = new TableBucket(t1Id, 0);
         // write records
-        List<InternalRow> rows =
-                Arrays.asList(
-                        row(
-                                true,
-                                (byte) 100,
-                                (short) 200,
-                                1,
-                                1 + 400L,
-                                500.1f,
-                                600.0d,
-                                "v1",
-                                Decimal.fromUnscaledLong(900, 5, 2),
-                                Decimal.fromBigDecimal(new java.math.BigDecimal(1000), 20, 0),
-                                TimestampLtz.fromEpochMillis(1698235273400L),
-                                TimestampLtz.fromEpochMillis(1698235273400L, 7000),
-                                TimestampNtz.fromMillis(1698235273501L),
-                                TimestampNtz.fromMillis(1698235273501L, 8000),
-                                new byte[] {5, 6, 7, 8},
-                                TypeUtils.castFromString("2023-10-25", DataTypes.DATE()),
-                                TypeUtils.castFromString("09:30:00.0", DataTypes.TIME()),
-                                BinaryString.fromString("abc"),
-                                new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
-                        row(
-                                true,
-                                (byte) 100,
-                                (short) 200,
-                                2,
-                                2 + 400L,
-                                500.1f,
-                                600.0d,
-                                "v2",
-                                Decimal.fromUnscaledLong(900, 5, 2),
-                                Decimal.fromBigDecimal(new java.math.BigDecimal(1000), 20, 0),
-                                TimestampLtz.fromEpochMillis(1698235273400L),
-                                TimestampLtz.fromEpochMillis(1698235273400L, 7000),
-                                TimestampNtz.fromMillis(1698235273501L),
-                                TimestampNtz.fromMillis(1698235273501L, 8000),
-                                new byte[] {5, 6, 7, 8},
-                                TypeUtils.castFromString("2023-10-25", DataTypes.DATE()),
-                                TypeUtils.castFromString("09:30:00.0", DataTypes.TIME()),
-                                BinaryString.fromString("abc"),
-                                new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
-                        row(
-                                true,
-                                (byte) 100,
-                                (short) 200,
-                                3,
-                                3 + 400L,
-                                500.1f,
-                                600.0d,
-                                "v3",
-                                Decimal.fromUnscaledLong(900, 5, 2),
-                                Decimal.fromBigDecimal(new java.math.BigDecimal(1000), 20, 0),
-                                TimestampLtz.fromEpochMillis(1698235273400L),
-                                TimestampLtz.fromEpochMillis(1698235273400L, 7000),
-                                TimestampNtz.fromMillis(1698235273501L),
-                                TimestampNtz.fromMillis(1698235273501L, 8000),
-                                new byte[] {5, 6, 7, 8},
-                                TypeUtils.castFromString("2023-10-25", DataTypes.DATE()),
-                                TypeUtils.castFromString("09:30:00.0", DataTypes.TIME()),
-                                BinaryString.fromString("abc"),
-                                new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}));
-        writeRows(t1, rows, false);
+        writeFullTypeRow(t1, 1, 3);
         waitUntilSnapshot(t1Id, 1, 0);
 
         // then start tiering job
@@ -131,222 +70,51 @@ class IcebergRewriteITCase extends FlinkIcebergTieringTestBase {
             // check the status of replica after synced
             assertReplicaStatus(t1Bucket, 3);
 
-            checkFileInIcebergTable(t1, 1);
-
-            // write another file
-            rows =
-                    Arrays.asList(
-                            row(
-                                    true,
-                                    (byte) 100,
-                                    (short) 200,
-                                    4,
-                                    4 + 400L,
-                                    500.1f,
-                                    600.0d,
-                                    "v1",
-                                    Decimal.fromUnscaledLong(900, 5, 2),
-                                    Decimal.fromBigDecimal(new java.math.BigDecimal(1000), 20, 0),
-                                    TimestampLtz.fromEpochMillis(1698235273400L),
-                                    TimestampLtz.fromEpochMillis(1698235273400L, 7000),
-                                    TimestampNtz.fromMillis(1698235273501L),
-                                    TimestampNtz.fromMillis(1698235273501L, 8000),
-                                    new byte[] {5, 6, 7, 8},
-                                    TypeUtils.castFromString("2023-10-25", DataTypes.DATE()),
-                                    TypeUtils.castFromString("09:30:00.0", DataTypes.TIME()),
-                                    BinaryString.fromString("abc"),
-                                    new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
-                            row(
-                                    true,
-                                    (byte) 100,
-                                    (short) 200,
-                                    5,
-                                    5 + 400L,
-                                    500.1f,
-                                    600.0d,
-                                    "v2",
-                                    Decimal.fromUnscaledLong(900, 5, 2),
-                                    Decimal.fromBigDecimal(new java.math.BigDecimal(1000), 20, 0),
-                                    TimestampLtz.fromEpochMillis(1698235273400L),
-                                    TimestampLtz.fromEpochMillis(1698235273400L, 7000),
-                                    TimestampNtz.fromMillis(1698235273501L),
-                                    TimestampNtz.fromMillis(1698235273501L, 8000),
-                                    new byte[] {5, 6, 7, 8},
-                                    TypeUtils.castFromString("2023-10-25", DataTypes.DATE()),
-                                    TypeUtils.castFromString("09:30:00.0", DataTypes.TIME()),
-                                    BinaryString.fromString("abc"),
-                                    new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
-                            row(
-                                    true,
-                                    (byte) 100,
-                                    (short) 200,
-                                    6,
-                                    6 + 400L,
-                                    500.1f,
-                                    600.0d,
-                                    "v3",
-                                    Decimal.fromUnscaledLong(900, 5, 2),
-                                    Decimal.fromBigDecimal(new java.math.BigDecimal(1000), 20, 0),
-                                    TimestampLtz.fromEpochMillis(1698235273400L),
-                                    TimestampLtz.fromEpochMillis(1698235273400L, 7000),
-                                    TimestampNtz.fromMillis(1698235273501L),
-                                    TimestampNtz.fromMillis(1698235273501L, 8000),
-                                    new byte[] {5, 6, 7, 8},
-                                    TypeUtils.castFromString("2023-10-25", DataTypes.DATE()),
-                                    TypeUtils.castFromString("09:30:00.0", DataTypes.TIME()),
-                                    BinaryString.fromString("abc"),
-                                    new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}));
-            writeRows(t1, rows, false);
-
+            writeFullTypeRow(t1, 4, 6);
             waitUntilSnapshot(t1Id, 1, 1);
-
-            // check the status of replica after synced
             assertReplicaStatus(t1Bucket, 6);
 
-            // write another file
-            rows =
-                    Arrays.asList(
-                            row(
-                                    true,
-                                    (byte) 100,
-                                    (short) 200,
-                                    7,
-                                    7 + 400L,
-                                    500.1f,
-                                    600.0d,
-                                    "v1",
-                                    Decimal.fromUnscaledLong(900, 5, 2),
-                                    Decimal.fromBigDecimal(new java.math.BigDecimal(1000), 20, 0),
-                                    TimestampLtz.fromEpochMillis(1698235273400L),
-                                    TimestampLtz.fromEpochMillis(1698235273400L, 7000),
-                                    TimestampNtz.fromMillis(1698235273501L),
-                                    TimestampNtz.fromMillis(1698235273501L, 8000),
-                                    new byte[] {5, 6, 7, 8},
-                                    TypeUtils.castFromString("2023-10-25", DataTypes.DATE()),
-                                    TypeUtils.castFromString("09:30:00.0", DataTypes.TIME()),
-                                    BinaryString.fromString("abc"),
-                                    new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
-                            row(
-                                    true,
-                                    (byte) 100,
-                                    (short) 200,
-                                    8,
-                                    8 + 400L,
-                                    500.1f,
-                                    600.0d,
-                                    "v2",
-                                    Decimal.fromUnscaledLong(900, 5, 2),
-                                    Decimal.fromBigDecimal(new java.math.BigDecimal(1000), 20, 0),
-                                    TimestampLtz.fromEpochMillis(1698235273400L),
-                                    TimestampLtz.fromEpochMillis(1698235273400L, 7000),
-                                    TimestampNtz.fromMillis(1698235273501L),
-                                    TimestampNtz.fromMillis(1698235273501L, 8000),
-                                    new byte[] {5, 6, 7, 8},
-                                    TypeUtils.castFromString("2023-10-25", DataTypes.DATE()),
-                                    TypeUtils.castFromString("09:30:00.0", DataTypes.TIME()),
-                                    BinaryString.fromString("abc"),
-                                    new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
-                            row(
-                                    true,
-                                    (byte) 100,
-                                    (short) 200,
-                                    9,
-                                    9 + 400L,
-                                    500.1f,
-                                    600.0d,
-                                    "v3",
-                                    Decimal.fromUnscaledLong(900, 5, 2),
-                                    Decimal.fromBigDecimal(new java.math.BigDecimal(1000), 20, 0),
-                                    TimestampLtz.fromEpochMillis(1698235273400L),
-                                    TimestampLtz.fromEpochMillis(1698235273400L, 7000),
-                                    TimestampNtz.fromMillis(1698235273501L),
-                                    TimestampNtz.fromMillis(1698235273501L, 8000),
-                                    new byte[] {5, 6, 7, 8},
-                                    TypeUtils.castFromString("2023-10-25", DataTypes.DATE()),
-                                    TypeUtils.castFromString("09:30:00.0", DataTypes.TIME()),
-                                    BinaryString.fromString("abc"),
-                                    new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}));
-            writeRows(t1, rows, false);
-
+            writeFullTypeRow(t1, 7, 9);
             waitUntilSnapshot(t1Id, 1, 2);
-
-            // check the status of replica after synced
             assertReplicaStatus(t1Bucket, 9);
 
-            checkFileInIcebergTable(t1, 3);
+            checkFileCountInIcebergTable(t1, 3);
 
-            rows =
-                    Arrays.asList(
-                            row(
-                                    true,
-                                    (byte) 100,
-                                    (short) 200,
-                                    10,
-                                    10 + 400L,
-                                    500.1f,
-                                    600.0d,
-                                    "v1",
-                                    Decimal.fromUnscaledLong(900, 5, 2),
-                                    Decimal.fromBigDecimal(new java.math.BigDecimal(1000), 20, 0),
-                                    TimestampLtz.fromEpochMillis(1698235273400L),
-                                    TimestampLtz.fromEpochMillis(1698235273400L, 7000),
-                                    TimestampNtz.fromMillis(1698235273501L),
-                                    TimestampNtz.fromMillis(1698235273501L, 8000),
-                                    new byte[] {5, 6, 7, 8},
-                                    TypeUtils.castFromString("2023-10-25", DataTypes.DATE()),
-                                    TypeUtils.castFromString("09:30:00.0", DataTypes.TIME()),
-                                    BinaryString.fromString("abc"),
-                                    new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
-                            row(
-                                    true,
-                                    (byte) 100,
-                                    (short) 200,
-                                    11,
-                                    11 + 400L,
-                                    500.1f,
-                                    600.0d,
-                                    "v2",
-                                    Decimal.fromUnscaledLong(900, 5, 2),
-                                    Decimal.fromBigDecimal(new java.math.BigDecimal(1000), 20, 0),
-                                    TimestampLtz.fromEpochMillis(1698235273400L),
-                                    TimestampLtz.fromEpochMillis(1698235273400L, 7000),
-                                    TimestampNtz.fromMillis(1698235273501L),
-                                    TimestampNtz.fromMillis(1698235273501L, 8000),
-                                    new byte[] {5, 6, 7, 8},
-                                    TypeUtils.castFromString("2023-10-25", DataTypes.DATE()),
-                                    TypeUtils.castFromString("09:30:00.0", DataTypes.TIME()),
-                                    BinaryString.fromString("abc"),
-                                    new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
-                            row(
-                                    true,
-                                    (byte) 100,
-                                    (short) 200,
-                                    12,
-                                    12 + 400L,
-                                    500.1f,
-                                    600.0d,
-                                    "v3",
-                                    Decimal.fromUnscaledLong(900, 5, 2),
-                                    Decimal.fromBigDecimal(new java.math.BigDecimal(1000), 20, 0),
-                                    TimestampLtz.fromEpochMillis(1698235273400L),
-                                    TimestampLtz.fromEpochMillis(1698235273400L, 7000),
-                                    TimestampNtz.fromMillis(1698235273501L),
-                                    TimestampNtz.fromMillis(1698235273501L, 8000),
-                                    new byte[] {5, 6, 7, 8},
-                                    TypeUtils.castFromString("2023-10-25", DataTypes.DATE()),
-                                    TypeUtils.castFromString("09:30:00.0", DataTypes.TIME()),
-                                    BinaryString.fromString("abc"),
-                                    new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}));
-            writeRows(t1, rows, false);
-
+            writeFullTypeRow(t1, 10, 12);
             waitUntilSnapshot(t1Id, 1, 3);
-
-            // check the status of replica after synced
             assertReplicaStatus(t1Bucket, 12);
 
-            checkFileInIcebergTable(t1, 2);
+            checkFileCountInIcebergTable(t1, 2);
         } finally {
             jobClient.cancel().get();
         }
+    }
+
+    private void writeFullTypeRow(TablePath tablePath, int from, int to) throws Exception {
+        List<InternalRow> rows = new ArrayList<>();
+        for (int i = from; i <= to; i++) {
+            rows.add(
+                    row(
+                            true,
+                            (byte) 100,
+                            (short) 200,
+                            i,
+                            i + 400L,
+                            500.1f,
+                            600.0d,
+                            "v1",
+                            Decimal.fromUnscaledLong(900, 5, 2),
+                            Decimal.fromBigDecimal(new BigDecimal(1000), 20, 0),
+                            TimestampLtz.fromEpochMillis(1698235273400L),
+                            TimestampLtz.fromEpochMillis(1698235273400L, 7000),
+                            TimestampNtz.fromMillis(1698235273501L),
+                            TimestampNtz.fromMillis(1698235273501L, 8000),
+                            new byte[] {5, 6, 7, 8},
+                            TypeUtils.castFromString("2023-10-25", DataTypes.DATE()),
+                            TypeUtils.castFromString("09:30:00.0", DataTypes.TIME()),
+                            BinaryString.fromString("abc"),
+                            new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}));
+        }
+        writeRows(tablePath, rows, false);
     }
 }
