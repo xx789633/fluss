@@ -129,9 +129,11 @@ public class IcebergLakeWriter implements LakeWriter<IcebergWriteResult> {
                 compactionFuture.cancel(true);
             }
 
-            if (compactionExecutor != null
-                    && !compactionExecutor.awaitTermination(30, TimeUnit.SECONDS)) {
-                LOG.warn("Fail to close compactionExecutor.");
+            if (compactionExecutor != null) {
+                compactionExecutor.shutdown();
+                if (!compactionExecutor.awaitTermination(30, TimeUnit.SECONDS)) {
+                    LOG.warn("Fail to close compactionExecutor.");
+                }
             }
 
             if (recordWriter != null) {
