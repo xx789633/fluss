@@ -274,6 +274,77 @@ class IcebergRewriteITCase extends FlinkIcebergTieringTestBase {
             assertReplicaStatus(t1Bucket, 9);
 
             checkFileInIcebergTable(t1, 3);
+
+            rows =
+                    Arrays.asList(
+                            row(
+                                    true,
+                                    (byte) 100,
+                                    (short) 200,
+                                    10,
+                                    10 + 400L,
+                                    500.1f,
+                                    600.0d,
+                                    "v1",
+                                    Decimal.fromUnscaledLong(900, 5, 2),
+                                    Decimal.fromBigDecimal(new java.math.BigDecimal(1000), 20, 0),
+                                    TimestampLtz.fromEpochMillis(1698235273400L),
+                                    TimestampLtz.fromEpochMillis(1698235273400L, 7000),
+                                    TimestampNtz.fromMillis(1698235273501L),
+                                    TimestampNtz.fromMillis(1698235273501L, 8000),
+                                    new byte[] {5, 6, 7, 8},
+                                    TypeUtils.castFromString("2023-10-25", DataTypes.DATE()),
+                                    TypeUtils.castFromString("09:30:00.0", DataTypes.TIME()),
+                                    BinaryString.fromString("abc"),
+                                    new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+                            row(
+                                    true,
+                                    (byte) 100,
+                                    (short) 200,
+                                    11,
+                                    11 + 400L,
+                                    500.1f,
+                                    600.0d,
+                                    "v2",
+                                    Decimal.fromUnscaledLong(900, 5, 2),
+                                    Decimal.fromBigDecimal(new java.math.BigDecimal(1000), 20, 0),
+                                    TimestampLtz.fromEpochMillis(1698235273400L),
+                                    TimestampLtz.fromEpochMillis(1698235273400L, 7000),
+                                    TimestampNtz.fromMillis(1698235273501L),
+                                    TimestampNtz.fromMillis(1698235273501L, 8000),
+                                    new byte[] {5, 6, 7, 8},
+                                    TypeUtils.castFromString("2023-10-25", DataTypes.DATE()),
+                                    TypeUtils.castFromString("09:30:00.0", DataTypes.TIME()),
+                                    BinaryString.fromString("abc"),
+                                    new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+                            row(
+                                    true,
+                                    (byte) 100,
+                                    (short) 200,
+                                    12,
+                                    12 + 400L,
+                                    500.1f,
+                                    600.0d,
+                                    "v3",
+                                    Decimal.fromUnscaledLong(900, 5, 2),
+                                    Decimal.fromBigDecimal(new java.math.BigDecimal(1000), 20, 0),
+                                    TimestampLtz.fromEpochMillis(1698235273400L),
+                                    TimestampLtz.fromEpochMillis(1698235273400L, 7000),
+                                    TimestampNtz.fromMillis(1698235273501L),
+                                    TimestampNtz.fromMillis(1698235273501L, 8000),
+                                    new byte[] {5, 6, 7, 8},
+                                    TypeUtils.castFromString("2023-10-25", DataTypes.DATE()),
+                                    TypeUtils.castFromString("09:30:00.0", DataTypes.TIME()),
+                                    BinaryString.fromString("abc"),
+                                    new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}));
+            writeRows(t1, rows, false);
+
+            waitUntilSnapshot(t1Id, 1, 3);
+
+            // check the status of replica after synced
+            assertReplicaStatus(t1Bucket, 12);
+
+            checkFileInIcebergTable(t1, 2);
         } finally {
             jobClient.cancel().get();
         }
