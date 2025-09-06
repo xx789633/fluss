@@ -70,13 +70,22 @@ public class IcebergConversions {
                         Expressions.and(
                                 expression,
                                 Expressions.equal(
-                                        partitionFields.get(partitionIndex++).name(), partition));
+                                        table.schema()
+                                                .findColumnName(
+                                                        partitionFields
+                                                                .get(partitionIndex++)
+                                                                .sourceId()),
+                                        partition));
             }
         }
         expression =
                 Expressions.and(
                         expression,
-                        Expressions.equal(partitionFields.get(partitionIndex).name(), bucket));
+                        Expressions.equal(
+                                table.schema()
+                                        .findColumnName(
+                                                partitionFields.get(partitionIndex).sourceId()),
+                                bucket));
         return expression;
     }
 }
