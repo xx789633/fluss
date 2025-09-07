@@ -33,7 +33,7 @@ import java.util.List;
 
 import static org.apache.fluss.testutils.DataTestUtils.row;
 
-/** Integration test to for Iceberg compaction. */
+/** Integration test for Iceberg compaction. */
 class IcebergRewriteITCase extends FlinkIcebergTieringTestBase {
     protected static final String DEFAULT_DB = "fluss";
 
@@ -51,7 +51,7 @@ class IcebergRewriteITCase extends FlinkIcebergTieringTestBase {
     void testLogTableCompaction() throws Exception {
         JobClient jobClient = buildTieringJob(execEnv);
         try {
-            TablePath t1 = TablePath.of(DEFAULT_DB, "logTable");
+            TablePath t1 = TablePath.of(DEFAULT_DB, "log_table");
             long t1Id = createLogTable(t1, true);
             TableBucket t1Bucket = new TableBucket(t1Id, 0);
 
