@@ -14,16 +14,17 @@ To configure Lance as the lakehouse storage, you must configure the following co
 ```yaml
 # Lance configuration
 datalake.format: lance
-# Use local file system as Lance storage backend
-datalake.lance.warehouse: /tmp/lance
 
 # Currently only local file system and object stores such as AWS S3 (and compatible stores) are supported as storage backends for Lance
 # To use S3 as Lance storage backend, you need to specify the following properties
-# datalake.lance.warehouse: s3://<bucket>
-# datalake.lance.endpoint: <endpoint>
-# datalake.lance.allow_http: true
-# datalake.lance.access_key_id: <access_key_id>
-# datalake.lance.secret_access_key: <secret_access_key>
+datalake.lance.warehouse: s3://<bucket>
+datalake.lance.endpoint: <endpoint>
+datalake.lance.allow_http: true
+datalake.lance.access_key_id: <access_key_id>
+datalake.lance.secret_access_key: <secret_access_key>
+
+# Use local file system as Lance storage backend, you only need to specify the following property
+# datalake.lance.warehouse: /tmp/lance
 ```
 
 When a table is created or altered with the option `'table.datalake.enabled' = 'true'`, Fluss will automatically create a corresponding Lance table with path `<warehouse_path>/<database_name>/<table_name>.lance`.
@@ -41,6 +42,18 @@ CREATE TABLE fluss_order_with_lake (
      'table.datalake.enabled' = 'true',
      'table.datalake.freshness' = '30s'
 );
+```
+
+To start datalake tiering service, you can execute the `fluss-flink-tiering-$FLUSS_VERSION$.jar` by using the following command:
+```shell
+<FLINK_HOME>/bin/flink run /path/to/fluss-flink-tiering-$FLUSS_VERSION$.jar \
+    --fluss.bootstrap.servers localhost:9123 \
+    --datalake.format lance \
+    --datalake.lance.warehouse s3://<bucket> \
+    --datalake.lance.endpoint <endpoint> \
+    --datalake.lance.allow_http true \
+    --datalake.lance.secret_access_key <secret_access_key> \
+    --datalake.lance.access_key_id <access_key_id>
 ```
 
 > **NOTE**: Fluss v0.8 only supports tiering log tables to Lance.
