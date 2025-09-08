@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -56,26 +57,34 @@ class IcebergRewriteITCase extends FlinkIcebergTieringTestBase {
             TableBucket t1Bucket = new TableBucket(t1Id, 0);
 
             int i = 0;
-            writeLogTableRecords(t1, t1Bucket, ++i);
+            List<InternalRow> flussRows = new ArrayList<>();
+            flussRows.addAll(writeLogTableRecords(t1, t1Bucket, ++i));
 
-            writeLogTableRecords(t1, t1Bucket, ++i);
+            flussRows.addAll(writeLogTableRecords(t1, t1Bucket, ++i));
 
-            writeLogTableRecords(t1, t1Bucket, ++i);
+            flussRows.addAll(writeLogTableRecords(t1, t1Bucket, ++i));
             checkFileCountInIcebergTable(t1, 3);
 
-            // trigger compaction
-            writeLogTableRecords(t1, t1Bucket, ++i);
+            // Write should trigger compaction now since the current data file count is greater or
+            // equal MIN_FILES_TO_COMPACT
+            flussRows.addAll(writeLogTableRecords(t1, t1Bucket, ++i));
+            // Should only have two files now, one file it for newly written, one file is for target
+            // compacted file
             checkFileCountInIcebergTable(t1, 2);
+
+            // check data in iceberg to make sure compaction won't lose data or duplicate data
+            checkDataInIcebergAppendOnlyTable(t1, flussRows, 0);
         } finally {
             jobClient.cancel().get();
         }
     }
 
-    private void writeLogTableRecords(
+    private List<InternalRow> writeLogTableRecords(
             TablePath tablePath, TableBucket tableBucket, long expectedLogEndOffset)
             throws Exception {
         List<InternalRow> rows = Arrays.asList(row(1, "v1"));
         writeRows(tablePath, rows, true);
         assertReplicaStatus(tableBucket, expectedLogEndOffset);
+        return rows;
     }
 }
