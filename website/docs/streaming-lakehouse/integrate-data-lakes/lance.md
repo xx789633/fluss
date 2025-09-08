@@ -121,4 +121,4 @@ The following table shows the mapping between [Fluss data types](table-design/da
 | TIMESTAMP                     | Timestamp       |
 | TIMESTAMP WITH LOCAL TIMEZONE | Timestamp       |
 | BINARY                        | FixedSizeBinary |
-| BYTES                         | BINARY          |
+| BYTES                         | Binary          |
