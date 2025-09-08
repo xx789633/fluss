@@ -400,12 +400,18 @@ public class FlinkIcebergTieringTestBase {
         }
     }
 
-    protected void checkFileCountInIcebergTable(TablePath tablePath, int expectedFileCount)
+    protected void checkFileStatusInIcebergTable(
+            TablePath tablePath, int expectedFileCount, boolean shouldDeleteFileExist)
             throws IOException {
         org.apache.iceberg.Table table = icebergCatalog.loadTable(toIceberg(tablePath));
         int count = 0;
         try (CloseableIterable<FileScanTask> tasks = table.newScan().planFiles()) {
             for (FileScanTask ignored : tasks) {
+                if (shouldDeleteFileExist) {
+                    assertThat(ignored.deletes()).isNotEmpty();
+                } else {
+                    assertThat(ignored.deletes()).isEmpty();
+                }
                 count++;
             }
         }
