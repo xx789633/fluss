@@ -117,8 +117,8 @@ The following table shows the mapping between [Fluss data types](table-design/da
 | STRING                        | Utf8            |
 | CHAR                          | Utf8            |
 | DATE                          | Date            |
-| TIME                          | TIME            |
-| TIMESTAMP                     | TIMESTAMP       |
-| TIMESTAMP WITH LOCAL TIMEZONE | TIMESTAMP       |
+| TIME                          | Time            |
+| TIMESTAMP                     | Timestamp       |
+| TIMESTAMP WITH LOCAL TIMEZONE | Timestamp       |
 | BINARY                        | FixedSizeBinary |
 | BYTES                         | BINARY          |
