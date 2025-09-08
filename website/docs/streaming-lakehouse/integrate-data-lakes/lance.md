@@ -106,7 +106,7 @@ The following table shows the mapping between [Fluss data types](table-design/da
 
 | Fluss Data Type               | Lance Data Type |
 |-------------------------------|-----------------|
-| BOOLEAN                       | Bool        |
+| BOOLEAN                       | Bool            |
 | TINYINT                       | Int8            |
 | SMALLINT                      | Int16           |
 | INT                           | Int32           |
