@@ -1,6 +1,6 @@
 ---
 title: Lance
-sidebar_position: 1
+sidebar_position: 3
 ---
 
 # Lance
@@ -14,9 +14,10 @@ To configure Lance as the lakehouse storage, you must configure the following co
 ```yaml
 # Lance configuration
 datalake.format: lance
-
+# Use local file system as Lance storage backend
 datalake.lance.warehouse: /tmp/lance
 
+# Currently only local file system and object stores such as AWS S3 (and compatible stores) are supported as storage backends for Lance
 # To use S3 as Lance storage backend, you need to specify the following properties
 # datalake.lance.warehouse: s3://<bucket>
 # datalake.lance.endpoint: <endpoint>
