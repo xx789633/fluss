@@ -222,6 +222,17 @@ public final class ZkData {
     }
 
     /**
+     * The znode for auto increment column. The znode path is:
+     *
+     * <p>/metadata/databases/[databaseName]/tables/[tableName]/schemas/[schemaId]/columns/[columnIdx]
+     */
+    public static final class AutoIncrementColumnZNode {
+        public static String path(TablePath tablePath, int schemaId, int autoIncrColIdx) {
+            return SchemasZNode.path(tablePath) + "/" + schemaId + "/" + autoIncrColIdx;
+        }
+    }
+
+    /**
      * The znode used to generate a sequence unique id for a partition. The znode path is:
      *
      * <p>/metadata/partition_seqid

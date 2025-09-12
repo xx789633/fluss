@@ -27,7 +27,10 @@ import org.apache.fluss.exception.TooManyBucketsException;
 import org.apache.fluss.metadata.KvFormat;
 import org.apache.fluss.metadata.LogFormat;
 import org.apache.fluss.metadata.MergeEngineType;
+import org.apache.fluss.metadata.Schema;
 import org.apache.fluss.metadata.TableDescriptor;
+import org.apache.fluss.types.BigIntType;
+import org.apache.fluss.types.DataField;
 import org.apache.fluss.types.DataType;
 import org.apache.fluss.types.DataTypeRoot;
 import org.apache.fluss.types.RowType;
@@ -39,6 +42,7 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -51,7 +55,8 @@ import static org.apache.fluss.utils.PartitionUtils.PARTITION_KEY_SUPPORTED_TYPE
 
 /** Validator of {@link TableDescriptor}. */
 public class TableDescriptorValidation {
-
+    public static final String FIELDS_PREFIX = "fields";
+    public static final String AUTO_INCREMENT = "auto-increment";
     private static final Set<String> SYSTEM_COLUMNS =
             Collections.unmodifiableSet(
                     new LinkedHashSet<>(
@@ -91,6 +96,43 @@ public class TableDescriptorValidation {
         checkTieredLog(tableConf);
         checkPartition(tableConf, tableDescriptor.getPartitionKeys(), schema);
         checkSystemColumns(schema);
+        checkAutoIncrementColumn(tableDescriptor, schema);
+    }
+
+    private static void checkAutoIncrementColumn(TableDescriptor tableDescriptor, RowType schema) {
+        Map<String, String> customProperties = tableDescriptor.getCustomProperties();
+        int count = 0;
+        for (Map.Entry<String, String> entry : customProperties.entrySet()) {
+            String k = entry.getKey();
+            if (k.startsWith(FIELDS_PREFIX) && k.endsWith(AUTO_INCREMENT)) {
+                String fieldName =
+                        k.substring(
+                                FIELDS_PREFIX.length() + 1,
+                                k.length() - AUTO_INCREMENT.length() - 1);
+                if (entry.getValue().equals(Boolean.TRUE.toString())) {
+                    DataField field = schema.getField(fieldName);
+                    if (!(field.getType() instanceof BigIntType)) {
+                        throw new InvalidTableException(
+                                "The data type of the AUTO_INCREMENT column must be BIGINT.");
+                    }
+                    if (tableDescriptor.getPartitionKeys().contains(fieldName)) {
+                        throw new InvalidTableException(
+                                "The AUTO_INCREMENT column can not be used as the partition key.");
+                    }
+                    Optional<Schema.PrimaryKey> primaryKey =
+                            tableDescriptor.getSchema().getPrimaryKey();
+                    if (primaryKey.isPresent()
+                            && primaryKey.get().getColumnNames().contains(fieldName)) {
+                        throw new InvalidTableException(
+                                "The AUTO_INCREMENT column can not be used as the primary key.");
+                    }
+                    if (++count > 1) {
+                        throw new InvalidTableException(
+                                "Each table can have only one AUTO_INCREMENT column.");
+                    }
+                }
+            }
+        }
     }
 
     private static void checkSystemColumns(RowType schema) {

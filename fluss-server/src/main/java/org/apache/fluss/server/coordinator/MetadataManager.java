@@ -55,12 +55,15 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
 
+import static org.apache.fluss.server.utils.TableDescriptorValidation.AUTO_INCREMENT;
+import static org.apache.fluss.server.utils.TableDescriptorValidation.FIELDS_PREFIX;
 import static org.apache.fluss.server.utils.TableDescriptorValidation.validateTableDescriptor;
 
 /** A manager for metadata. */
@@ -260,6 +263,8 @@ public class MetadataManager {
         // validate table properties before creating table
         validateTableDescriptor(tableToCreate, maxBucketNum);
 
+        Optional<Integer> autoIncrColIdx = getAutoIncrementColumn(tableToCreate);
+
         if (!databaseExists(tablePath.getDatabaseName())) {
             throw new DatabaseNotExistException(
                     "Database " + tablePath.getDatabaseName() + " does not exist.");
@@ -272,14 +277,26 @@ public class MetadataManager {
             }
         }
 
+        int schemaId;
         // register schema to zk
         // first register a schema to the zk, if then register the table
         // to zk fails, there's no harm to register a new schema to zk again
         try {
-            zookeeperClient.registerSchema(tablePath, tableToCreate.getSchema());
+            schemaId = zookeeperClient.registerSchema(tablePath, tableToCreate.getSchema());
         } catch (Exception e) {
             throw new FlussRuntimeException(
                     "Fail to register schema when creating table " + tablePath, e);
+        }
+
+        if (autoIncrColIdx.isPresent()) {
+            try {
+                zookeeperClient.registerAutoIncrementColumn(
+                        tablePath, schemaId, autoIncrColIdx.get());
+            } catch (Exception e) {
+                throw new FlussRuntimeException(
+                        "Fail to register auto increment column when creating table " + tablePath,
+                        e);
+            }
         }
 
         // register the table, we have registered the schema whose path have contained the node for
@@ -298,6 +315,25 @@ public class MetadataManager {
                     return tableId;
                 },
                 "Fail to create table " + tablePath);
+    }
+
+    private Optional<Integer> getAutoIncrementColumn(TableDescriptor tableToCreate) {
+        Map<String, String> customProperties = tableToCreate.getCustomProperties();
+        for (Map.Entry<String, String> entry : customProperties.entrySet()) {
+            String k = entry.getKey();
+            if (k.startsWith(FIELDS_PREFIX) && k.endsWith(AUTO_INCREMENT)) {
+                String fieldName =
+                        k.substring(
+                                FIELDS_PREFIX.length() + 1,
+                                k.length() - AUTO_INCREMENT.length() - 1);
+                if (entry.getKey().equals(Boolean.TRUE.toString())) {
+                    return Optional.of(
+                            tableToCreate.getSchema()
+                                    .getColumnIndexes(Collections.singletonList(fieldName))[0]);
+                }
+            }
+        }
+        return Optional.empty();
     }
 
     public TableInfo getTable(TablePath tablePath) throws TableNotExistException {

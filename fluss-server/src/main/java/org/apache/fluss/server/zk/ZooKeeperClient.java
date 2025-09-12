@@ -597,6 +597,12 @@ public class ZooKeeperClient implements AutoCloseable {
         return currentSchemaId;
     }
 
+    public void registerAutoIncrementColumn(TablePath tablePath, int schemaId, int autoIncrColIdx)
+            throws Exception {
+        String path = ZkData.AutoIncrementColumnZNode.path(tablePath, schemaId, autoIncrColIdx);
+        ZkSequenceIDCounter counter = new ZkSequenceIDCounter(zkClient, path);
+    }
+
     /** Get the specific schema by schema id in ZK metadata. */
     public Optional<SchemaInfo> getSchemaById(TablePath tablePath, int schemaId) throws Exception {
         Optional<byte[]> bytes = getOrEmpty(SchemaZNode.path(tablePath, schemaId));
