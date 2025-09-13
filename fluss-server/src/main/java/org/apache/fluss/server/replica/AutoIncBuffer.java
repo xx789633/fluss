@@ -57,13 +57,13 @@ public class AutoIncBuffer {
     private List<Tuple2<Long, Long>> getAutoincRangesFromBuffers(MutableLong requestLength) {
         List<Tuple2<Long, Long>> result = new ArrayList<>();
         while (requestLength.getValue() > 0 && !buffers.isEmpty()) {
-            AutoIncRange autoinc_range = buffers.get(0);
+            AutoIncRange autoincRange = buffers.get(0);
             long min_length = Math.min(requestLength.getValue(), autoinc_range.getLength());
-            result.add(Tuple2.of(autoinc_range.getStart(), min_length));
-            autoinc_range.consume(min_length);
+            result.add(Tuple2.of(autoincRange.getStart(), min_length));
+            autoincRange.consume(min_length);
             this.currentVolume -= min_length;
             requestLength.subtract(min_length);
-            if (autoinc_range.empty()) {
+            if (autoincRange.empty()) {
                 buffers.remove(0);
             }
         }
@@ -80,7 +80,7 @@ public class AutoIncBuffer {
             }
             if (!this.isFetching) {
                 RETURN_IF_ERROR(
-                        _launch_async_fetch_task(std::max<size_t>(request_length, prefetchSize())));
+                        _launch_async_fetch_task(Math.max(mutableRequestLength.getValue(), prefetchSize())));
             }
             _rpc_token->wait();
             if (!_rpc_status.ok()) {
