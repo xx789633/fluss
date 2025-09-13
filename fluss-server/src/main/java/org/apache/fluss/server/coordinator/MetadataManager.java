@@ -55,15 +55,12 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
 
-import static org.apache.fluss.server.utils.TableDescriptorValidation.AUTO_INCREMENT;
-import static org.apache.fluss.server.utils.TableDescriptorValidation.FIELDS_PREFIX;
 import static org.apache.fluss.server.utils.TableDescriptorValidation.validateTableDescriptor;
 
 /** A manager for metadata. */
@@ -262,8 +259,6 @@ public class MetadataManager {
             throws TableAlreadyExistException, DatabaseNotExistException {
         // validate table properties before creating table
         validateTableDescriptor(tableToCreate, maxBucketNum);
-
-        Optional<Integer> autoIncrColIdx = getAutoIncrementColumn(tableToCreate);
 
         if (!databaseExists(tablePath.getDatabaseName())) {
             throw new DatabaseNotExistException(
