@@ -24,6 +24,7 @@ import org.apache.fluss.server.zk.data.ZkData;
 import org.apache.fluss.utils.types.Tuple2;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.apache.commons.lang3.mutable.MutableLong;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -53,15 +54,15 @@ public class AutoIncBuffer {
         this.autoIncrementColumnCounter = new ZkSequenceIDCounter(zkClient.getCuratorClient(), ZkData.AutoIncrementColumnZNode.path(tablePath, schemaId, columnIdx));
     }
 
-    private List<Tuple2<Long, Long>> getAutoincRangesFromBuffers(long request_length) {
+    private List<Tuple2<Long, Long>> getAutoincRangesFromBuffers(MutableLong requestLength) {
         List<Tuple2<Long, Long>> result = new ArrayList<>();
-        while (request_length > 0 && !buffers.isEmpty()) {
+        while (requestLength.getValue() > 0 && !buffers.isEmpty()) {
             AutoIncRange autoinc_range = buffers.get(0);
-            long min_length = Math.min(request_length, autoinc_range.getLength());
+            long min_length = Math.min(requestLength.getValue(), autoinc_range.getLength());
             result.add(Tuple2.of(autoinc_range.getStart(), min_length));
             autoinc_range.consume(min_length);
             this.currentVolume -= min_length;
-            request_length -= min_length;
+            requestLength.subtract(min_length);
             if (autoinc_range.empty()) {
                 buffers.remove(0);
             }
@@ -69,11 +70,12 @@ public class AutoIncBuffer {
         return result;
     }
 
-    public List<Tuple2<Long, Long>> syncRequestIds(long request_length) {
+    public List<Tuple2<Long, Long>> syncRequestIds(long requestLength) {
+        MutableLong mutableRequestLength = new MutableLong(requestLength);
         List<Tuple2<Long, Long>> result = new ArrayList<>();
-        while (request_length > 0) {
-            result.addAll(getAutoincRangesFromBuffers(request_length));
-            if (request_length == 0) {
+        while (mutableRequestLength.getValue() > 0) {
+            result.addAll(getAutoincRangesFromBuffers(mutableRequestLength));
+            if (mutableRequestLength.getValue() == 0) {
                 break;
             }
             if (!this.isFetching) {
@@ -97,8 +99,7 @@ public class AutoIncBuffer {
     private long low_water_level_mark() {
         return this.batchSize * this.autoIncLowWaterLevelMarkSizeRatio;
     }
-
-    private class AutoIncRange {
+    private static class AutoIncRange {
         private long start;
         private long length;
 
