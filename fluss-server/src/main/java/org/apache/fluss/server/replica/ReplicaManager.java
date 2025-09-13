@@ -1470,7 +1470,7 @@ public class ReplicaManager {
         }
     }
 
-    protected Optional<AutoIncrementColumnManager> maybeCreateAutoIncrementColumnManager(TableInfo tableInfo, ZooKeeperClient zkClient) {
+    protected Optional<AutoIncBuffer> maybeCreateAutoIncrementColumnManager(TableInfo tableInfo, ZooKeeperClient zkClient) {
         for (Map.Entry<String, String> entry : tableInfo.getCustomProperties().toMap().entrySet()) {
             String k = entry.getKey();
             if (k.startsWith(FIELDS_PREFIX) && k.endsWith(AUTO_INCREMENT)) {
@@ -1480,7 +1480,7 @@ public class ReplicaManager {
                                 k.length() - AUTO_INCREMENT.length() - 1);
                 if (entry.getValue().equals(Boolean.TRUE.toString())) {
                     int columnIdx = tableInfo.getSchema().getColumnIndexes(Collections.singletonList(fieldName))[0];
-                    return Optional.of(new AutoIncrementColumnManager(tableInfo.getTablePath(), tableInfo.getSchemaId(), columnIdx, fieldName, zkClient));
+                    return Optional.of(new AutoIncBuffer(tableInfo.getTablePath(), tableInfo.getSchemaId(), columnIdx, fieldName, zkClient));
                 }
             }
         }
@@ -1501,7 +1501,7 @@ public class ReplicaManager {
                         serverMetricGroup.addTableBucketMetricGroup(
                                 physicalTablePath, tb, isKvTable);
 
-                Optional<AutoIncrementColumnManager> autoIncrementColumnManager = maybeCreateAutoIncrementColumnManager(tableInfo, zkClient);
+                Optional<AutoIncBuffer> autoIncrementColumnManager = maybeCreateAutoIncrementColumnManager(tableInfo, zkClient);
                 Replica replica =
                         new Replica(
                                 physicalTablePath,
