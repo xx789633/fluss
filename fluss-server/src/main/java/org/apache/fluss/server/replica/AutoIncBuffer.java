@@ -26,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.commons.lang3.mutable.MutableLong;
 
+import static org.apache.fluss.utils.Preconditions.checkArgument;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -58,6 +59,7 @@ public class AutoIncBuffer {
         List<Tuple2<Long, Long>> result = new ArrayList<>();
         while (requestLength.getValue() > 0 && !buffers.isEmpty()) {
             AutoIncRange autoincRange = buffers.get(0);
+            checkArgument(autoincRange.getLength() > 0);
             long min_length = Math.min(requestLength.getValue(), autoinc_range.getLength());
             result.add(Tuple2.of(autoincRange.getStart(), min_length));
             autoincRange.consume(min_length);
@@ -71,25 +73,32 @@ public class AutoIncBuffer {
     }
 
     public List<Tuple2<Long, Long>> syncRequestIds(long requestLength) {
-        MutableLong mutableRequestLength = new MutableLong(requestLength);
+        MutableLong length = new MutableLong(requestLength);
         List<Tuple2<Long, Long>> result = new ArrayList<>();
-        while (mutableRequestLength.getValue() > 0) {
-            result.addAll(getAutoincRangesFromBuffers(mutableRequestLength));
-            if (mutableRequestLength.getValue() == 0) {
+        while (length.getValue() > 0) {
+            result.addAll(getAutoincRangesFromBuffers(length));
+            if (length.getValue() == 0) {
                 break;
             }
             if (!this.isFetching) {
                 RETURN_IF_ERROR(
-                        _launch_async_fetch_task(Math.max(mutableRequestLength.getValue(), prefetchSize())));
+                        _launch_async_fetch_task(Math.max(length.getValue(), prefetchSize())));
             }
             _rpc_token->wait();
+            checkArgument(isFetching);
             if (!_rpc_status.ok()) {
                 return _rpc_status;
             }
         }
+        checkArgument(length.getValue() == 0);
         if (!isFetching && currentVolume < low_water_level_mark()) {
             RETURN_IF_ERROR(_launch_async_fetch_task(prefetchSize()));
         }
+    }
+
+    public long nextVal() {
+        List<Tuple2<Long, Long>> res = syncRequestIds(1);
+        return res.get(0).f0;
     }
 
     private long prefetchSize() {
