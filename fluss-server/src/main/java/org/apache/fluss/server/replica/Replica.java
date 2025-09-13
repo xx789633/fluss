@@ -183,6 +183,7 @@ public final class Replica {
      */
     private final Map<Integer, FollowerReplica> followerReplicasMap =
             MapUtils.newConcurrentHashMap();
+    private final @Nullable AutoIncrementColumnManager autoIncrementColumnManager;
 
     private volatile IsrState isrState = new IsrState.CommittedIsrState(Collections.emptyList());
     private volatile int leaderEpoch = LeaderAndIsr.INITIAL_LEADER_EPOCH - 1;
@@ -215,7 +216,7 @@ public final class Replica {
             FatalErrorHandler fatalErrorHandler,
             BucketMetricGroup bucketMetricGroup,
             TableInfo tableInfo,
-            Clock clock)
+            Clock clock, AutoIncrementColumnManager autoIncrementColumnManager)
             throws Exception {
         this.physicalPath = physicalPath;
         this.tableBucket = tableBucket;
@@ -240,6 +241,7 @@ public final class Replica {
 
         this.logTablet = createLog(lazyHighWatermarkCheckpoint);
         this.clock = clock;
+        this.autoIncrementColumnManager = autoIncrementColumnManager;
         registerMetrics();
     }
 

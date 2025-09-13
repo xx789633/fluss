@@ -23,6 +23,7 @@ import org.apache.fluss.config.Configuration;
 import org.apache.fluss.exception.FencedLeaderEpochException;
 import org.apache.fluss.exception.InvalidCoordinatorException;
 import org.apache.fluss.exception.InvalidRequiredAcksException;
+import org.apache.fluss.exception.InvalidTableException;
 import org.apache.fluss.exception.LogOffsetOutOfRangeException;
 import org.apache.fluss.exception.LogStorageException;
 import org.apache.fluss.exception.NotLeaderOrFollowerException;
@@ -30,6 +31,7 @@ import org.apache.fluss.exception.StorageException;
 import org.apache.fluss.exception.UnknownTableOrBucketException;
 import org.apache.fluss.fs.FsPath;
 import org.apache.fluss.metadata.PhysicalTablePath;
+import org.apache.fluss.metadata.Schema;
 import org.apache.fluss.metadata.TableBucket;
 import org.apache.fluss.metadata.TableInfo;
 import org.apache.fluss.metadata.TablePath;
@@ -93,6 +95,8 @@ import org.apache.fluss.server.replica.fetcher.ReplicaFetcherManager;
 import org.apache.fluss.server.utils.FatalErrorHandler;
 import org.apache.fluss.server.zk.ZooKeeperClient;
 import org.apache.fluss.server.zk.data.LakeTableSnapshot;
+import org.apache.fluss.types.BigIntType;
+import org.apache.fluss.types.DataField;
 import org.apache.fluss.utils.FileUtils;
 import org.apache.fluss.utils.FlussPaths;
 import org.apache.fluss.utils.MapUtils;
@@ -124,6 +128,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.apache.fluss.server.TabletManagerBase.getTableInfo;
+import static org.apache.fluss.server.utils.TableDescriptorValidation.AUTO_INCREMENT;
+import static org.apache.fluss.server.utils.TableDescriptorValidation.FIELDS_PREFIX;
 import static org.apache.fluss.utils.FileUtils.isDirectoryEmpty;
 import static org.apache.fluss.utils.Preconditions.checkState;
 import static org.apache.fluss.utils.concurrent.LockUtils.inLock;
@@ -1464,6 +1470,23 @@ public class ReplicaManager {
         }
     }
 
+    protected Optional<AutoIncrementColumnManager> maybeCreateAutoIncrementColumnManager(TableInfo tableInfo, ZooKeeperClient zkClient) {
+        for (Map.Entry<String, String> entry : tableInfo.getCustomProperties().toMap().entrySet()) {
+            String k = entry.getKey();
+            if (k.startsWith(FIELDS_PREFIX) && k.endsWith(AUTO_INCREMENT)) {
+                String fieldName =
+                        k.substring(
+                                FIELDS_PREFIX.length() + 1,
+                                k.length() - AUTO_INCREMENT.length() - 1);
+                if (entry.getValue().equals(Boolean.TRUE.toString())) {
+                    int columnIdx = tableInfo.getSchema().getColumnIndexes(Collections.singletonList(fieldName))[0];
+                    return Optional.of(new AutoIncrementColumnManager(tableInfo.getTablePath(), tableInfo.getSchemaId(), columnIdx, fieldName, zkClient));
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
     protected Optional<Replica> maybeCreateReplica(NotifyLeaderAndIsrData data) {
         Optional<Replica> replicaOpt = Optional.empty();
         try {
@@ -1477,6 +1500,8 @@ public class ReplicaManager {
                 BucketMetricGroup bucketMetricGroup =
                         serverMetricGroup.addTableBucketMetricGroup(
                                 physicalTablePath, tb, isKvTable);
+
+                Optional<AutoIncrementColumnManager> autoIncrementColumnManager = maybeCreateAutoIncrementColumnManager(tableInfo, zkClient);
                 Replica replica =
                         new Replica(
                                 physicalTablePath,
@@ -1496,7 +1521,7 @@ public class ReplicaManager {
                                 fatalErrorHandler,
                                 bucketMetricGroup,
                                 tableInfo,
-                                clock);
+                                clock, autoIncrementColumnManager.orElse(null));
                 allReplicas.put(tb, new OnlineReplica(replica));
                 replicaOpt = Optional.of(replica);
             } else if (hostedReplica instanceof OnlineReplica) {

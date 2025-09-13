@@ -59,4 +59,13 @@ public class ZkSequenceIDCounter implements SequenceIDCounter {
             throw new Exception("Failed to increment sequence id counter.");
         }
     }
+
+    public long getAndAdd(Long delta) throws Exception {
+        AtomicValue<Long> incrementValue = sequenceIdCounter.add(delta);
+        if (incrementValue.succeeded()) {
+            return incrementValue.preValue();
+        } else {
+            throw new Exception("Failed to add sequence id counter.");
+        }
+    }
 }
