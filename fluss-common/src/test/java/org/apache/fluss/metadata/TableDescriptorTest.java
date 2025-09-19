@@ -316,4 +316,7 @@ class TableDescriptorTest {
                 .hasMessage(
                         "Bucket key [f0, f3] shouldn't include any column in partition keys [f0].");
     }
+
+    @Test
+    void testAutoIncColumns() {}
 }

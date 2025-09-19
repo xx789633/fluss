@@ -189,7 +189,11 @@ public class ReplicaTestBase {
 
         kvManager =
                 KvManager.create(
-                        conf, zkClient, logManager, TestingMetricGroups.TABLET_SERVER_METRICS);
+                        conf,
+                        zkClient,
+                        logManager,
+                        TestingMetricGroups.TABLET_SERVER_METRICS,
+                        scheduler);
         kvManager.startup();
 
         serverMetadataCache =
@@ -466,7 +470,8 @@ public class ReplicaTestBase {
                 NOPErrorHandler.INSTANCE,
                 metricGroup,
                 DATA1_TABLE_INFO,
-                manualClock);
+                manualClock,
+                null);
     }
 
     private void initRemoteLogEnv() throws Exception {

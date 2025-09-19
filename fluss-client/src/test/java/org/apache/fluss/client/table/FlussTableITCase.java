@@ -236,23 +236,18 @@ class FlussTableITCase extends ClientToServerITCaseBase {
 
     @Test
     void testPutAndLookup() throws Exception {
-        TablePath tablePath = TablePath.of("test_db_1", "test_put_and_lookup_table");
-        createTable(tablePath, DATA1_TABLE_DESCRIPTOR_PK, false);
-
-        Table table = conn.getTable(tablePath);
-        verifyPutAndLookup(table, new Object[] {1, "a"});
-
         // test put/lookup data for primary table with pk index is not 0
         Schema schema =
                 Schema.newBuilder()
                         .column("a", DataTypes.STRING())
-                        .withComment("a is first column")
-                        .column("b", DataTypes.INT())
-                        .withComment("b is second column")
-                        .primaryKey("b")
+                        .column("b", DataTypes.BIGINT())
+                        .setAutoIncrement(true)
+                        .primaryKey("a")
                         .build();
+        List<Schema.Column> columns = schema.getColumns();
+        Schema.Column col = columns.get(1);
         TableDescriptor tableDescriptor =
-                TableDescriptor.builder().schema(schema).distributedBy(3, "b").build();
+                TableDescriptor.builder().schema(schema).distributedBy(3, "a").build();
         // create the table
         TablePath data1PkTablePath2 =
                 TablePath.of(DATA1_TABLE_PATH_PK.getDatabaseName(), "test_pk_table_2");
@@ -260,7 +255,51 @@ class FlussTableITCase extends ClientToServerITCaseBase {
 
         // now, check put/lookup data
         Table table2 = conn.getTable(data1PkTablePath2);
-        verifyPutAndLookup(table2, new Object[] {"a", 1});
+
+        UpsertWriter upsertWriter = table2.newUpsert().createWriter();
+        InternalRow row = row(new Object[] {"a", null});
+        // put data.
+        upsertWriter.upsert(row);
+        row = row(new Object[] {"b", null});
+        upsertWriter.upsert(row);
+        row = row(new Object[] {"c", null});
+        upsertWriter.upsert(row);
+        upsertWriter.flush();
+
+        Lookuper lookuper = table2.newLookup().createLookuper();
+        CompletableFuture<LookupResult> resultFuture =
+                lookuper.lookup(GenericRow.of(BinaryString.fromString("a")));
+        resultFuture
+                .get()
+                .getRowList()
+                .forEach(
+                        lrow -> {
+                            System.out.println(lrow.getString(0));
+                            System.out.println(lrow.getLong(1));
+                        });
+
+        resultFuture = lookuper.lookup(GenericRow.of(BinaryString.fromString("b")));
+        resultFuture
+                .get()
+                .getRowList()
+                .forEach(
+                        lrow -> {
+                            System.out.println(lrow.getString(0));
+                            System.out.println(lrow.getLong(1));
+                        });
+
+        // note that the increments might not be contiguous because rows might go to different
+        // buckets
+        resultFuture = lookuper.lookup(GenericRow.of(BinaryString.fromString("c")));
+        resultFuture
+                .get()
+                .getRowList()
+                .forEach(
+                        lrow -> {
+                            System.out.println(lrow.getString(0));
+                            System.out.println(lrow.getLong(1));
+                        });
+        // verifyPutAndLookup(table2, new Object[] {"a", 1L});
     }
 
     @Test

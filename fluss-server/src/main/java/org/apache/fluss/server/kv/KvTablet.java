@@ -38,6 +38,7 @@ import org.apache.fluss.row.arrow.ArrowWriterPool;
 import org.apache.fluss.row.arrow.ArrowWriterProvider;
 import org.apache.fluss.row.encode.ValueDecoder;
 import org.apache.fluss.row.encode.ValueEncoder;
+import org.apache.fluss.server.kv.partialupdate.AutoIncColUpdater;
 import org.apache.fluss.server.kv.prewrite.KvPreWriteBuffer;
 import org.apache.fluss.server.kv.prewrite.KvPreWriteBuffer.TruncateReason;
 import org.apache.fluss.server.kv.rocksdb.RocksDBKv;
@@ -53,6 +54,7 @@ import org.apache.fluss.server.kv.wal.WalBuilder;
 import org.apache.fluss.server.log.LogAppendInfo;
 import org.apache.fluss.server.log.LogTablet;
 import org.apache.fluss.server.metrics.group.TabletServerMetricGroup;
+import org.apache.fluss.server.replica.AutoIncIDBuffer;
 import org.apache.fluss.server.utils.FatalErrorHandler;
 import org.apache.fluss.shaded.arrow.org.apache.arrow.memory.BufferAllocator;
 import org.apache.fluss.types.DataType;
@@ -107,6 +109,9 @@ public final class KvTablet {
     private final RowMerger rowMerger;
     private final ArrowCompressionInfo arrowCompressionInfo;
 
+    private @Nullable AutoIncIDBuffer autoIncIDBuffer = null;
+    private @Nullable AutoIncColUpdater autoIncUpdater = null;
+
     /**
      * The kv data in pre-write buffer whose log offset is less than the flushedLogOffset has been
      * flushed into kv.
@@ -130,7 +135,8 @@ public final class KvTablet {
             KvFormat kvFormat,
             Schema schema,
             RowMerger rowMerger,
-            ArrowCompressionInfo arrowCompressionInfo) {
+            ArrowCompressionInfo arrowCompressionInfo,
+            AutoIncIDBuffer autoIncIDBuffer) {
         this.physicalPath = physicalPath;
         this.tableBucket = tableBucket;
         this.logTablet = logTablet;
@@ -145,6 +151,11 @@ public final class KvTablet {
         this.schema = schema;
         this.rowMerger = rowMerger;
         this.arrowCompressionInfo = arrowCompressionInfo;
+        if (autoIncIDBuffer != null) {
+            this.autoIncIDBuffer = autoIncIDBuffer;
+            this.autoIncUpdater =
+                    new AutoIncColUpdater(kvFormat, schema, autoIncIDBuffer.getColumnIdx());
+        }
     }
 
     public static KvTablet create(
@@ -157,7 +168,8 @@ public final class KvTablet {
             KvFormat kvFormat,
             Schema schema,
             RowMerger rowMerger,
-            ArrowCompressionInfo arrowCompressionInfo)
+            ArrowCompressionInfo arrowCompressionInfo,
+            AutoIncIDBuffer autoIncIDBuffer)
             throws IOException {
         Tuple2<PhysicalTablePath, TableBucket> tablePathAndBucket =
                 FlussPaths.parseTabletDir(kvTabletDir);
@@ -173,7 +185,8 @@ public final class KvTablet {
                 kvFormat,
                 schema,
                 rowMerger,
-                arrowCompressionInfo);
+                arrowCompressionInfo,
+                autoIncIDBuffer);
     }
 
     public static KvTablet create(
@@ -188,7 +201,8 @@ public final class KvTablet {
             KvFormat kvFormat,
             Schema schema,
             RowMerger rowMerger,
-            ArrowCompressionInfo arrowCompressionInfo)
+            ArrowCompressionInfo arrowCompressionInfo,
+            AutoIncIDBuffer autoIncIDBuffer)
             throws IOException {
         RocksDBKv kv = buildRocksDBKv(serverConf, kvTabletDir);
         return new KvTablet(
@@ -205,7 +219,8 @@ public final class KvTablet {
                 kvFormat,
                 schema,
                 rowMerger,
-                arrowCompressionInfo);
+                arrowCompressionInfo,
+                autoIncIDBuffer);
     }
 
     private static RocksDBKv buildRocksDBKv(Configuration configuration, File kvDir)
@@ -333,6 +348,12 @@ public final class KvTablet {
                                     // TODO: we should add guarantees that all non-specified columns
                                     //  of the input row are set to null.
                                     BinaryRow newRow = kvRecord.getRow();
+
+                                    if (autoIncIDBuffer != null) {
+                                        long nextVal = autoIncIDBuffer.nextVal();
+                                        newRow = autoIncUpdater.updateRow(newRow, nextVal);
+                                    }
+
                                     walBuilder.append(ChangeType.INSERT, newRow);
                                     kvPreWriteBuffer.put(
                                             key,

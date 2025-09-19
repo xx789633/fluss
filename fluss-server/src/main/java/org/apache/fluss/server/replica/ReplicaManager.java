@@ -30,6 +30,7 @@ import org.apache.fluss.exception.StorageException;
 import org.apache.fluss.exception.UnknownTableOrBucketException;
 import org.apache.fluss.fs.FsPath;
 import org.apache.fluss.metadata.PhysicalTablePath;
+import org.apache.fluss.metadata.Schema;
 import org.apache.fluss.metadata.TableBucket;
 import org.apache.fluss.metadata.TableInfo;
 import org.apache.fluss.metadata.TablePath;
@@ -1464,6 +1465,26 @@ public class ReplicaManager {
         }
     }
 
+    protected Optional<AutoIncIDBuffer> maybeCreateAutoIncIdBuffer(
+            TableInfo tableInfo, ZooKeeperClient zkClient) {
+        List<Schema.Column> columns = tableInfo.getSchema().getColumns();
+        for (int i = 0; i < columns.size(); i++) {
+            Schema.Column column = columns.get(i);
+            if (column.isAutoInc()) {
+                return Optional.of(
+                        new AutoIncIDBuffer(
+                                tableInfo.getTablePath(),
+                                tableInfo.getSchemaId(),
+                                i,
+                                column.getName(),
+                                zkClient,
+                                scheduler,
+                                tableInfo.getProperties()));
+            }
+        }
+        return Optional.empty();
+    }
+
     protected Optional<Replica> maybeCreateReplica(NotifyLeaderAndIsrData data) {
         Optional<Replica> replicaOpt = Optional.empty();
         try {
@@ -1477,6 +1498,9 @@ public class ReplicaManager {
                 BucketMetricGroup bucketMetricGroup =
                         serverMetricGroup.addTableBucketMetricGroup(
                                 physicalTablePath, tb, isKvTable);
+
+                Optional<AutoIncIDBuffer> autoIncIdBuffer =
+                        maybeCreateAutoIncIdBuffer(tableInfo, zkClient);
                 Replica replica =
                         new Replica(
                                 physicalTablePath,
@@ -1496,7 +1520,8 @@ public class ReplicaManager {
                                 fatalErrorHandler,
                                 bucketMetricGroup,
                                 tableInfo,
-                                clock);
+                                clock,
+                                autoIncIdBuffer.orElse(null));
                 allReplicas.put(tb, new OnlineReplica(replica));
                 replicaOpt = Optional.of(replica);
             } else if (hostedReplica instanceof OnlineReplica) {
