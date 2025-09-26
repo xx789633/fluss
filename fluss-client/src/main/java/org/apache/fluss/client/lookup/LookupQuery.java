@@ -32,7 +32,11 @@ public class LookupQuery extends AbstractLookupQuery<byte[]> {
     private final CompletableFuture<byte[]> future;
 
     LookupQuery(TableBucket tableBucket, byte[] key) {
-        super(tableBucket, key);
+        this(tableBucket, key, false);
+    }
+
+    LookupQuery(TableBucket tableBucket, byte[] key, boolean insertIfNotExists) {
+        super(tableBucket, key, insertIfNotExists);
         this.future = new CompletableFuture<>();
     }
 

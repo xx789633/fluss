@@ -77,8 +77,8 @@ public class LookupClient {
         return Executors.newFixedThreadPool(1, new ExecutorThreadFactory(LOOKUP_THREAD_PREFIX));
     }
 
-    public CompletableFuture<byte[]> lookup(TableBucket tableBucket, byte[] keyBytes) {
-        LookupQuery lookup = new LookupQuery(tableBucket, keyBytes);
+    public CompletableFuture<byte[]> lookup(TableBucket tableBucket, byte[] keyBytes, boolean insertIfNotExists) {
+        LookupQuery lookup = new LookupQuery(tableBucket, keyBytes, insertIfNotExists);
         lookupQueue.appendLookup(lookup);
         return lookup.future();
     }

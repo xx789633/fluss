@@ -32,10 +32,11 @@ public class TableLookup implements Lookup {
     private final LookupClient lookupClient;
 
     @Nullable private final List<String> lookupColumnNames;
+    private final boolean insertIfNotExists;
 
     public TableLookup(
             TableInfo tableInfo, MetadataUpdater metadataUpdater, LookupClient lookupClient) {
-        this(tableInfo, metadataUpdater, lookupClient, null);
+        this(tableInfo, metadataUpdater, lookupClient, null, false);
     }
 
     private TableLookup(
@@ -43,10 +44,19 @@ public class TableLookup implements Lookup {
             MetadataUpdater metadataUpdater,
             LookupClient lookupClient,
             @Nullable List<String> lookupColumnNames) {
+        this(tableInfo, metadataUpdater, lookupClient, lookupColumnNames, false);
+    }
+
+    private TableLookup(
+            TableInfo tableInfo,
+            MetadataUpdater metadataUpdater,
+            LookupClient lookupClient,
+            @Nullable List<String> lookupColumnNames, boolean insertIfNotExists) {
         this.tableInfo = tableInfo;
         this.metadataUpdater = metadataUpdater;
         this.lookupClient = lookupClient;
         this.lookupColumnNames = lookupColumnNames;
+        this.insertIfNotExists = insertIfNotExists;
     }
 
     @Override
@@ -55,9 +65,14 @@ public class TableLookup implements Lookup {
     }
 
     @Override
+    public Lookup insertIfNotExists() {
+        return new TableLookup(tableInfo, metadataUpdater, lookupClient, lookupColumnNames, true);
+    }
+
+    @Override
     public Lookuper createLookuper() {
         if (lookupColumnNames == null) {
-            return new PrimaryKeyLookuper(tableInfo, metadataUpdater, lookupClient);
+            return new PrimaryKeyLookuper(tableInfo, metadataUpdater, lookupClient, insertIfNotExists);
         } else {
             return new PrefixKeyLookuper(
                     tableInfo, metadataUpdater, lookupClient, lookupColumnNames);
