@@ -73,6 +73,7 @@ import javax.annotation.concurrent.ThreadSafe;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -567,5 +568,24 @@ public final class KvTablet {
     @VisibleForTesting
     public RocksDBKv getRocksDBKv() {
         return rocksDBKv;
+    }
+
+    public void checkInsertIfNotExists(List<byte[]> nullKeys) {
+        List<byte[]> values = new ArrayList<>();
+        inWriteLock(
+                kvLock,
+                () -> {
+                    for (byte[] key : nullKeys) {
+                        byte[] rocksdbValue = rocksDBKv.get(key);
+                        if (rocksdbValue != null) {
+                            values.add(rocksdbValue);
+                        } else {
+                            KvPreWriteBuffer.KvEntry preWriteEntry = kvPreWriteBuffer.getEntry(KvPreWriteBuffer.Key.of(key));
+                            if (preWriteEntry == null) {
+                                // do real insert
+                            }
+                        }
+                    }
+                });
     }
 }

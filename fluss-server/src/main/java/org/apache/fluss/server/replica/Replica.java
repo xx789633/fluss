@@ -1075,6 +1075,7 @@ public final class Replica {
             throw new NonPrimaryKeyTableException(
                     "the primary key table not exists for " + tableBucket);
         }
+
         return inReadLock(
                 leaderIsrUpdateLock,
                 () -> {
@@ -1087,7 +1088,22 @@ public final class Replica {
                         }
                         checkNotNull(
                                 kvTablet, "KvTablet for the replica to get key shouldn't be null.");
-                        return kvTablet.multiGet(keys);
+                        List<byte[]> values = kvTablet.multiGet(keys);
+
+                        // 找出 values 中为 null 的 key
+                        List<byte[]> nullKeys = new ArrayList<>();
+                        for (int i = 0; i < values.size(); i++) {
+                            if (values.get(i) == null) {
+                                nullKeys.add(keys.get(i)); // 获取对应索引的 key
+                            }
+                        }
+                        boolean insertIfNotExists = true;
+                        if (insertIfNotExists) {
+
+                            KvTablet kv = this.kvTablet;
+                            kv.checkInsertIfNotExists(nullKeys);
+                        }
+                        return values;
                     } catch (IOException e) {
                         String errorMsg =
                                 String.format(

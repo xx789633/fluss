@@ -167,6 +167,12 @@ public class KvPreWriteBuffer implements AutoCloseable {
         return kvEntry == null ? null : kvEntry.getValue();
     }
 
+    public @Nullable KvEntry getEntry(Key key) {
+        KvEntry kvEntry = kvEntryMap.get(key);
+
+        return kvEntry;
+    }
+
     /**
      * Truncate the buffer to the given log sequence number so that it only contains key-value pairs
      * whose log sequence number is less than the given log sequence number.
