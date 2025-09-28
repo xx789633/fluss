@@ -97,7 +97,7 @@ public class AutoIncIDBuffer {
                 long minLength = Math.min(requestLength.getValue(), autoincRange.getLength());
                 result.add(Tuple2.of(autoincRange.getStart(), minLength));
                 autoincRange.consume(minLength);
-                this.currentVolume -= minLength;
+                currentVolume -= minLength;
                 requestLength.subtract(minLength);
                 if (autoincRange.empty()) {
                     buffers.remove(0);
@@ -116,30 +116,26 @@ public class AutoIncIDBuffer {
         MutableLong length = new MutableLong(requestLength);
         List<Tuple2<Long, Long>> result = new ArrayList<>();
         while (length.getValue() > 0) {
-            List<Tuple2<Long, Long>> x = getAutoIncRangesFromBuffers(length);
-            result.addAll(x);
+            result.addAll(getAutoIncRangesFromBuffers(length));
             if (length.getValue() == 0) {
                 break;
             }
             if (!isFetching) {
                 prefetchTask =
                         fetchAutoincIdScheduler.scheduleOnce(
-                                "AutoIncIDBuffer::launchAsyncFetchTask",
+                                "fetch-ids-from-zk",
                                 () ->
                                         launchAsyncFetchTask(
-                                                Math.max(
-                                                        length.getValue(),
-                                                        this.prefetchBatchSize)));
+                                                Math.max(length.getValue(), prefetchBatchSize)));
             }
-            this.prefetchTask.get();
+            prefetchTask.get();
             checkArgument(!isFetching);
         }
         checkArgument(length.getValue() == 0);
         if (!isFetching && currentVolume < lowWaterLevelMark()) {
             prefetchTask =
                     fetchAutoincIdScheduler.scheduleOnce(
-                            "AutoIncIDBuffer::launchAsyncFetchTask",
-                            () -> launchAsyncFetchTask(prefetchBatchSize));
+                            "fetch-ids-from-zk", () -> launchAsyncFetchTask(prefetchBatchSize));
         }
         return result;
     }

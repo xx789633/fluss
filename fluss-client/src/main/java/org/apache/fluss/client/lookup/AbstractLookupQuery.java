@@ -28,15 +28,18 @@ public abstract class AbstractLookupQuery<T> {
 
     private final TableBucket tableBucket;
     private final byte[] key;
+    private final boolean insertIfNotExists;
 
-    public AbstractLookupQuery(TableBucket tableBucket, byte[] key) {
+    public AbstractLookupQuery(TableBucket tableBucket, byte[] key, boolean insertIfNotExists) {
         this.tableBucket = tableBucket;
         this.key = key;
+        this.insertIfNotExists = insertIfNotExists;
     }
 
     public byte[] key() {
         return key;
     }
+    public boolean insertIfNotExists() {return insertIfNotExists;}
 
     public TableBucket tableBucket() {
         return tableBucket;

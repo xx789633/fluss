@@ -89,6 +89,11 @@ public interface Lookup {
     }
 
     /**
+     * enable insertIfNotExists
+     */
+    Lookup insertIfNotExists();
+
+    /**
      * Creates a {@link Lookuper} instance to lookup rows of a primary key table by the specified
      * lookup columns. By default, the lookup columns are the primary key columns, but can be
      * changed with ({@link #lookupBy(List)}) method.

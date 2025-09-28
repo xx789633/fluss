@@ -64,9 +64,10 @@ class PrimaryKeyLookuper implements Lookuper {
 
     /** Decode the lookup bytes to result row. */
     private final ValueDecoder kvValueDecoder;
+    private final boolean insertIfNotExists;
 
     public PrimaryKeyLookuper(
-            TableInfo tableInfo, MetadataUpdater metadataUpdater, LookupClient lookupClient) {
+            TableInfo tableInfo, MetadataUpdater metadataUpdater, LookupClient lookupClient, boolean insertIfNotExists) {
         checkArgument(
                 tableInfo.hasPrimaryKey(),
                 "Log table %s doesn't support lookup",
@@ -75,6 +76,7 @@ class PrimaryKeyLookuper implements Lookuper {
         this.numBuckets = tableInfo.getNumBuckets();
         this.metadataUpdater = metadataUpdater;
         this.lookupClient = lookupClient;
+        this.insertIfNotExists = insertIfNotExists;
 
         // the row type of the input lookup row
         RowType lookupRowType = tableInfo.getRowType().project(tableInfo.getPrimaryKeys());
@@ -126,7 +128,7 @@ class PrimaryKeyLookuper implements Lookuper {
         int bucketId = bucketingFunction.bucketing(bkBytes, numBuckets);
         TableBucket tableBucket = new TableBucket(tableInfo.getTableId(), partitionId, bucketId);
         return lookupClient
-                .lookup(tableBucket, pkBytes)
+                .lookup(tableBucket, pkBytes, insertIfNotExists)
                 .thenApply(
                         valueBytes -> {
                             InternalRow row =
