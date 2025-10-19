@@ -64,6 +64,37 @@ public class KvBatchScanner implements BatchScanner {
 
     private boolean endOfInput;
 
+
+    private final boolean prefetching;
+    private final long keepAlivePeriodMs;
+    private boolean closed = false;
+    private boolean canRequestMore = true;
+    private long numRowsReturned = 0;
+
+    /**
+     * This is the scanner ID we got from the TabletServer.
+     * It's generated randomly so any value is possible.
+     */
+    private byte[] scannerId;
+
+    /**
+     * The sequence ID of this call. The sequence ID should start at 0
+     * with the request for a new scanner, and after each successful request,
+     * the client should increment it by 1. When retrying a request, the client
+     * should _not_ increment this value. If the server detects that the client
+     * missed a chunk of rows from the middle of a scan, it will respond with an
+     * error.
+     */
+    private int sequenceId;
+
+    /**
+     * The tablet currently being scanned.
+     * If null, we haven't started scanning.
+     * If == DONE, then we're done scanning.
+     * Otherwise it contains a proper tablet name, and we're currently scanning.
+     */
+    private TableBucket tablet;
+
     public KvBatchScanner(
             TableInfo tableInfo,
             TableBucket tableBucket,
