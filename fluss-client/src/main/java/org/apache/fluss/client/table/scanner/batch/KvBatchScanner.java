@@ -107,6 +107,7 @@ public class KvBatchScanner implements BatchScanner {
         this.tableInfo = tableInfo;
         this.projectedFields = projectedFields;
         this.limit = limit;
+        this.tablet = tableBucket;
 
         RowType rowType = tableInfo.getRowType();
         this.fieldGetters = new InternalRow.FieldGetter[rowType.getFieldCount()];
@@ -135,16 +136,21 @@ public class KvBatchScanner implements BatchScanner {
     PBScanReq getOpenRequest() {
         checkScanningNotStarted();
         return createRequestPB(
-                State.OPENING
+                State.OPENING, tablet
         );
     }
 
-    PBScanReq createRequestPB(State state) {
+    PBScanReq createRequestPB(State state, TableBucket tableBucket) {
         PBScanReq builder =
                 new PBScanReq();
         switch (state) {
             case OPENING:
                 PBNewScanReq newBuilder = new PBNewScanReq();
+                newBuilder.setTableId(tableBucket.getTableId());
+                newBuilder.setBucketId(tableBucket.getBucket());
+                if (tableBucket.getPartitionId() != null) {
+                    newBuilder.setPartitionId(tableBucket.getPartitionId());
+                }
                 newBuilder.setLimit(limit - this.numRowsReturned);
                 builder.setNewScanRequest(newBuilder)
                         .setBatchSizeBytes(this.batchSizeBytes);
