@@ -18,7 +18,6 @@
 package org.apache.fluss.client.table.scanner.batch;
 
 import org.apache.fluss.client.metadata.MetadataUpdater;
-import org.apache.fluss.exception.LeaderNotAvailableException;
 import org.apache.fluss.metadata.TableBucket;
 import org.apache.fluss.metadata.TableInfo;
 import org.apache.fluss.record.DefaultValueRecordBatch;
@@ -34,9 +33,9 @@ import org.apache.fluss.row.InternalRow;
 import org.apache.fluss.row.ProjectedRow;
 import org.apache.fluss.row.decode.RowDecoder;
 import org.apache.fluss.row.encode.ValueDecoder;
-import org.apache.fluss.rpc.gateway.TabletServerGateway;
-import org.apache.fluss.rpc.messages.LimitScanRequest;
 import org.apache.fluss.rpc.messages.LimitScanResponse;
+import org.apache.fluss.rpc.messages.PBNewScanReq;
+import org.apache.fluss.rpc.messages.PBScanReq;
 import org.apache.fluss.types.DataType;
 import org.apache.fluss.types.RowType;
 import org.apache.fluss.utils.CloseableIterator;
@@ -64,6 +63,10 @@ public class KvBatchScanner implements BatchScanner {
 
     private boolean endOfInput;
 
+    /**
+     * Maximum number of bytes returned by the scanner, on each batch.
+     */
+    private final int batchSizeBytes = 10000;
 
     private final boolean prefetching = true;
     private final long keepAlivePeriodMs = 1000;
@@ -119,9 +122,67 @@ public class KvBatchScanner implements BatchScanner {
         this.endOfInput = false;
     }
 
+
+    private enum State {
+        OPENING,
+        NEXT,
+        CLOSING
+    }
+
+    /**
+     * Returns an RPC to open this scanner.
+     */
+    PBScanReq getOpenRequest() {
+        checkScanningNotStarted();
+        return createRequestPB(
+                State.OPENING
+        );
+    }
+
+    PBScanReq createRequestPB(State state) {
+        PBScanReq builder =
+                new PBScanReq();
+        switch (state) {
+            case OPENING:
+                PBNewScanReq newBuilder = new PBNewScanReq();
+                newBuilder.setLimit(limit - this.numRowsReturned);
+                builder.setNewScanRequest(newBuilder)
+                        .setBatchSizeBytes(this.batchSizeBytes);
+                break;
+            case NEXT:
+                builder.setScannerId(scannerId)
+                        .setCallSeqId(this.sequenceId)
+                        .setBatchSizeBytes(batchSizeBytes);
+                break;
+            case CLOSING:
+                builder.setScannerId(scannerId)
+                        .setBatchSizeBytes(0)
+                        .setCloseScanner(true);
+                break;
+            default:
+                throw new RuntimeException("unreachable!");
+        }
+
+        return builder;
+    }
+
+    /**
+     * Throws an exception if scanning already started.
+     * @throws IllegalStateException if scanning already started.
+     */
+    private void checkScanningNotStarted() {
+        if (tablet != null) {
+            throw new IllegalStateException("scanning already started");
+        }
+    }
+
+
     @Nullable
     @Override
     public CloseableIterator<InternalRow> pollBatch(Duration timeout) throws IOException {
+
+
+
         if (endOfInput) {
             return null;
         }
