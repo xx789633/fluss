@@ -59,14 +59,14 @@ public class KvBatchScanner implements BatchScanner {
     @Nullable private final int[] projectedFields;
     private final int limit;
     private final InternalRow.FieldGetter[] fieldGetters;
-    private final CompletableFuture<LimitScanResponse> scanFuture;
+    private CompletableFuture<LimitScanResponse> scanFuture;
     private final ValueDecoder kvValueDecoder;
 
     private boolean endOfInput;
 
 
-    private final boolean prefetching;
-    private final long keepAlivePeriodMs;
+    private final boolean prefetching = true;
+    private final long keepAlivePeriodMs = 1000;
     private boolean closed = false;
     private boolean canRequestMore = true;
     private long numRowsReturned = 0;
@@ -110,27 +110,6 @@ public class KvBatchScanner implements BatchScanner {
         for (int i = 0; i < rowType.getFieldCount(); i++) {
             this.fieldGetters[i] = InternalRow.createFieldGetter(rowType.getTypeAt(i), i);
         }
-
-        LimitScanRequest limitScanRequest =
-                new LimitScanRequest()
-                        .setTableId(tableBucket.getTableId())
-                        .setBucketId(tableBucket.getBucket())
-                        .setLimit(limit);
-
-        if (tableBucket.getPartitionId() != null) {
-            limitScanRequest.setPartitionId(tableBucket.getPartitionId());
-            metadataUpdater.checkAndUpdateMetadata(tableInfo.getTablePath(), tableBucket);
-        }
-
-        // because that rocksdb is not suitable to projection, thus do it in client.
-        int leader = metadataUpdater.leaderFor(tableBucket);
-        TabletServerGateway gateway = metadataUpdater.newTabletServerClientForNode(leader);
-        if (gateway == null) {
-            // TODO handle this exception, like retry.
-            throw new LeaderNotAvailableException(
-                    "Server " + leader + " is not found in metadata cache.");
-        }
-        this.scanFuture = gateway.limitScan(limitScanRequest);
 
         this.kvValueDecoder =
                 new ValueDecoder(
