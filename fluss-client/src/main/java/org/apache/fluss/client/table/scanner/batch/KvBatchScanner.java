@@ -18,6 +18,7 @@
 package org.apache.fluss.client.table.scanner.batch;
 
 import org.apache.fluss.client.metadata.MetadataUpdater;
+import org.apache.fluss.exception.LeaderNotAvailableException;
 import org.apache.fluss.metadata.TableBucket;
 import org.apache.fluss.metadata.TableInfo;
 import org.apache.fluss.record.DefaultValueRecordBatch;
@@ -33,9 +34,11 @@ import org.apache.fluss.row.InternalRow;
 import org.apache.fluss.row.ProjectedRow;
 import org.apache.fluss.row.decode.RowDecoder;
 import org.apache.fluss.row.encode.ValueDecoder;
+import org.apache.fluss.rpc.gateway.TabletServerGateway;
 import org.apache.fluss.rpc.messages.LimitScanResponse;
 import org.apache.fluss.rpc.messages.PBNewScanReq;
 import org.apache.fluss.rpc.messages.PBScanReq;
+import org.apache.fluss.rpc.messages.PBScanResp;
 import org.apache.fluss.types.DataType;
 import org.apache.fluss.types.RowType;
 import org.apache.fluss.utils.CloseableIterator;
@@ -59,7 +62,8 @@ public class KvBatchScanner implements BatchScanner {
     @Nullable private final int[] projectedFields;
     private final int limit;
     private final InternalRow.FieldGetter[] fieldGetters;
-    private CompletableFuture<LimitScanResponse> scanFuture;
+    private final MetadataUpdater metadataUpdater;
+    private CompletableFuture<PBScanResp> scanFuture;
     private final ValueDecoder kvValueDecoder;
 
     private boolean endOfInput;
@@ -93,6 +97,7 @@ public class KvBatchScanner implements BatchScanner {
      * scanning.
      */
     private TableBucket tablet;
+    private TabletServerGateway gateway;
 
     public KvBatchScanner(
             TableInfo tableInfo,
@@ -104,6 +109,7 @@ public class KvBatchScanner implements BatchScanner {
         this.projectedFields = projectedFields;
         this.limit = limit;
         this.tablet = tableBucket;
+        this.metadataUpdater = metadataUpdater;
 
         RowType rowType = tableInfo.getRowType();
         this.fieldGetters = new InternalRow.FieldGetter[rowType.getFieldCount()];
@@ -173,21 +179,26 @@ public class KvBatchScanner implements BatchScanner {
     @Nullable
     @Override
     public CloseableIterator<InternalRow> pollBatch(Duration timeout) throws IOException {
+        if (closed) {  // We're already done scanning.
+        } else if (tablet == null) {
+            PBScanReq scanReq = getOpenRequest();
 
-        if (endOfInput) {
-            return null;
+            if (tablet.getPartitionId() != null) {
+                metadataUpdater.checkAndUpdateMetadata(tableInfo.getTablePath(), tablet);
+            }
+
+            // because that rocksdb is not suitable to projection, thus do it in client.
+            int leader = metadataUpdater.leaderFor(tablet);
+            gateway = metadataUpdater.newTabletServerClientForNode(leader);
+            if (gateway == null) {
+                // TODO handle this exception, like retry.
+                throw new LeaderNotAvailableException(
+                        "Server " + leader + " is not found in metadata cache.");
+            }
+            // We need to open the scanner first.
+            this.scanFuture = gateway.kvScan(scanReq);
         }
-        try {
-            LimitScanResponse response = scanFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
-            List<InternalRow> scanRows = parseLimitScanResponse(response);
-            endOfInput = true;
-            return CloseableIterator.wrap(scanRows.iterator());
-        } catch (TimeoutException e) {
-            // poll next time
-            return CloseableIterator.emptyIterator();
-        } catch (Exception e) {
-            throw new IOException(e);
-        }
+        return null;
     }
 
     private List<InternalRow> parseLimitScanResponse(LimitScanResponse limitScanResponse) {

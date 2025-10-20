@@ -36,6 +36,8 @@ import org.apache.fluss.rpc.messages.NotifyLeaderAndIsrRequest;
 import org.apache.fluss.rpc.messages.NotifyLeaderAndIsrResponse;
 import org.apache.fluss.rpc.messages.NotifyRemoteLogOffsetsRequest;
 import org.apache.fluss.rpc.messages.NotifyRemoteLogOffsetsResponse;
+import org.apache.fluss.rpc.messages.PBScanReq;
+import org.apache.fluss.rpc.messages.PBScanResp;
 import org.apache.fluss.rpc.messages.PrefixLookupRequest;
 import org.apache.fluss.rpc.messages.PrefixLookupResponse;
 import org.apache.fluss.rpc.messages.ProduceLogRequest;
@@ -129,6 +131,15 @@ public interface TabletServerGateway extends RpcGateway, AdminReadOnlyGateway {
      */
     @RPC(api = ApiKeys.LIMIT_SCAN)
     CompletableFuture<LimitScanResponse> limitScan(LimitScanRequest request);
+
+    /**
+     * Streaming KV scan from the specified table bucket.
+     *
+     * @param request the KV scan request
+     * @return the KV scan response
+     */
+    @RPC(api = ApiKeys.KV_SCAN)
+    CompletableFuture<PBScanResp> kvScan(PBScanReq request);
 
     /**
      * List offsets for the specified table bucket.
