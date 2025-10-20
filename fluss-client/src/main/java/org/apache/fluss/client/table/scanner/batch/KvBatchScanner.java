@@ -134,15 +134,15 @@ public class KvBatchScanner implements BatchScanner {
     /** Returns an RPC to open this scanner. */
     PBScanReq getOpenRequest() {
         checkScanningNotStarted();
-        return createRequestPB(State.OPENING, tablet);
+        return createRequestPB(tableInfo, State.OPENING, tablet);
     }
 
-    PBScanReq createRequestPB(State state, TableBucket tableBucket) {
+    PBScanReq createRequestPB(TableInfo tableInfo, State state, TableBucket tableBucket) {
         PBScanReq builder = new PBScanReq();
         switch (state) {
             case OPENING:
                 PBNewScanReq newBuilder = new PBNewScanReq();
-                newBuilder.setTableId(tableBucket.getTableId());
+                newBuilder.setTableId(tableInfo.getTableId());
                 newBuilder.setBucketId(tableBucket.getBucket());
                 if (tableBucket.getPartitionId() != null) {
                     newBuilder.setPartitionId(tableBucket.getPartitionId());
@@ -163,6 +163,13 @@ public class KvBatchScanner implements BatchScanner {
         }
 
         return builder;
+    }
+
+    /**
+     * Returns an RPC to fetch the next rows.
+     */
+    PBScanReq getNextRowsRequest() {
+        return createRequestPB(tableInfo, State.OPENING, tablet);
     }
 
     /**
@@ -198,15 +205,27 @@ public class KvBatchScanner implements BatchScanner {
             // We need to open the scanner first.
             this.scanFuture = gateway.kvScan(scanReq);
         }
-        return null;
+
+        try {
+            scanFuture = gateway.kvScan(getNextRowsRequest());
+            PBScanResp response = scanFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+            List<InternalRow> scanRows = parseKvScanResponse(response);
+            endOfInput = true;
+            return CloseableIterator.wrap(scanRows.iterator());
+        } catch (TimeoutException e) {
+            // poll next time
+            return CloseableIterator.emptyIterator();
+        } catch (Exception e) {
+            throw new IOException(e);
+        }
     }
 
-    private List<InternalRow> parseLimitScanResponse(LimitScanResponse limitScanResponse) {
-        if (!limitScanResponse.hasRecords()) {
+    private List<InternalRow> parseKvScanResponse(PBScanResp scanResponse) {
+        if (!scanResponse.hasRecords()) {
             return Collections.emptyList();
         }
         List<InternalRow> scanRows = new ArrayList<>();
-        ByteBuffer recordsBuffer = ByteBuffer.wrap(limitScanResponse.getRecords());
+        ByteBuffer recordsBuffer = ByteBuffer.wrap(scanResponse.getRecords());
         if (tableInfo.hasPrimaryKey()) {
             DefaultValueRecordBatch valueRecords =
                     DefaultValueRecordBatch.pointToByteBuffer(recordsBuffer);
