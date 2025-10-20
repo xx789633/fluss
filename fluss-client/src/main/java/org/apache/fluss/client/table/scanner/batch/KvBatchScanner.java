@@ -254,11 +254,8 @@ public class KvBatchScanner implements BatchScanner {
     }
 
     void scanFinished() {
-        if (numRowsReturned >= limit) {
-            canRequestMore = false;
-            closed = true; // the scanner is closed on the other side at this point
-            return;
-        }
+        canRequestMore = false;
+        closed = true;
         scannerId = null;
         sequenceId = 0;
     }
@@ -317,6 +314,9 @@ public class KvBatchScanner implements BatchScanner {
 
     @Override
     public void close() throws IOException {
+        if (closed) {
+            return;
+        }
         PBScanReq closeReq = createRequestPB(tableInfo, State.CLOSING, tableBucket);
         gateway.kvScan(closeReq);
         closed = true;
