@@ -188,60 +188,69 @@ public class KvBatchScanner implements BatchScanner {
         }
     }
 
+    public boolean hasMoreRows() {
+        boolean hasMore = this.canRequestMore;
+        return hasMore;
+    }
+
     @Nullable
     @Override
     public CloseableIterator<InternalRow> pollBatch(Duration timeout) throws IOException {
-        try {
-            if (closed) { // We're already done scanning.
-                throw new IllegalStateException("Scanner has already been closed");
-            } else if (!opened) {
-                PBScanReq scanReq = getOpenRequest();
+        if (hasMoreRows()) {
+            try {
+                if (closed) { // We're already done scanning.
+                    throw new IllegalStateException("Scanner has already been closed");
+                } else if (!opened) {
+                    PBScanReq scanReq = getOpenRequest();
 
-                // We need to open the scanner first.
+                    // We need to open the scanner first.
+                    scanFuture =
+                            gateway.kvScan(scanReq)
+                                    .whenComplete(
+                                            (r, t) -> {
+                                                if (t != null) {
+                                                    if (!r.isHasMoreResults()
+                                                            || r.getScannerId() == null) {
+                                                        scanFinished();
+                                                    } else {
+                                                        scannerId = r.getScannerId();
+                                                        sequenceId++;
+                                                        canRequestMore = r.isHasMoreResults();
+                                                        opened = true;
+                                                    }
+                                                }
+                                            });
+                    PBScanResp response = scanFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+                    List<InternalRow> scanRows =
+                            parseKvScanResponse(response); // there might be data to return
+                    return CloseableIterator.wrap(scanRows.iterator());
+                }
                 scanFuture =
-                        gateway.kvScan(scanReq)
+                        gateway.kvScan(getNextRowsRequest())
                                 .whenComplete(
                                         (r, t) -> {
                                             if (t != null) {
-                                                if (!r.isHasMoreResults()
-                                                        || r.getScannerId() == null) {
+                                                if (!r.isHasMoreResults()) { // We're done
+                                                    // scanning this
+                                                    // tablet.
                                                     scanFinished();
                                                 } else {
-                                                    scannerId = r.getScannerId();
                                                     sequenceId++;
                                                     canRequestMore = r.isHasMoreResults();
-                                                    opened = true;
                                                 }
                                             }
                                         });
                 PBScanResp response = scanFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
-                List<InternalRow> scanRows =
-                        parseKvScanResponse(response); // there might be data to return
+                List<InternalRow> scanRows = parseKvScanResponse(response);
                 return CloseableIterator.wrap(scanRows.iterator());
+            } catch (TimeoutException e) {
+                // poll next time
+                return CloseableIterator.emptyIterator();
+            } catch (Exception e) {
+                throw new IOException(e);
             }
-            scanFuture =
-                    gateway.kvScan(getNextRowsRequest())
-                            .whenComplete(
-                                    (r, t) -> {
-                                        if (t != null) {
-                                            if (!r.isHasMoreResults()) { // We're done scanning this
-                                                // tablet.
-                                                scanFinished();
-                                            } else {
-                                                sequenceId++;
-                                                canRequestMore = r.isHasMoreResults();
-                                            }
-                                        }
-                                    });
-            PBScanResp response = scanFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
-            List<InternalRow> scanRows = parseKvScanResponse(response);
-            return CloseableIterator.wrap(scanRows.iterator());
-        } catch (TimeoutException e) {
-            // poll next time
-            return CloseableIterator.emptyIterator();
-        } catch (Exception e) {
-            throw new IOException(e);
         }
+        return null;
     }
 
     void scanFinished() {
