@@ -41,6 +41,7 @@ import org.apache.fluss.types.RowType;
 import org.apache.fluss.utils.CloseableIterator;
 
 import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.time.Duration;
@@ -63,9 +64,7 @@ public class KvBatchScanner implements BatchScanner {
 
     private boolean endOfInput;
 
-    /**
-     * Maximum number of bytes returned by the scanner, on each batch.
-     */
+    /** Maximum number of bytes returned by the scanner, on each batch. */
     private final int batchSizeBytes = 10000;
 
     private final boolean prefetching = true;
@@ -75,26 +74,23 @@ public class KvBatchScanner implements BatchScanner {
     private long numRowsReturned = 0;
 
     /**
-     * This is the scanner ID we got from the TabletServer.
-     * It's generated randomly so any value is possible.
+     * This is the scanner ID we got from the TabletServer. It's generated randomly so any value is
+     * possible.
      */
     private byte[] scannerId;
 
     /**
-     * The sequence ID of this call. The sequence ID should start at 0
-     * with the request for a new scanner, and after each successful request,
-     * the client should increment it by 1. When retrying a request, the client
-     * should _not_ increment this value. If the server detects that the client
-     * missed a chunk of rows from the middle of a scan, it will respond with an
-     * error.
+     * The sequence ID of this call. The sequence ID should start at 0 with the request for a new
+     * scanner, and after each successful request, the client should increment it by 1. When
+     * retrying a request, the client should _not_ increment this value. If the server detects that
+     * the client missed a chunk of rows from the middle of a scan, it will respond with an error.
      */
     private int sequenceId;
 
     /**
-     * The tablet currently being scanned.
-     * If null, we haven't started scanning.
-     * If == DONE, then we're done scanning.
-     * Otherwise it contains a proper tablet name, and we're currently scanning.
+     * The tablet currently being scanned. If null, we haven't started scanning. If == DONE, then
+     * we're done scanning. Otherwise it contains a proper tablet name, and we're currently
+     * scanning.
      */
     private TableBucket tablet;
 
@@ -123,26 +119,20 @@ public class KvBatchScanner implements BatchScanner {
         this.endOfInput = false;
     }
 
-
     private enum State {
         OPENING,
         NEXT,
         CLOSING
     }
 
-    /**
-     * Returns an RPC to open this scanner.
-     */
+    /** Returns an RPC to open this scanner. */
     PBScanReq getOpenRequest() {
         checkScanningNotStarted();
-        return createRequestPB(
-                State.OPENING, tablet
-        );
+        return createRequestPB(State.OPENING, tablet);
     }
 
     PBScanReq createRequestPB(State state, TableBucket tableBucket) {
-        PBScanReq builder =
-                new PBScanReq();
+        PBScanReq builder = new PBScanReq();
         switch (state) {
             case OPENING:
                 PBNewScanReq newBuilder = new PBNewScanReq();
@@ -152,8 +142,7 @@ public class KvBatchScanner implements BatchScanner {
                     newBuilder.setPartitionId(tableBucket.getPartitionId());
                 }
                 newBuilder.setLimit(limit - this.numRowsReturned);
-                builder.setNewScanRequest(newBuilder)
-                        .setBatchSizeBytes(this.batchSizeBytes);
+                builder.setNewScanRequest(newBuilder).setBatchSizeBytes(this.batchSizeBytes);
                 break;
             case NEXT:
                 builder.setScannerId(scannerId)
@@ -161,9 +150,7 @@ public class KvBatchScanner implements BatchScanner {
                         .setBatchSizeBytes(batchSizeBytes);
                 break;
             case CLOSING:
-                builder.setScannerId(scannerId)
-                        .setBatchSizeBytes(0)
-                        .setCloseScanner(true);
+                builder.setScannerId(scannerId).setBatchSizeBytes(0).setCloseScanner(true);
                 break;
             default:
                 throw new RuntimeException("unreachable!");
@@ -174,6 +161,7 @@ public class KvBatchScanner implements BatchScanner {
 
     /**
      * Throws an exception if scanning already started.
+     *
      * @throws IllegalStateException if scanning already started.
      */
     private void checkScanningNotStarted() {
@@ -182,12 +170,9 @@ public class KvBatchScanner implements BatchScanner {
         }
     }
 
-
     @Nullable
     @Override
     public CloseableIterator<InternalRow> pollBatch(Duration timeout) throws IOException {
-
-
 
         if (endOfInput) {
             return null;

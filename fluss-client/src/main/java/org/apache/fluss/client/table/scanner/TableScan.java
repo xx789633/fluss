@@ -23,7 +23,6 @@ import org.apache.fluss.client.metadata.KvSnapshotMetadata;
 import org.apache.fluss.client.table.scanner.batch.BatchScanner;
 import org.apache.fluss.client.table.scanner.batch.KvBatchScanner;
 import org.apache.fluss.client.table.scanner.batch.KvSnapshotBatchScanner;
-import org.apache.fluss.client.table.scanner.batch.LimitBatchScanner;
 import org.apache.fluss.client.table.scanner.log.LogScanner;
 import org.apache.fluss.client.table.scanner.log.LogScannerImpl;
 import org.apache.fluss.config.ConfigOptions;
