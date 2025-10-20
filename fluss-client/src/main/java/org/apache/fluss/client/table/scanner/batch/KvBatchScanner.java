@@ -206,11 +206,12 @@ public class KvBatchScanner implements BatchScanner {
                                                 if (!r.isHasMoreResults()
                                                         || r.getScannerId() == null) {
                                                     scanFinished();
+                                                } else {
+                                                    scannerId = r.getScannerId();
+                                                    sequenceId++;
+                                                    canRequestMore = r.isHasMoreResults();
+                                                    opened = true;
                                                 }
-                                                scannerId = r.getScannerId();
-                                                sequenceId++;
-                                                canRequestMore = r.isHasMoreResults();
-                                                opened = true;
                                             }
                                         });
                 PBScanResp response = scanFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
@@ -226,9 +227,10 @@ public class KvBatchScanner implements BatchScanner {
                                             if (!r.isHasMoreResults()) { // We're done scanning this
                                                 // tablet.
                                                 scanFinished();
+                                            } else {
+                                                sequenceId++;
+                                                canRequestMore = r.isHasMoreResults();
                                             }
-                                            sequenceId++;
-                                            canRequestMore = r.isHasMoreResults();
                                         }
                                     });
             PBScanResp response = scanFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
