@@ -74,7 +74,6 @@ public class KvBatchScanner implements BatchScanner {
     private final int batchSizeBytes = 10000;
 
     private boolean closed = false;
-    private boolean opened = false;
     private boolean canRequestMore = true;
     private long numRowsReturned = 0;
 
@@ -140,7 +139,6 @@ public class KvBatchScanner implements BatchScanner {
 
     /** Returns an RPC to open this scanner. */
     PBScanReq getOpenRequest() {
-        checkScanningNotStarted();
         return createRequestPB(tableInfo, State.OPENING, tableBucket);
     }
 
@@ -177,17 +175,6 @@ public class KvBatchScanner implements BatchScanner {
         return createRequestPB(tableInfo, State.OPENING, tableBucket);
     }
 
-    /**
-     * Throws an exception if scanning already started.
-     *
-     * @throws IllegalStateException if scanning already started.
-     */
-    private void checkScanningNotStarted() {
-        if (opened) {
-            throw new IllegalStateException("scanning already started");
-        }
-    }
-
     public boolean hasMoreRows() {
         boolean hasMore = this.canRequestMore;
         return hasMore;
@@ -200,7 +187,7 @@ public class KvBatchScanner implements BatchScanner {
             try {
                 if (closed) { // We're already done scanning.
                     throw new IllegalStateException("Scanner has already been closed");
-                } else if (!opened) {
+                } else if (scannerId == null) {
                     PBScanReq scanReq = getOpenRequest();
 
                     // We need to open the scanner first.
@@ -216,7 +203,6 @@ public class KvBatchScanner implements BatchScanner {
                                                         scannerId = r.getScannerId();
                                                         sequenceId++;
                                                         canRequestMore = r.isHasMoreResults();
-                                                        opened = true;
                                                     }
                                                 }
                                             });
