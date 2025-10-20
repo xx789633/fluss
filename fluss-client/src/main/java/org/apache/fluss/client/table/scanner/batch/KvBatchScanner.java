@@ -42,6 +42,9 @@ import org.apache.fluss.types.DataType;
 import org.apache.fluss.types.RowType;
 import org.apache.fluss.utils.CloseableIterator;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -56,13 +59,13 @@ import java.util.concurrent.TimeoutException;
 
 /** A {@link BatchScanner} implementation that scans a limited number of records from a table. */
 public class KvBatchScanner implements BatchScanner {
+    private static final Logger LOG = LoggerFactory.getLogger(KvBatchScanner.class);
 
     private final TableInfo tableInfo;
     @Nullable private final int[] projectedFields;
     private final int limit;
     private final InternalRow.FieldGetter[] fieldGetters;
     private final TableBucket tableBucket;
-    private CompletableFuture<PBScanResp> scanFuture;
     private final ValueDecoder kvValueDecoder;
 
     private boolean endOfInput;
@@ -96,6 +99,7 @@ public class KvBatchScanner implements BatchScanner {
     private TableBucket tablet;
 
     private TabletServerGateway gateway;
+    private CompletableFuture<PBScanResp> scanFuture;
 
     public KvBatchScanner(
             TableInfo tableInfo,
@@ -194,27 +198,41 @@ public class KvBatchScanner implements BatchScanner {
     @Nullable
     @Override
     public CloseableIterator<InternalRow> pollBatch(Duration timeout) throws IOException {
-        if (closed) { // We're already done scanning.
-        } else if (tablet == null) {
-            PBScanReq scanReq = getOpenRequest();
-
-            // We need to open the scanner first.
-            this.scanFuture =
-                    gateway.kvScan(scanReq)
-                            .whenComplete(
-                                    (fetchKvResponse, e) -> {
-                                        if (e != null) {
-                                        } else {
-                                            handleFetchKvResponse(fetchKvResponse);
-                                        }
-                                    });
-        }
-
         try {
-            scanFuture = gateway.kvScan(getNextRowsRequest());
+            if (closed) { // We're already done scanning.
+            } else if (tablet == null) {
+                PBScanReq scanReq = getOpenRequest();
+
+                // We need to open the scanner first.
+                scanFuture =
+                        gateway.kvScan(scanReq)
+                                .whenComplete(
+                                        (r, t) -> {
+                                            if (!r.isHasMoreResults() || r.getScannerId() == null) {
+                                                scanFinished();
+                                            }
+                                            scannerId = r.getScannerId();
+                                            sequenceId++;
+                                            canRequestMore = r.isHasMoreResults();
+                                        });
+                PBScanResp response = scanFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+                List<InternalRow> scanRows =
+                        parseKvScanResponse(response); // there might be data to return
+                return CloseableIterator.wrap(scanRows.iterator());
+            }
+            scanFuture =
+                    gateway.kvScan(getNextRowsRequest())
+                            .whenComplete(
+                                    (r, t) -> {
+                                        if (!r.isHasMoreResults()) { // We're done scanning this
+                                            // tablet.
+                                            scanFinished();
+                                        }
+                                        sequenceId++;
+                                        canRequestMore = r.isHasMoreResults();
+                                    });
             PBScanResp response = scanFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
             List<InternalRow> scanRows = parseKvScanResponse(response);
-            endOfInput = true;
             return CloseableIterator.wrap(scanRows.iterator());
         } catch (TimeoutException e) {
             // poll next time
@@ -224,10 +242,23 @@ public class KvBatchScanner implements BatchScanner {
         }
     }
 
-    private void handleFetchKvResponse(PBScanResp scanResponse) {
-        scannerId = scanResponse.getScannerId();
+    private void handleFetchKvResponse(PBScanResp resp) {
+        if (!resp.isHasMoreResults() || resp.getScannerId() == null) {
+            scanFinished();
+        }
+        scannerId = resp.getScannerId();
         sequenceId++;
-        canRequestMore = scanResponse.isHasMoreResults();
+        canRequestMore = resp.isHasMoreResults();
+    }
+
+    void scanFinished() {
+        if (numRowsReturned >= limit) {
+            canRequestMore = false;
+            closed = true; // the scanner is closed on the other side at this point
+            return;
+        }
+        scannerId = null;
+        sequenceId = 0;
     }
 
     private List<InternalRow> parseKvScanResponse(PBScanResp scanResponse) {
