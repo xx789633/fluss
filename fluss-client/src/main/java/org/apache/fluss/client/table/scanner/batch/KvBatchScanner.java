@@ -74,6 +74,7 @@ public class KvBatchScanner implements BatchScanner {
     private final int batchSizeBytes = 10000;
 
     private boolean closed = false;
+    private boolean opened = false;
     private boolean canRequestMore = true;
     private long numRowsReturned = 0;
 
@@ -91,13 +92,6 @@ public class KvBatchScanner implements BatchScanner {
      */
     private int sequenceId;
 
-    /**
-     * The tablet currently being scanned. If null, we haven't started scanning. If == DONE, then
-     * we're done scanning. Otherwise it contains a proper tablet name, and we're currently
-     * scanning.
-     */
-    private TableBucket tablet;
-
     private TabletServerGateway gateway;
     private CompletableFuture<PBScanResp> scanFuture;
 
@@ -111,7 +105,6 @@ public class KvBatchScanner implements BatchScanner {
         this.projectedFields = projectedFields;
         this.limit = limit;
         this.tableBucket = tableBucket;
-        this.tablet = tableBucket;
 
         RowType rowType = tableInfo.getRowType();
         this.fieldGetters = new InternalRow.FieldGetter[rowType.getFieldCount()];
@@ -148,7 +141,7 @@ public class KvBatchScanner implements BatchScanner {
     /** Returns an RPC to open this scanner. */
     PBScanReq getOpenRequest() {
         checkScanningNotStarted();
-        return createRequestPB(tableInfo, State.OPENING, tablet);
+        return createRequestPB(tableInfo, State.OPENING, tableBucket);
     }
 
     PBScanReq createRequestPB(TableInfo tableInfo, State state, TableBucket tableBucket) {
@@ -181,7 +174,7 @@ public class KvBatchScanner implements BatchScanner {
 
     /** Returns an RPC to fetch the next rows. */
     PBScanReq getNextRowsRequest() {
-        return createRequestPB(tableInfo, State.OPENING, tablet);
+        return createRequestPB(tableInfo, State.OPENING, tableBucket);
     }
 
     /**
@@ -190,7 +183,7 @@ public class KvBatchScanner implements BatchScanner {
      * @throws IllegalStateException if scanning already started.
      */
     private void checkScanningNotStarted() {
-        if (tablet != null) {
+        if (opened) {
             throw new IllegalStateException("scanning already started");
         }
     }
@@ -200,7 +193,8 @@ public class KvBatchScanner implements BatchScanner {
     public CloseableIterator<InternalRow> pollBatch(Duration timeout) throws IOException {
         try {
             if (closed) { // We're already done scanning.
-            } else if (tablet == null) {
+                throw new IllegalStateException("Scanner has already been closed");
+            } else if (!opened) {
                 PBScanReq scanReq = getOpenRequest();
 
                 // We need to open the scanner first.
@@ -208,12 +202,16 @@ public class KvBatchScanner implements BatchScanner {
                         gateway.kvScan(scanReq)
                                 .whenComplete(
                                         (r, t) -> {
-                                            if (!r.isHasMoreResults() || r.getScannerId() == null) {
-                                                scanFinished();
+                                            if (t != null) {
+                                                if (!r.isHasMoreResults()
+                                                        || r.getScannerId() == null) {
+                                                    scanFinished();
+                                                }
+                                                scannerId = r.getScannerId();
+                                                sequenceId++;
+                                                canRequestMore = r.isHasMoreResults();
+                                                opened = true;
                                             }
-                                            scannerId = r.getScannerId();
-                                            sequenceId++;
-                                            canRequestMore = r.isHasMoreResults();
                                         });
                 PBScanResp response = scanFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
                 List<InternalRow> scanRows =
@@ -224,12 +222,14 @@ public class KvBatchScanner implements BatchScanner {
                     gateway.kvScan(getNextRowsRequest())
                             .whenComplete(
                                     (r, t) -> {
-                                        if (!r.isHasMoreResults()) { // We're done scanning this
-                                            // tablet.
-                                            scanFinished();
+                                        if (t != null) {
+                                            if (!r.isHasMoreResults()) { // We're done scanning this
+                                                // tablet.
+                                                scanFinished();
+                                            }
+                                            sequenceId++;
+                                            canRequestMore = r.isHasMoreResults();
                                         }
-                                        sequenceId++;
-                                        canRequestMore = r.isHasMoreResults();
                                     });
             PBScanResp response = scanFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
             List<InternalRow> scanRows = parseKvScanResponse(response);
@@ -306,7 +306,7 @@ public class KvBatchScanner implements BatchScanner {
 
     @Override
     public void close() throws IOException {
-        PBScanReq closeReq = createRequestPB(tableInfo, State.CLOSING, tablet);
+        PBScanReq closeReq = createRequestPB(tableInfo, State.CLOSING, tableBucket);
         gateway.kvScan(closeReq);
         closed = true;
         scanFuture.cancel(true);
