@@ -35,7 +35,6 @@ import org.apache.fluss.row.ProjectedRow;
 import org.apache.fluss.row.decode.RowDecoder;
 import org.apache.fluss.row.encode.ValueDecoder;
 import org.apache.fluss.rpc.gateway.TabletServerGateway;
-import org.apache.fluss.rpc.messages.LimitScanResponse;
 import org.apache.fluss.rpc.messages.PBNewScanReq;
 import org.apache.fluss.rpc.messages.PBScanReq;
 import org.apache.fluss.rpc.messages.PBScanResp;
@@ -62,7 +61,7 @@ public class KvBatchScanner implements BatchScanner {
     @Nullable private final int[] projectedFields;
     private final int limit;
     private final InternalRow.FieldGetter[] fieldGetters;
-    private final MetadataUpdater metadataUpdater;
+    private final TableBucket tableBucket;
     private CompletableFuture<PBScanResp> scanFuture;
     private final ValueDecoder kvValueDecoder;
 
@@ -71,8 +70,6 @@ public class KvBatchScanner implements BatchScanner {
     /** Maximum number of bytes returned by the scanner, on each batch. */
     private final int batchSizeBytes = 10000;
 
-    private final boolean prefetching = true;
-    private final long keepAlivePeriodMs = 1000;
     private boolean closed = false;
     private boolean canRequestMore = true;
     private long numRowsReturned = 0;
@@ -97,6 +94,7 @@ public class KvBatchScanner implements BatchScanner {
      * scanning.
      */
     private TableBucket tablet;
+
     private TabletServerGateway gateway;
 
     public KvBatchScanner(
@@ -108,13 +106,25 @@ public class KvBatchScanner implements BatchScanner {
         this.tableInfo = tableInfo;
         this.projectedFields = projectedFields;
         this.limit = limit;
+        this.tableBucket = tableBucket;
         this.tablet = tableBucket;
-        this.metadataUpdater = metadataUpdater;
 
         RowType rowType = tableInfo.getRowType();
         this.fieldGetters = new InternalRow.FieldGetter[rowType.getFieldCount()];
         for (int i = 0; i < rowType.getFieldCount(); i++) {
             this.fieldGetters[i] = InternalRow.createFieldGetter(rowType.getTypeAt(i), i);
+        }
+
+        if (tableBucket.getPartitionId() != null) {
+            metadataUpdater.checkAndUpdateMetadata(tableInfo.getTablePath(), tableBucket);
+        }
+
+        int leader = metadataUpdater.leaderFor(tableBucket);
+        gateway = metadataUpdater.newTabletServerClientForNode(leader);
+        if (gateway == null) {
+            // TODO handle this exception, like retry.
+            throw new LeaderNotAvailableException(
+                    "Server " + leader + " is not found in metadata cache.");
         }
 
         this.kvValueDecoder =
@@ -165,9 +175,7 @@ public class KvBatchScanner implements BatchScanner {
         return builder;
     }
 
-    /**
-     * Returns an RPC to fetch the next rows.
-     */
+    /** Returns an RPC to fetch the next rows. */
     PBScanReq getNextRowsRequest() {
         return createRequestPB(tableInfo, State.OPENING, tablet);
     }
@@ -186,24 +194,20 @@ public class KvBatchScanner implements BatchScanner {
     @Nullable
     @Override
     public CloseableIterator<InternalRow> pollBatch(Duration timeout) throws IOException {
-        if (closed) {  // We're already done scanning.
+        if (closed) { // We're already done scanning.
         } else if (tablet == null) {
             PBScanReq scanReq = getOpenRequest();
 
-            if (tablet.getPartitionId() != null) {
-                metadataUpdater.checkAndUpdateMetadata(tableInfo.getTablePath(), tablet);
-            }
-
-            // because that rocksdb is not suitable to projection, thus do it in client.
-            int leader = metadataUpdater.leaderFor(tablet);
-            gateway = metadataUpdater.newTabletServerClientForNode(leader);
-            if (gateway == null) {
-                // TODO handle this exception, like retry.
-                throw new LeaderNotAvailableException(
-                        "Server " + leader + " is not found in metadata cache.");
-            }
             // We need to open the scanner first.
-            this.scanFuture = gateway.kvScan(scanReq);
+            this.scanFuture =
+                    gateway.kvScan(scanReq)
+                            .whenComplete(
+                                    (fetchKvResponse, e) -> {
+                                        if (e != null) {
+                                        } else {
+                                            handleFetchKvResponse(fetchKvResponse);
+                                        }
+                                    });
         }
 
         try {
@@ -218,6 +222,12 @@ public class KvBatchScanner implements BatchScanner {
         } catch (Exception e) {
             throw new IOException(e);
         }
+    }
+
+    private void handleFetchKvResponse(PBScanResp scanResponse) {
+        scannerId = scanResponse.getScannerId();
+        sequenceId++;
+        canRequestMore = scanResponse.isHasMoreResults();
     }
 
     private List<InternalRow> parseKvScanResponse(PBScanResp scanResponse) {
