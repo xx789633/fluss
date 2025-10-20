@@ -161,7 +161,7 @@ public class KvBatchScanner implements BatchScanner {
                 if (tableBucket.getPartitionId() != null) {
                     newBuilder.setPartitionId(tableBucket.getPartitionId());
                 }
-                newBuilder.setLimit(limit - this.numRowsReturned);
+                newBuilder.setLimit(limit);
                 builder.setNewScanRequest(newBuilder).setBatchSizeBytes(this.batchSizeBytes);
                 break;
             case NEXT:
@@ -242,15 +242,6 @@ public class KvBatchScanner implements BatchScanner {
         }
     }
 
-    private void handleFetchKvResponse(PBScanResp resp) {
-        if (!resp.isHasMoreResults() || resp.getScannerId() == null) {
-            scanFinished();
-        }
-        scannerId = resp.getScannerId();
-        sequenceId++;
-        canRequestMore = resp.isHasMoreResults();
-    }
-
     void scanFinished() {
         if (numRowsReturned >= limit) {
             canRequestMore = false;
@@ -315,6 +306,9 @@ public class KvBatchScanner implements BatchScanner {
 
     @Override
     public void close() throws IOException {
+        PBScanReq closeReq = createRequestPB(tableInfo, State.CLOSING, tablet);
+        gateway.kvScan(closeReq);
+        closed = true;
         scanFuture.cancel(true);
     }
 }
