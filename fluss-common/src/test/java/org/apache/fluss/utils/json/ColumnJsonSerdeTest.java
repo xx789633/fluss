@@ -59,7 +59,8 @@ public class ColumnJsonSerdeTest extends JsonSerdeTestBase<Schema.Column> {
         String[] jsonWithoutColumnId = {
             "{\"name\":\"a\",\"data_type\":{\"type\":\"STRING\"}}",
             "{\"name\":\"b\",\"data_type\":{\"type\":\"INTEGER\"},\"comment\":\"hello b\"}",
-            "{\"name\":\"c\",\"data_type\":{\"type\":\"INTEGER\",\"nullable\":false},\"comment\":\"hello c\"}"
+            "{\"name\":\"c\",\"data_type\":{\"type\":\"INTEGER\",\"nullable\":false},\"comment\":\"hello c\"}",
+            "{\"name\":\"d\",\"data_type\":{\"type\":\"INTEGER\",\"nullable\":false},\"auto_increment\":true,\"comment\":\"hello d\"}"
         };
         Schema.Column[] columns = new Schema.Column[3];
         columns[0] = new Schema.Column("a", DataTypes.STRING());
