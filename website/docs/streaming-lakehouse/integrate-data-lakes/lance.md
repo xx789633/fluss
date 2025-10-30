@@ -72,7 +72,7 @@ Additionally, when following the [Start Datalake Tiering Service](maintenance/ti
 
 > **NOTE**: Fluss v0.8 only supports tiering log tables to Lance.
 
-> **NOTE**: The Lance connector leverages the Arrow Java library, which operates on direct memory. So ensure sufficient off-heap memory for the Flink Task Manager by configuring the `taskmanager.memory.task.off-heap.size` parameter in `<FLINK_HOME>/conf/config.yaml`.
+> **NOTE**: The Lance connector leverages Arrow Java library, which operates on off-heap memory. To prevent `java.lang.OutOfMemoryError: Direct buffer memory` error in Flink Task Manager, please increase the value of `taskmanager.memory.task.off-heap.size` in `<FLINK_HOME>/conf/config.yaml` to an appropriate size.
 
 Then, the datalake tiering service continuously tiers data from Fluss to Lance. The parameter `table.datalake.freshness` controls the frequency that Fluss writes data to Lance tables. By default, the data freshness is 3 minutes.
 
