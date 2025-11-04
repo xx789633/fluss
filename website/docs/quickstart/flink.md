@@ -49,8 +49,6 @@ services:
         zookeeper.address: zookeeper:2181
         bind.listeners: FLUSS://coordinator-server:9123
         remote.data.dir: /tmp/fluss/remote-data
-    volumes:
-      - shared-tmpfs:/tmp/paimon
   tablet-server:
     image: apache/fluss:$FLUSS_DOCKER_VERSION$
     command: tabletServer
@@ -64,8 +62,6 @@ services:
         data.dir: /tmp/fluss/data
         remote.data.dir: /tmp/fluss/remote-data
         kv.snapshot.interval: 0s
-    volumes:
-      - shared-tmpfs:/tmp/paimon
   zookeeper:
     restart: always
     image: zookeeper:3.9.2
@@ -80,8 +76,6 @@ services:
       - |
         FLINK_PROPERTIES=
         jobmanager.rpc.address: jobmanager
-    volumes:
-      - shared-tmpfs:/tmp/paimon
   taskmanager:
     image: apache/fluss-quickstart-flink:1.20-$FLUSS_DOCKER_VERSION$
     depends_on:
@@ -94,16 +88,7 @@ services:
         taskmanager.numberOfTaskSlots: 10
         taskmanager.memory.process.size: 2048m
         taskmanager.memory.framework.off-heap.size: 256m
-    volumes:
-      - shared-tmpfs:/tmp/paimon
   #end
-  
-volumes:
-  shared-tmpfs:
-    driver: local
-    driver_opts:
-      type: "tmpfs"
-      device: "tmpfs"
 ```
 
 The Docker Compose environment consists of the following containers:
