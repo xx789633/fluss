@@ -290,6 +290,7 @@ Congratulations, you are all set!
   </TabItem>
 </Tabs>
 
+## Lakehouse Integration
 ### Start the Lakehouse Tiering Service
 
 <Tabs groupId="lake-tabs">
