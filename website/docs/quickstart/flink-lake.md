@@ -6,6 +6,290 @@ sidebar_position: 2
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
+
+This guide will help you set up a basic streaming Lakehouse using Fluss with Paimon or Iceberg.
+
+## Environment Setup
+### Prerequisites
+
+Before proceeding with this guide, ensure that [Docker](https://docs.docker.com/engine/install/) and the [Docker Compose plugin](https://docs.docker.com/compose/install/linux/) are installed on your machine.
+All commands were tested with Docker version 27.4.0 and Docker Compose version v2.30.3.
+
+:::note
+We encourage you to use a recent version of Docker and [Compose v2](https://docs.docker.com/compose/releases/migrate/) (however, Compose v1 might work with a few adaptions).
+:::
+
+### Starting required components
+
+<Tabs groupId="lake-tabs">
+  <TabItem value="paimon" label="Paimon" default>
+
+We will use `docker compose` to spin up the required components for this tutorial.
+
+1. Create a working directory for this guide.
+
+```shell
+mkdir fluss-quickstart-flink
+cd fluss-quickstart-flink
+```
+
+2. Create a `docker-compose.yml` file with the following content:
+
+
+```yaml
+services:
+  #begin Fluss cluster
+  coordinator-server:
+    image: apache/fluss:$FLUSS_DOCKER_VERSION$
+    command: coordinatorServer
+    depends_on:
+      - zookeeper
+    environment:
+      - |
+        FLUSS_PROPERTIES=
+        zookeeper.address: zookeeper:2181
+        bind.listeners: FLUSS://coordinator-server:9123
+        remote.data.dir: /tmp/fluss/remote-data
+        datalake.format: paimon
+        datalake.paimon.metastore: filesystem
+        datalake.paimon.warehouse: /tmp/paimon
+    volumes:
+      - shared-tmpfs:/tmp/paimon
+  tablet-server:
+    image: apache/fluss:$FLUSS_DOCKER_VERSION$
+    command: tabletServer
+    depends_on:
+      - coordinator-server
+    environment:
+      - |
+        FLUSS_PROPERTIES=
+        zookeeper.address: zookeeper:2181
+        bind.listeners: FLUSS://tablet-server:9123
+        data.dir: /tmp/fluss/data
+        remote.data.dir: /tmp/fluss/remote-data
+        kv.snapshot.interval: 0s
+        datalake.format: paimon
+        datalake.paimon.metastore: filesystem
+        datalake.paimon.warehouse: /tmp/paimon
+    volumes:
+      - shared-tmpfs:/tmp/paimon
+  zookeeper:
+    restart: always
+    image: zookeeper:3.9.2
+  #end
+  #begin Flink cluster
+  jobmanager:
+    image: apache/fluss-quickstart-flink:1.20-$FLUSS_DOCKER_VERSION$
+    ports:
+      - "8083:8081"
+    command: jobmanager
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+    volumes:
+      - shared-tmpfs:/tmp/paimon
+  taskmanager:
+    image: apache/fluss-quickstart-flink:1.20-$FLUSS_DOCKER_VERSION$
+    depends_on:
+      - jobmanager
+    command: taskmanager
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+        taskmanager.numberOfTaskSlots: 10
+        taskmanager.memory.process.size: 2048m
+        taskmanager.memory.framework.off-heap.size: 256m
+    volumes:
+      - shared-tmpfs:/tmp/paimon
+  #end
+  
+volumes:
+  shared-tmpfs:
+    driver: local
+    driver_opts:
+      type: "tmpfs"
+      device: "tmpfs"
+```
+
+The Docker Compose environment consists of the following containers:
+- **Fluss Cluster:** a Fluss `CoordinatorServer`, a Fluss `TabletServer` and a `ZooKeeper` server.
+- **Flink Cluster**: a Flink `JobManager` and a Flink `TaskManager` container to execute queries.
+
+**Note:** The `apache/fluss-quickstart-flink` image is based on [flink:1.20.1-java17](https://hub.docker.com/layers/library/flink/1.20-java17/images/sha256:bf1af6406c4f4ad8faa46efe2b3d0a0bf811d1034849c42c1e3484712bc83505) and
+includes the [fluss-flink](engine-flink/getting-started.md), [paimon-flink](https://paimon.apache.org/docs/1.0/flink/quick-start/) and
+[flink-connector-faker](https://flink-packages.org/packages/flink-faker) to simplify this guide.
+
+3. To start all containers, run:
+```shell
+docker compose up -d
+```
+This command automatically starts all the containers defined in the Docker Compose configuration in detached mode.
+
+Run 
+```shell
+docker container ls -a
+```
+to check whether all containers are running properly.
+
+You can also visit http://localhost:8083/ to see if Flink is running normally.
+
+:::note
+- If you want to additionally use an observability stack, follow one of the provided quickstart guides [here](maintenance/observability/quickstart.md) and then continue with this guide.
+- If you want to run with your own Flink environment, remember to download the [fluss-flink connector jar](/downloads), [flink-connector-faker](https://github.com/knaufk/flink-faker/releases), [paimon-flink connector jar](https://paimon.apache.org/docs/1.0/flink/quick-start/) and then put them to `FLINK_HOME/lib/`.
+- All the following commands involving `docker compose` should be executed in the created working directory that contains the `docker-compose.yml` file.
+:::
+
+Congratulations, you are all set!
+
+  </TabItem>
+
+  <TabItem value="iceberg" label="Iceberg">
+
+We will use `docker compose` to spin up the required components for this tutorial.
+
+1. Create a working directory for this guide.
+
+```shell
+mkdir fluss-quickstart-flink-iceberg
+cd fluss-quickstart-flink-iceberg
+```
+
+2. Create a `lib` directory and download the required Hadoop jar file:
+
+```shell
+mkdir lib
+wget -O lib/hadoop-apache-3.3.5-2.jar https://repo1.maven.org/maven2/io/trino/hadoop/hadoop-apache/3.3.5-2/hadoop-apache-3.3.5-2.jar
+```
+
+This jar file provides Hadoop 3.3.5 dependencies required for Iceberg's Hadoop catalog integration.
+
+:::info
+The `lib` directory serves as a staging area for additional jars needed by the Fluss coordinator server. The docker-compose configuration (see step 3) mounts this directory and copies all jars to `/opt/fluss/plugins/iceberg/` inside the coordinator container at startup.
+
+You can add more jars to this `lib` directory based on your requirements:
+- **Cloud storage support**: For AWS S3 integration with Iceberg, add the corresponding Iceberg bundle jars (e.g., `iceberg-aws-bundle`)
+- **Custom Hadoop configurations**: Add jars for specific HDFS distributions or custom authentication mechanisms
+- **Other catalog backends**: Add jars needed for alternative Iceberg catalog implementations (e.g., Rest, Hive, Glue)
+
+Any jar placed in the `lib` directory will be automatically loaded by the Fluss coordinator server, making it available for Iceberg integration.
+:::
+
+3. Create a `docker-compose.yml` file with the following content:
+
+
+```yaml
+services:
+  zookeeper:
+    restart: always
+    image: zookeeper:3.9.2
+
+  coordinator-server:
+    image: apache/fluss:$FLUSS_DOCKER_VERSION$
+    depends_on:
+      - zookeeper
+    environment:
+      - |
+        FLUSS_PROPERTIES=
+        zookeeper.address: zookeeper:2181
+        bind.listeners: FLUSS://coordinator-server:9123
+        remote.data.dir: /tmp/fluss/remote-data
+        datalake.format: iceberg
+        datalake.iceberg.type: hadoop
+        datalake.iceberg.warehouse: /tmp/iceberg
+    volumes:
+      - shared-tmpfs:/tmp/iceberg
+      - ./lib:/tmp/lib
+    entrypoint: ["sh", "-c", "cp -v /tmp/lib/*.jar /opt/fluss/plugins/iceberg/ && exec /docker-entrypoint.sh coordinatorServer"]
+
+  tablet-server:
+    image: apache/fluss:$FLUSS_DOCKER_VERSION$
+    command: tabletServer
+    depends_on:
+      - coordinator-server
+    environment:
+      - |
+        FLUSS_PROPERTIES=
+        zookeeper.address: zookeeper:2181
+        bind.listeners: FLUSS://tablet-server:9123
+        data.dir: /tmp/fluss/data
+        remote.data.dir: /tmp/fluss/remote-data
+        kv.snapshot.interval: 0s
+        datalake.format: iceberg
+        datalake.iceberg.type: hadoop
+        datalake.iceberg.warehouse: /tmp/iceberg
+    volumes:
+      - shared-tmpfs:/tmp/iceberg
+
+  jobmanager:
+    image: apache/fluss-quickstart-flink:1.20-$FLUSS_DOCKER_VERSION$
+    ports:
+      - "8083:8081"
+    command: jobmanager
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+    volumes:
+      - shared-tmpfs:/tmp/iceberg
+
+  taskmanager:
+    image: apache/fluss-quickstart-flink:1.20-$FLUSS_DOCKER_VERSION$
+    depends_on:
+      - jobmanager
+    command: taskmanager
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+        taskmanager.numberOfTaskSlots: 10
+        taskmanager.memory.process.size: 2048m
+        taskmanager.memory.framework.off-heap.size: 256m
+    volumes:
+      - shared-tmpfs:/tmp/iceberg
+
+volumes:
+  shared-tmpfs:
+    driver: local
+    driver_opts:
+      type: "tmpfs"
+      device: "tmpfs"
+```
+
+The Docker Compose environment consists of the following containers:
+- **Fluss Cluster:** a Fluss `CoordinatorServer`, a Fluss `TabletServer` and a `ZooKeeper` server.
+- **Flink Cluster**: a Flink `JobManager` and a Flink `TaskManager` container to execute queries.
+
+**Note:** The `apache/fluss-quickstart-flink` image is based on [flink:1.20.1-java17](https://hub.docker.com/layers/library/flink/1.20-java17/images/sha256:bf1af6406c4f4ad8faa46efe2b3d0a0bf811d1034849c42c1e3484712bc83505) and
+includes the [fluss-flink](engine-flink/getting-started.md), [iceberg-flink](https://iceberg.apache.org/docs/latest/flink/) and
+[flink-connector-faker](https://flink-packages.org/packages/flink-faker) to simplify this guide.
+
+3. To start all containers, run:
+```shell
+docker compose up -d
+```
+This command automatically starts all the containers defined in the Docker Compose configuration in detached mode.
+
+Run
+```shell
+docker container ls -a
+```
+to check whether all containers are running properly.
+
+You can also visit http://localhost:8083/ to see if Flink is running normally.
+
+:::note
+- If you want to additionally use an observability stack, follow one of the provided quickstart guides [here](maintenance/observability/quickstart.md) and then continue with this guide.
+- If you want to run with your own Flink environment, remember to download the [fluss-flink connector jar](/downloads), [flink-connector-faker](https://github.com/knaufk/flink-faker/releases) and [iceberg-flink connector jar](https://iceberg.apache.org/docs/latest/flink/) and then put them to `FLINK_HOME/lib/`.
+- All the following commands involving `docker compose` should be executed in the created working directory that contains the `docker-compose.yml` file.
+:::
+
+Congratulations, you are all set!
+
+  </TabItem>
+</Tabs>
+
 ### Start the Lakehouse Tiering Service
 
 <Tabs groupId="lake-tabs">
