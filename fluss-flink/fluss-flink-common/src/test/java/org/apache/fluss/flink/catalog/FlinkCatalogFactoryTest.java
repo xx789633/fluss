@@ -64,6 +64,7 @@ abstract class FlinkCatalogFactoryTest {
                         DB_NAME,
                         BOOTSTRAP_SERVERS_NAME,
                         Thread.currentThread().getContextClassLoader(),
+                        Collections.emptyMap(),
                         Collections.emptyMap());
 
         checkEquals(flinkCatalog, actualCatalog);
@@ -75,7 +76,12 @@ abstract class FlinkCatalogFactoryTest {
         securityMap.put("client.security.sasl.username", "root");
         securityMap.put("client.security.sasl.password", "password");
 
+        Map<String, String> catalogSensitiveMap = new HashMap<>();
+        catalogSensitiveMap.put("catalog.paimon.jdbc.user", "admin");
+        catalogSensitiveMap.put("catalog.paimon.jdbc.password", "pass");
+
         options.putAll(securityMap);
+        options.putAll(catalogSensitiveMap);
         FlinkCatalog actualCatalog2 =
                 (FlinkCatalog)
                         FactoryUtil.createCatalog(
@@ -85,6 +91,7 @@ abstract class FlinkCatalogFactoryTest {
                                 Thread.currentThread().getContextClassLoader());
 
         assertThat(actualCatalog2.getSecurityConfigs()).isEqualTo(securityMap);
+        assertThat(actualCatalog2.getCatalogSensitiveConfigs()).isEqualTo(catalogSensitiveMap);
     }
 
     @Test

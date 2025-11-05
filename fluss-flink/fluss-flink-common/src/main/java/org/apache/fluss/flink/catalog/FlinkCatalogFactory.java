@@ -27,6 +27,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 
+import static org.apache.fluss.config.FlussConfigUtils.CATALOG_PREFIX;
 import static org.apache.fluss.config.FlussConfigUtils.CLIENT_SECURITY_PREFIX;
 import static org.apache.fluss.utils.PropertiesUtils.extractPrefix;
 
@@ -54,15 +55,17 @@ public class FlinkCatalogFactory implements CatalogFactory {
     public FlinkCatalog createCatalog(Context context) {
         final FactoryUtil.CatalogFactoryHelper helper =
                 FactoryUtil.createCatalogFactoryHelper(this, context);
-        helper.validateExcept(CLIENT_SECURITY_PREFIX);
+        helper.validateExcept(CLIENT_SECURITY_PREFIX, CATALOG_PREFIX);
         Map<String, String> options = context.getOptions();
         Map<String, String> securityConfigs = extractPrefix(options, CLIENT_SECURITY_PREFIX);
+        Map<String, String> catalogSensitiveProperties = extractPrefix(options, CATALOG_PREFIX);
 
         return new FlinkCatalog(
                 context.getName(),
                 helper.getOptions().get(FlinkCatalogOptions.DEFAULT_DATABASE),
                 helper.getOptions().get(FlinkConnectorOptions.BOOTSTRAP_SERVERS),
                 context.getClassLoader(),
-                securityConfigs);
+                securityConfigs,
+                catalogSensitiveProperties);
     }
 }

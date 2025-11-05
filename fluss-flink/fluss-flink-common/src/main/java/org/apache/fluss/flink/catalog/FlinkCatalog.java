@@ -115,6 +115,7 @@ public class FlinkCatalog extends AbstractCatalog {
     protected final String bootstrapServers;
     protected final Map<String, String> securityConfigs;
     protected final LakeFlinkCatalog lakeFlinkCatalog;
+    protected final Map<String, String> catalogSensitiveProperties;
     protected Connection connection;
     protected Admin admin;
 
@@ -123,13 +124,15 @@ public class FlinkCatalog extends AbstractCatalog {
             String defaultDatabase,
             String bootstrapServers,
             ClassLoader classLoader,
-            Map<String, String> securityConfigs) {
+            Map<String, String> securityConfigs,
+            Map<String, String> catalogSensitiveProperties) {
         super(name, defaultDatabase);
         this.catalogName = name;
         this.defaultDatabase = defaultDatabase;
         this.bootstrapServers = bootstrapServers;
         this.classLoader = classLoader;
         this.securityConfigs = securityConfigs;
+        this.catalogSensitiveProperties = catalogSensitiveProperties;
         this.lakeFlinkCatalog = new LakeFlinkCatalog(catalogName, classLoader);
     }
 
@@ -294,8 +297,9 @@ public class FlinkCatalog extends AbstractCatalog {
                                             objectPath.getDatabaseName(),
                                             tableName.split("\\" + LAKE_TABLE_SPLITTER)[0])));
                 }
-                return getLakeTable(
-                        objectPath.getDatabaseName(), tableName, tableInfo.getProperties());
+                Configuration tableProperties = tableInfo.getProperties();
+                tableProperties.addAll(Configuration.fromMap(catalogSensitiveProperties));
+                return getLakeTable(objectPath.getDatabaseName(), tableName, tableProperties);
             } else {
                 tableInfo = admin.getTableInfo(tablePath).get();
             }
@@ -753,5 +757,10 @@ public class FlinkCatalog extends AbstractCatalog {
     @VisibleForTesting
     public Map<String, String> getSecurityConfigs() {
         return securityConfigs;
+    }
+
+    @VisibleForTesting
+    public Map<String, String> getCatalogSensitiveConfigs() {
+        return catalogSensitiveProperties;
     }
 }
