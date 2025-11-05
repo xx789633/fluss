@@ -99,7 +99,7 @@ The Docker Compose environment consists of the following containers:
 includes the [fluss-flink](engine-flink/getting-started.md) and
 [flink-connector-faker](https://flink-packages.org/packages/flink-faker) to simplify this guide.
 
-1. To start all containers, run:
+3. To start all containers, run:
 ```shell
 docker compose up -d
 ```
