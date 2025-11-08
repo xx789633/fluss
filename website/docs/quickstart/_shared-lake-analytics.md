@@ -13,7 +13,7 @@ SET 'execution.runtime-mode' = 'batch';
 
 
 ```sql  title="Flink SQL"
--- query snapshots
+-- query snapshots in lake
 SELECT snapshot_id, operation FROM datalake_enriched_orders$lake$snapshots;
 ```
 
@@ -30,7 +30,7 @@ SELECT snapshot_id, operation FROM datalake_enriched_orders$lake$snapshots;
 
 Run the following SQL to do analytics on {props.name} data:
 ```sql  title="Flink SQL"
--- to sum prices of all orders
+-- to sum prices of all orders in lake
 SELECT sum(total_price) as sum_price FROM datalake_enriched_orders$lake;
 ```
 **Sample Output:**
