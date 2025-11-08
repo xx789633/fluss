@@ -6,6 +6,7 @@ sidebar_position: 2
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
+import CleanUp from './_shared-cleanup.md';
 
 This guide will help you set up a basic streaming Lakehouse using Fluss with Paimon or Iceberg.
 
@@ -29,8 +30,8 @@ We will use `docker compose` to spin up the required components for this tutoria
 1. Create a working directory for this guide.
 
 ```shell
-mkdir fluss-quickstart-flink
-cd fluss-quickstart-flink
+mkdir fluss-quickstart-flink-paimon
+cd fluss-quickstart-flink-paimon
 ```
 
 2. Create a `docker-compose.yml` file with the following content:
@@ -625,3 +626,5 @@ The files adhere to Iceberg's standard format, enabling seamless querying with o
 
   </TabItem>
 </Tabs>
+
+<CleanUp/>
