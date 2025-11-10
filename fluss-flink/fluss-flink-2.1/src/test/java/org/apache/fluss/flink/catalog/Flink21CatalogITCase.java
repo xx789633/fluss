@@ -43,7 +43,7 @@ public class Flink21CatalogITCase extends FlinkCatalogITCase {
                         catalog.bootstrapServers,
                         catalog.classLoader,
                         catalog.securityConfigs,
-                        catalog.catalogSensitiveProperties);
+                        catalog.catalogProperties);
         catalog.open();
     }
 

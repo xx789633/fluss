@@ -30,6 +30,6 @@ public class Flink21CatalogFactory extends FlinkCatalogFactory {
                 catalog.bootstrapServers,
                 catalog.classLoader,
                 catalog.securityConfigs,
-                catalog.catalogSensitiveProperties);
+                catalog.catalogProperties);
     }
 }

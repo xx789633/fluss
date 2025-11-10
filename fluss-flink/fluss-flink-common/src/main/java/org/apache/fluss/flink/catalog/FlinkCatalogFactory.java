@@ -58,7 +58,7 @@ public class FlinkCatalogFactory implements CatalogFactory {
         helper.validateExcept(CLIENT_SECURITY_PREFIX, CATALOG_PREFIX);
         Map<String, String> options = context.getOptions();
         Map<String, String> securityConfigs = extractPrefix(options, CLIENT_SECURITY_PREFIX);
-        Map<String, String> catalogSensitiveProperties = extractPrefix(options, CATALOG_PREFIX);
+        Map<String, String> catalogProperties = extractPrefix(options, CATALOG_PREFIX);
 
         return new FlinkCatalog(
                 context.getName(),
@@ -66,6 +66,6 @@ public class FlinkCatalogFactory implements CatalogFactory {
                 helper.getOptions().get(FlinkConnectorOptions.BOOTSTRAP_SERVERS),
                 context.getClassLoader(),
                 securityConfigs,
-                catalogSensitiveProperties);
+                catalogProperties);
     }
 }

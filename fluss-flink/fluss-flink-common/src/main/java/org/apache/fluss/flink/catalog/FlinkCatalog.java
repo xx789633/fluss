@@ -115,7 +115,7 @@ public class FlinkCatalog extends AbstractCatalog {
     protected final String bootstrapServers;
     protected final Map<String, String> securityConfigs;
     protected final LakeFlinkCatalog lakeFlinkCatalog;
-    protected final Map<String, String> catalogSensitiveProperties;
+    protected final Map<String, String> catalogProperties;
     protected Connection connection;
     protected Admin admin;
 
@@ -125,14 +125,14 @@ public class FlinkCatalog extends AbstractCatalog {
             String bootstrapServers,
             ClassLoader classLoader,
             Map<String, String> securityConfigs,
-            Map<String, String> catalogSensitiveProperties) {
+            Map<String, String> catalogProperties) {
         super(name, defaultDatabase);
         this.catalogName = name;
         this.defaultDatabase = defaultDatabase;
         this.bootstrapServers = bootstrapServers;
         this.classLoader = classLoader;
         this.securityConfigs = securityConfigs;
-        this.catalogSensitiveProperties = catalogSensitiveProperties;
+        this.catalogProperties = catalogProperties;
         this.lakeFlinkCatalog = new LakeFlinkCatalog(catalogName, classLoader);
     }
 
@@ -298,7 +298,7 @@ public class FlinkCatalog extends AbstractCatalog {
                                             tableName.split("\\" + LAKE_TABLE_SPLITTER)[0])));
                 }
                 Configuration tableProperties = tableInfo.getProperties();
-                tableProperties.addAll(Configuration.fromMap(catalogSensitiveProperties));
+                tableProperties.addAll(Configuration.fromMap(catalogProperties));
                 return getLakeTable(objectPath.getDatabaseName(), tableName, tableProperties);
             } else {
                 tableInfo = admin.getTableInfo(tablePath).get();
@@ -760,7 +760,7 @@ public class FlinkCatalog extends AbstractCatalog {
     }
 
     @VisibleForTesting
-    public Map<String, String> getCatalogSensitiveConfigs() {
-        return catalogSensitiveProperties;
+    public Map<String, String> getCatalogProperties() {
+        return catalogProperties;
     }
 }
