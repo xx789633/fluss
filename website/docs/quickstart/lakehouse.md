@@ -1,16 +1,14 @@
 ---
-title: Build Streaming Lakehouse
+title: Building a Streaming Lakehouse
 sidebar_position: 2
 ---
 
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-import CleanUp from './_shared-cleanup.md';
 import LakeAnalytics from './_shared-lake-analytics.md';
-import CreateTable from './_shared-create-table.md';
 
-This guide will help you set up a basic streaming Lakehouse using Fluss with Paimon or Iceberg.
+This guide will help you set up a basic Streaming Lakehouse using Fluss with Paimon or Iceberg, and help you better understand the powerful feature of Union Read.
 
 ## Environment Setup
 ### Prerequisites
@@ -32,8 +30,8 @@ We will use `docker compose` to spin up the required components for this tutoria
 1. Create a working directory for this guide.
 
 ```shell
-mkdir fluss-quickstart-flink-paimon
-cd fluss-quickstart-flink-paimon
+mkdir fluss-quickstart-paimon
+cd fluss-quickstart-paimon
 ```
 
 2. Create a `docker-compose.yml` file with the following content:
@@ -155,8 +153,8 @@ We will use `docker compose` to spin up the required components for this tutoria
 1. Create a working directory for this guide.
 
 ```shell
-mkdir fluss-quickstart-flink-iceberg
-cd fluss-quickstart-flink-iceberg
+mkdir fluss-quickstart-iceberg
+cd fluss-quickstart-iceberg
 ```
 
 2. Create a `lib` directory and download the required Hadoop jar file:
@@ -293,7 +291,94 @@ Congratulations, you are all set!
   </TabItem>
 </Tabs>
 
-<CreateTable/>
+## Enter into SQL-Client
+First, use the following command to enter the Flink SQL CLI Container:
+```shell
+docker compose exec jobmanager ./sql-client
+```
+
+**Note**:
+To simplify this guide, three temporary tables have been pre-created with `faker` connector to generate data.
+You can view their schemas by running the following commands:
+
+```sql title="Flink SQL"
+SHOW CREATE TABLE source_customer;
+```
+
+```sql title="Flink SQL"
+SHOW CREATE TABLE source_order;
+```
+
+```sql title="Flink SQL"
+SHOW CREATE TABLE source_nation;
+```
+
+
+## Create Fluss Tables
+### Create Fluss Catalog
+Use the following SQL to create a Fluss catalog:
+```sql title="Flink SQL"
+CREATE CATALOG fluss_catalog WITH (
+    'type' = 'fluss',
+    'bootstrap.servers' = 'coordinator-server:9123'
+);
+```
+
+```sql title="Flink SQL"
+USE CATALOG fluss_catalog;
+```
+
+:::info
+By default, catalog configurations are not persisted across Flink SQL client sessions.
+For further information how to store catalog configurations, see [Flink's Catalog Store](https://nightlies.apache.org/flink/flink-docs-stable/docs/dev/table/catalogs/#catalog-store).
+:::
+
+### Create Tables
+Running the following SQL to create Fluss tables to be used in this guide:
+```sql  title="Flink SQL"
+CREATE TABLE fluss_order (
+    `order_key` BIGINT,
+    `cust_key` INT NOT NULL,
+    `total_price` DECIMAL(15, 2),
+    `order_date` DATE,
+    `order_priority` STRING,
+    `clerk` STRING,
+    `ptime` AS PROCTIME(),
+    PRIMARY KEY (`order_key`) NOT ENFORCED
+);
+```
+
+```sql  title="Flink SQL"
+CREATE TABLE fluss_customer (
+    `cust_key` INT NOT NULL,
+    `name` STRING,
+    `phone` STRING,
+    `nation_key` INT NOT NULL,
+    `acctbal` DECIMAL(15, 2),
+    `mktsegment` STRING,
+    PRIMARY KEY (`cust_key`) NOT ENFORCED
+);
+```
+
+```sql  title="Flink SQL"
+CREATE TABLE fluss_nation (
+  `nation_key` INT NOT NULL,
+  `name`       STRING,
+   PRIMARY KEY (`nation_key`) NOT ENFORCED
+);
+```
+
+## Streaming into Fluss
+
+First, run the following SQL to sync data from source tables to Fluss tables:
+```sql  title="Flink SQL"
+EXECUTE STATEMENT SET
+BEGIN
+    INSERT INTO fluss_nation SELECT * FROM `default_catalog`.`default_database`.source_nation;
+    INSERT INTO fluss_customer SELECT * FROM `default_catalog`.`default_database`.source_customer;
+    INSERT INTO fluss_order SELECT * FROM `default_catalog`.`default_database`.source_order;
+END;
+```
 
 ## Lakehouse Integration
 ### Start the Lakehouse Tiering Service
@@ -455,8 +540,64 @@ LEFT JOIN fluss_nation FOR SYSTEM_TIME AS OF o.ptime AS n
 <Tabs groupId="lake-tabs">
   <TabItem value="paimon" label="Paimon" default>
 
-<LakeAnalytics name="Paimon"/>
+The data for the `datalake_enriched_orders` table is stored in Fluss (for real-time data) and Paimon (for historical data).
 
+When querying the `datalake_enriched_orders` table, Fluss uses a union operation that combines data from both Fluss and Paimon to provide a complete result set -- combines **real-time** and **historical** data.
+
+If you wish to query only the data stored in Paimon—offering high-performance access without the overhead of unioning data—you can use the `datalake_enriched_orders$lake` table by appending the `$lake` suffix. 
+This approach also enables all the optimizations and features of a Flink Paimon table source, including [system table](https://paimon.apache.org/docs/master/concepts/system-tables/) such as `datalake_enriched_orders$lake$snapshots`.
+
+To query the snapshots directly from Paimon, use the following SQL:
+```sql  title="Flink SQL"
+-- switch to batch mode
+SET 'execution.runtime-mode' = 'batch';
+```
+
+```sql  title="Flink SQL"
+-- query snapshots in paimon
+SELECT snapshot_id, total_record_count FROM datalake_enriched_orders$lake$snapshots;
+```
+
+**Sample Output:**
+```shell
++-------------+--------------------+
+| snapshot_id | total_record_count |
++-------------+--------------------+
+|           1 |                650 |
++-------------+--------------------+
+```
+**Note:** Make sure to wait for the configured `datalake.freshness` (~30s) to complete before querying the snapshots, otherwise the result will be empty.
+
+Run the following SQL to do analytics on Paimon data:
+```sql  title="Flink SQL"
+-- to sum prices of all orders in paimon
+SELECT sum(total_price) as sum_price FROM datalake_enriched_orders$lake;
+```
+**Sample Output:**
+```shell
++------------+
+|  sum_price |
++------------+
+| 1669519.92 |
++------------+
+```
+
+To achieve results with sub-second data freshness, you can query the table directly, which seamlessly unifies data from both Fluss and Paimon:
+```sql  title="Flink SQL"
+-- to sum prices of all orders in fluss and paimon
+SELECT sum(total_price) as sum_price FROM datalake_enriched_orders;
+```
+The result looks like:
+```
++------------+
+|  sum_price |
++------------+
+| 1777908.36 |
++------------+
+```
+You can execute the real-time analytics query multiple times, and the results will vary with each run as new data is continuously written to Fluss in real-time.
+
+Finally, you can use the following command to view the files stored in Paimon:
 ```shell
 docker compose exec taskmanager tree /tmp/paimon/fluss.db
 ```
@@ -481,14 +622,76 @@ docker compose exec taskmanager tree /tmp/paimon/fluss.db
         ├── LATEST
         └── snapshot-1
 ```
-The files adhere to Paimon's standard format, enabling seamless querying with other engines such as [StarRocks](https://docs.starrocks.io/docs/data_source/catalog/paimon_catalog/).
+
+The files adhere to Paimon's standard format, enabling seamless querying with other engines such as [Spark](https://iceberg.apache.org/docs/latest/spark-queries/) and [Trino](https://trino.io/docs/current/connector/iceberg.html).
 
   </TabItem>
 
   <TabItem value="iceberg" label="Iceberg">
 
-<LakeAnalytics name="Iceberg"/>
+The data for the `datalake_enriched_orders` table is stored in Fluss (for real-time data) and Iceberg (for historical data).
 
+When querying the `datalake_enriched_orders` table, Fluss uses a union operation that combines data from both Fluss and Iceberg to provide a complete result set -- combines **real-time** and **historical** data.
+
+If you wish to query only the data stored in Iceberg—offering high-performance access without the overhead of unioning data—you can use the `datalake_enriched_orders$lake` table by appending the `$lake` suffix.
+This approach also enables all the optimizations and features of a Flink Iceberg table source, including [system table](https://iceberg.apache.org/docs/latest/flink-queries/#inspecting-tables) such as `datalake_enriched_orders$lake$snapshots`.
+
+
+```sql  title="Flink SQL"
+-- switch to batch mode
+SET 'execution.runtime-mode' = 'batch';
+```
+
+
+```sql  title="Flink SQL"
+-- query snapshots in iceberg
+SELECT snapshot_id, operation FROM datalake_enriched_orders$lake$snapshots;
+```
+
+**Sample Output:**
+```shell
++---------------------+-----------+
+|         snapshot_id | operation |
++---------------------+-----------+
+| 7792523713868625335 |    append |
+| 7960217942125627573 |    append |
++---------------------+-----------+
+```
+**Note:** Make sure to wait for the configured `datalake.freshness` (~30s) to complete before querying the snapshots, otherwise the result will be empty.
+
+Run the following SQL to do analytics on Iceberg data:
+```sql  title="Flink SQL"
+-- to sum prices of all orders in iceberg
+SELECT sum(total_price) as sum_price FROM datalake_enriched_orders$lake;
+```
+**Sample Output:**
+```shell
++-----------+
+| sum_price |
++-----------+
+| 432880.93 |
++-----------+
+```
+
+To achieve results with sub-second data freshness, you can query the table directly, which seamlessly unifies data from both Fluss and Iceberg:
+
+```sql  title="Flink SQL"
+-- to sum prices of all orders (combining fluss and iceberg data)
+SELECT sum(total_price) as sum_price FROM datalake_enriched_orders;
+```
+
+**Sample Output:**
+```shell
++-----------+
+| sum_price |
++-----------+
+| 558660.03 |
++-----------+
+```
+
+You can execute the real-time analytics query multiple times, and the results will vary with each run as new data is continuously written to Fluss in real-time.
+
+Finally, you can use the following command to view the files stored in Iceberg:
 ```shell
 docker compose exec taskmanager tree /tmp/iceberg/fluss
 ```
@@ -508,4 +711,9 @@ The files adhere to Iceberg's standard format, enabling seamless querying with o
   </TabItem>
 </Tabs>
 
-<CleanUp/>
+## Clean up
+After finishing the tutorial, run `exit` to exit Flink SQL CLI Container and then run 
+```shell
+docker compose down -v
+```
+to stop all containers.
