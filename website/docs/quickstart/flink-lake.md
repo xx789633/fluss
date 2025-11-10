@@ -8,6 +8,7 @@ import TabItem from '@theme/TabItem';
 
 import CleanUp from './_shared-cleanup.md';
 import LakeAnalytics from './_shared-lake-analytics.md';
+import CreateTable from './_shared-create-table.md';
 
 This guide will help you set up a basic streaming Lakehouse using Fluss with Paimon or Iceberg.
 
@@ -291,6 +292,8 @@ Congratulations, you are all set!
 
   </TabItem>
 </Tabs>
+
+<CreateTable/>
 
 ## Lakehouse Integration
 ### Start the Lakehouse Tiering Service

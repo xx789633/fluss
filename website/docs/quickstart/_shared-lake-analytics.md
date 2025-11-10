@@ -18,16 +18,16 @@ SET 'sql-client.execution.result-mode' = 'tableau';
 
 ```sql  title="Flink SQL"
 -- query snapshots in lake
-SELECT snapshot_id, total_record_count FROM datalake_enriched_orders$lake$snapshots;
+SELECT snapshot_id FROM datalake_enriched_orders$lake$snapshots;
 ```
 
 **Sample Output:**
 ```shell
-+-------------+--------------------+
-| snapshot_id | total_record_count |
-+-------------+--------------------+
-|           1 |                650 |
-+-------------+--------------------+
++-------------+
+| snapshot_id |
++-------------+
+|           1 |
++-------------+
 ```
 **Note:** Make sure to wait for the configured `datalake.freshness` (~30s) to complete before querying the snapshots, otherwise the result will be empty.
 
