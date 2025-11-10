@@ -7,6 +7,11 @@ This approach also enables all the optimizations and features of a Flink {props.
 
 To query the snapshots directly from {props.name}, use the following SQL:
 ```sql  title="Flink SQL"
+-- switch to batch mode
+SET 'execution.runtime-mode' = 'batch';
+```
+
+```sql  title="Flink SQL"
 -- use tableau result mode
 SET 'sql-client.execution.result-mode' = 'tableau';
 ```
