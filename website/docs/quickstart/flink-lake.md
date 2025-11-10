@@ -367,11 +367,6 @@ SET 'execution.runtime-mode' = 'streaming';
 ```
 
 ```sql  title="Flink SQL"
--- execute DML job asynchronously
-SET 'table.dml-sync' = 'false';
-```
-
-```sql  title="Flink SQL"
 -- insert tuples into datalake_enriched_orders
 INSERT INTO datalake_enriched_orders
 SELECT o.order_key,
