@@ -6,8 +6,6 @@ sidebar_position: 2
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-import LakeAnalytics from './_shared-lake-analytics.md';
-
 This guide will help you set up a basic Streaming Lakehouse using Fluss with Paimon or Iceberg, and help you better understand the powerful feature of Union Read.
 
 ## Environment Setup
