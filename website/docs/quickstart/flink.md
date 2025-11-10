@@ -166,6 +166,20 @@ For further information how to store catalog configurations, see [Flink's Catalo
 
 ### Create Tables
 Running the following SQL to create Fluss tables to be used in this guide:
+
+```sql  title="Flink SQL"
+CREATE TABLE fluss_order (
+    `order_key` BIGINT,
+    `cust_key` INT NOT NULL,
+    `total_price` DECIMAL(15, 2),
+    `order_date` DATE,
+    `order_priority` STRING,
+    `clerk` STRING,
+    `ptime` AS PROCTIME(),
+    PRIMARY KEY (`order_key`) NOT ENFORCED
+);
+```
+
 ```sql  title="Flink SQL"
 CREATE TABLE fluss_customer (
     `cust_key` INT NOT NULL,
@@ -199,19 +213,6 @@ CREATE TABLE enriched_orders (
     `cust_acctbal` DECIMAL(15, 2),
     `cust_mktsegment` STRING,
     `nation_name` STRING,
-    PRIMARY KEY (`order_key`) NOT ENFORCED
-);
-```
-
-```sql  title="Flink SQL"
-CREATE TABLE fluss_order (
-    `order_key` BIGINT,
-    `cust_key` INT NOT NULL,
-    `total_price` DECIMAL(15, 2),
-    `order_date` DATE,
-    `order_priority` STRING,
-    `clerk` STRING,
-    `ptime` AS PROCTIME(),
     PRIMARY KEY (`order_key`) NOT ENFORCED
 );
 ```

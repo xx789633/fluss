@@ -467,10 +467,10 @@ SELECT o.order_key,
        c.mktsegment,
        n.name
 FROM fluss_order o
-       LEFT JOIN fluss_customer FOR SYSTEM_TIME AS OF `o`.`ptime` AS `c`
-                 ON o.cust_key = c.cust_key
-       LEFT JOIN fluss_nation FOR SYSTEM_TIME AS OF `o`.`ptime` AS `n`
-                 ON c.nation_key = n.nation_key;
+LEFT JOIN fluss_customer FOR SYSTEM_TIME AS OF `o`.`ptime` AS `c`
+    ON o.cust_key = c.cust_key
+LEFT JOIN fluss_nation FOR SYSTEM_TIME AS OF `o`.`ptime` AS `n`
+    ON c.nation_key = n.nation_key;
 ```
 
   </TabItem>
@@ -520,13 +520,10 @@ SELECT o.order_key,
        c.acctbal,
        c.mktsegment,
        n.name
-FROM (
-    SELECT *, PROCTIME() as ptime
-    FROM `default_catalog`.`default_database`.source_order
-) o
-LEFT JOIN fluss_customer FOR SYSTEM_TIME AS OF o.ptime AS c
+FROM fluss_order o
+LEFT JOIN fluss_customer FOR SYSTEM_TIME AS OF `o`.`ptime` AS `c`
     ON o.cust_key = c.cust_key
-LEFT JOIN fluss_nation FOR SYSTEM_TIME AS OF o.ptime AS n
+LEFT JOIN fluss_nation FOR SYSTEM_TIME AS OF `o`.`ptime` AS `n`
     ON c.nation_key = n.nation_key;
 ```
 
@@ -543,7 +540,7 @@ The data for the `datalake_enriched_orders` table is stored in Fluss (for real-t
 When querying the `datalake_enriched_orders` table, Fluss uses a union operation that combines data from both Fluss and Paimon to provide a complete result set -- combines **real-time** and **historical** data.
 
 If you wish to query only the data stored in Paimon—offering high-performance access without the overhead of unioning data—you can use the `datalake_enriched_orders$lake` table by appending the `$lake` suffix. 
-This approach also enables all the optimizations and features of a Flink Paimon table source, including [system table](https://paimon.apache.org/docs/master/concepts/system-tables/) such as `datalake_enriched_orders$lake$snapshots`.
+This approach also enables all the optimizations and features of a Flink Paimon table source, including [system table](https://paimon.apache.org/docs/1.3/concepts/system-tables/) such as `datalake_enriched_orders$lake$snapshots`.
 
 To query the snapshots directly from Paimon, use the following SQL:
 ```sql  title="Flink SQL"
@@ -621,7 +618,7 @@ docker compose exec taskmanager tree /tmp/paimon/fluss.db
         └── snapshot-1
 ```
 
-The files adhere to Paimon's standard format, enabling seamless querying with other engines such as [Spark](https://iceberg.apache.org/docs/latest/spark-queries/) and [Trino](https://trino.io/docs/current/connector/iceberg.html).
+The files adhere to Paimon's standard format, enabling seamless querying with other engines such as [Spark](https://paimon.apache.org/docs/1.3/spark/quick-start/) and [Trino](https://paimon.apache.org/docs/1.3/ecosystem/trino/).
 
   </TabItem>
 
