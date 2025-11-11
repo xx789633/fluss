@@ -63,8 +63,7 @@ public class PropertiesUtils {
             Map<String, V> originalMap, Class<? extends Enum<?>> enumClass) {
         Set<String> prefixes =
                 Arrays.stream(enumClass.getEnumConstants())
-                        .map(Enum::name)
-                        .map(String::toLowerCase)
+                        .map(Enum::toString)
                         .collect(Collectors.toSet());
 
         return originalMap.entrySet().stream()

@@ -297,9 +297,12 @@ public class FlinkCatalog extends AbstractCatalog {
                                             objectPath.getDatabaseName(),
                                             tableName.split("\\" + LAKE_TABLE_SPLITTER)[0])));
                 }
-                Configuration tableProperties = tableInfo.getProperties();
-                tableProperties.addAll(Configuration.fromMap(lakeCatalogProperties));
-                return getLakeTable(objectPath.getDatabaseName(), tableName, tableProperties);
+
+                return getLakeTable(
+                        objectPath.getDatabaseName(),
+                        tableName,
+                        tableInfo.getProperties(),
+                        lakeCatalogProperties);
             } else {
                 tableInfo = admin.getTableInfo(tablePath).get();
             }
@@ -333,7 +336,10 @@ public class FlinkCatalog extends AbstractCatalog {
     }
 
     protected CatalogBaseTable getLakeTable(
-            String databaseName, String tableName, Configuration properties)
+            String databaseName,
+            String tableName,
+            Configuration properties,
+            Map<String, String> lakeCatalogProperties)
             throws TableNotExistException, CatalogException {
         String[] tableComponents = tableName.split("\\" + LAKE_TABLE_SPLITTER);
         if (tableComponents.length == 1) {
@@ -345,7 +351,7 @@ public class FlinkCatalog extends AbstractCatalog {
             tableName = String.join("", tableComponents);
         }
         return lakeFlinkCatalog
-                .getLakeCatalog(properties)
+                .getLakeCatalog(properties, lakeCatalogProperties)
                 .getTable(new ObjectPath(databaseName, tableName));
     }
 
