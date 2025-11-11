@@ -27,8 +27,8 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 
-import static org.apache.fluss.config.FlussConfigUtils.TABLE_PREFIX;
 import static org.apache.fluss.config.FlussConfigUtils.CLIENT_SECURITY_PREFIX;
+import static org.apache.fluss.config.FlussConfigUtils.TABLE_PREFIX;
 import static org.apache.fluss.utils.PropertiesUtils.extractPrefix;
 
 /** Factory for {@link FlinkCatalog}. */
