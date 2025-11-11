@@ -72,7 +72,7 @@ public class LakeFlinkCatalog {
                                         + "' is set.");
                     }
                     String dataLakePrefix = lakeFormat.toString() + ".";
-                    Map<String, String> prefixRemovedLakeProperties =
+                    Map<String, String> catalogProperties =
                             lakeCatalogProperties.entrySet().stream()
                                     .filter(entry -> entry.getKey().startsWith(dataLakePrefix))
                                     .collect(
@@ -86,15 +86,12 @@ public class LakeFlinkCatalog {
                     if (lakeFormat == PAIMON) {
                         catalog =
                                 PaimonCatalogFactory.create(
-                                        catalogName,
-                                        tableOptions,
-                                        prefixRemovedLakeProperties,
-                                        classLoader);
+                                        catalogName, tableOptions, catalogProperties, classLoader);
                         this.lakeFormat = PAIMON;
                     } else if (lakeFormat == ICEBERG) {
                         catalog =
                                 IcebergCatalogFactory.create(
-                                        catalogName, prefixRemovedLakeProperties, tableOptions);
+                                        catalogName, catalogProperties, tableOptions);
                         this.lakeFormat = ICEBERG;
                     } else {
                         throw new UnsupportedOperationException(
@@ -126,11 +123,11 @@ public class LakeFlinkCatalog {
         public static Catalog create(
                 String catalogName,
                 Configuration tableOptions,
-                Map<String, String> lakeCatalogProperties,
+                Map<String, String> additionalLakeCatalogProperties,
                 ClassLoader classLoader) {
             Map<String, String> catalogProperties =
                     DataLakeUtils.extractLakeCatalogProperties(tableOptions);
-            catalogProperties.putAll(lakeCatalogProperties);
+            catalogProperties.putAll(additionalLakeCatalogProperties);
             return FlinkCatalogFactory.createCatalog(
                     catalogName,
                     CatalogContext.create(
@@ -150,11 +147,11 @@ public class LakeFlinkCatalog {
         // Once Fluss drops Java 8, we can remove the reflection code
         public static Catalog create(
                 String catalogName,
-                Map<String, String> lakeCatalogProperties,
+                Map<String, String> additionalLakeCatalogProperties,
                 Configuration tableOptions) {
             Map<String, String> catalogProperties =
                     DataLakeUtils.extractLakeCatalogProperties(tableOptions);
-            catalogProperties.putAll(lakeCatalogProperties);
+            catalogProperties.putAll(additionalLakeCatalogProperties);
 
             // Map "type" to "catalog-type" (equivalent)
             // Required: either "catalog-type" (standard type) or "catalog-impl"
