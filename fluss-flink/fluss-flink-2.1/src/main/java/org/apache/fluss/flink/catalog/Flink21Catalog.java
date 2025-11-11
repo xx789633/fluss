@@ -41,14 +41,14 @@ public class Flink21Catalog extends FlinkCatalog {
             String bootstrapServers,
             ClassLoader classLoader,
             Map<String, String> securityConfigs,
-            Map<String, String> catalogProperties) {
+            Map<String, String> lakeCatalogProperties) {
         super(
                 name,
                 defaultDatabase,
                 bootstrapServers,
                 classLoader,
                 securityConfigs,
-                catalogProperties);
+                lakeCatalogProperties);
     }
 
     @Override

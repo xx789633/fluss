@@ -77,8 +77,8 @@ abstract class FlinkCatalogFactoryTest {
         securityMap.put("client.security.sasl.password", "password");
 
         Map<String, String> lakeCatalogMap = new HashMap<>();
-        lakeCatalogMap.put("catalog.paimon.jdbc.user", "admin");
-        lakeCatalogMap.put("catalog.paimon.jdbc.password", "pass");
+        lakeCatalogMap.put("paimon.jdbc.user", "admin");
+        lakeCatalogMap.put("paimon.jdbc.password", "pass");
 
         options.putAll(securityMap);
         options.putAll(lakeCatalogMap);

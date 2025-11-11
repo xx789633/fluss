@@ -18,17 +18,19 @@
 package org.apache.fluss.flink.catalog;
 
 import org.apache.fluss.flink.FlinkConnectorOptions;
+import org.apache.fluss.metadata.DataLakeFormat;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.table.factories.CatalogFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Stream;
 
 import static org.apache.fluss.config.FlussConfigUtils.CLIENT_SECURITY_PREFIX;
-import static org.apache.fluss.config.FlussConfigUtils.TABLE_PREFIX;
 import static org.apache.fluss.utils.PropertiesUtils.extractPrefix;
 
 /** Factory for {@link FlinkCatalog}. */
@@ -55,10 +57,15 @@ public class FlinkCatalogFactory implements CatalogFactory {
     public FlinkCatalog createCatalog(Context context) {
         final FactoryUtil.CatalogFactoryHelper helper =
                 FactoryUtil.createCatalogFactoryHelper(this, context);
-        helper.validateExcept(CLIENT_SECURITY_PREFIX);
+        helper.validateExcept(
+                Stream.concat(
+                                Stream.of(CLIENT_SECURITY_PREFIX),
+                                Arrays.stream(DataLakeFormat.values())
+                                        .map(DataLakeFormat::toString))
+                        .toArray(String[]::new));
         Map<String, String> options = context.getOptions();
         Map<String, String> securityConfigs = extractPrefix(options, CLIENT_SECURITY_PREFIX);
-        Map<String, String> lakeCatalogProperties = extractPrefix(options, TABLE_PREFIX);
+        Map<String, String> lakeCatalogProperties = extractPrefix(options, DataLakeFormat.class);
 
         return new FlinkCatalog(
                 context.getName(),
