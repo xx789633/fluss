@@ -83,10 +83,13 @@ public class LakeFlinkCatalog {
                                                                             dataLakePrefix
                                                                                     .length()),
                                                     Map.Entry::getValue));
+
+                    catalogProperties.putAll(
+                            DataLakeUtils.extractLakeCatalogProperties(tableOptions));
                     if (lakeFormat == PAIMON) {
                         catalog =
                                 PaimonCatalogFactory.create(
-                                        catalogName, tableOptions, catalogProperties, classLoader);
+                                        catalogName, catalogProperties, classLoader);
                         this.lakeFormat = PAIMON;
                     } else if (lakeFormat == ICEBERG) {
                         catalog =
@@ -122,12 +125,8 @@ public class LakeFlinkCatalog {
 
         public static Catalog create(
                 String catalogName,
-                Configuration tableOptions,
-                Map<String, String> additionalLakeCatalogProperties,
+                Map<String, String> catalogProperties,
                 ClassLoader classLoader) {
-            Map<String, String> catalogProperties =
-                    DataLakeUtils.extractLakeCatalogProperties(tableOptions);
-            catalogProperties.putAll(additionalLakeCatalogProperties);
             return FlinkCatalogFactory.createCatalog(
                     catalogName,
                     CatalogContext.create(
@@ -145,14 +144,7 @@ public class LakeFlinkCatalog {
         // requires Iceberg 1.5.0+.
         // Using reflection to maintain Java 8 compatibility.
         // Once Fluss drops Java 8, we can remove the reflection code
-        public static Catalog create(
-                String catalogName,
-                Map<String, String> additionalLakeCatalogProperties,
-                Configuration tableOptions) {
-            Map<String, String> catalogProperties =
-                    DataLakeUtils.extractLakeCatalogProperties(tableOptions);
-            catalogProperties.putAll(additionalLakeCatalogProperties);
-
+        public static Catalog create(String catalogName, Map<String, String> catalogProperties) {
             // Map "type" to "catalog-type" (equivalent)
             // Required: either "catalog-type" (standard type) or "catalog-impl"
             // (fully-qualified custom class, mandatory if "catalog-type" is missing)
