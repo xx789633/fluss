@@ -92,9 +92,7 @@ public class LakeFlinkCatalog {
                                         catalogName, catalogProperties, classLoader);
                         this.lakeFormat = PAIMON;
                     } else if (lakeFormat == ICEBERG) {
-                        catalog =
-                                IcebergCatalogFactory.create(
-                                        catalogName, catalogProperties, tableOptions);
+                        catalog = IcebergCatalogFactory.create(catalogName, catalogProperties);
                         this.lakeFormat = ICEBERG;
                     } else {
                         throw new UnsupportedOperationException(
