@@ -35,7 +35,7 @@ cd fluss-quickstart-flink
 
 2. Create a Dockerfile named `fluss.Dockerfile` as follows. You can adjust the Flink version as needed. Please make sure to download the compatible versions of [fluss-flink connector jar](/downloads), [flink-connector-faker](https://github.com/knaufk/flink-faker/releases) in the Dockerfile. 
 
-```yaml
+```Dockerfile
 FROM flink:1.20.2-scala_2.12
 RUN wget -P /opt/flink/lib https://github.com/knaufk/flink-faker/releases/download/v0.5.3/flink-faker-0.5.3.jar
 RUN wget -P /opt/flink/lib https://repo1.maven.org/maven2/org/apache/fluss/fluss-flink-1.20/0.8.0-incubating/fluss-flink-1.20-0.8.0-incubating.jar
