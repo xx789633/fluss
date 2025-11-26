@@ -33,18 +33,19 @@ mkdir fluss-quickstart-flink
 cd fluss-quickstart-flink
 ```
 
-2. Create a Dockerfile named `fluss.Dockerfile` as follows. You can adjust the Flink version as needed. Please make sure to download the compatible versions of [fluss-flink connector jar](/downloads), [flink-connector-faker](https://github.com/knaufk/flink-faker/releases) in the Dockerfile. 
+2. Create a `lib` directory and download the required jar files. You can adjust the Flink version as needed. Please make sure to download the compatible versions of [fluss-flink connector jar](/downloads) and [flink-connector-faker](https://github.com/knaufk/flink-faker/releases)
 
-```Dockerfile
-ARG FLINK_VERSION="1.20"
-FROM flink:${FLINK_VERSION}
-ARG FLINK_VERSION
-RUN wget -P /opt/flink/lib https://github.com/knaufk/flink-faker/releases/download/v0.5.3/flink-faker-0.5.3.jar
-RUN wget -P /opt/flink/lib https://repo1.maven.org/maven2/org/apache/fluss/fluss-flink-${FLINK_VERSION}/$FLUSS_DOCKER_VERSION$/fluss-flink-${FLINK_VERSION}-$FLUSS_DOCKER_VERSION$.jar
+```shell
+export FLINK_VERSION="1.20"
+```
+
+```shell
+mkdir lib
+wget -O lib/flink-faker-0.5.3.jar https://github.com/knaufk/flink-faker/releases/download/v0.5.3/flink-faker-0.5.3.jar
+wget -O lib/fluss-flink-${FLINK_VERSION}-$FLUSS_DOCKER_VERSION$.jar https://repo1.maven.org/maven2/org/apache/fluss/fluss-flink-${FLINK_VERSION}/$FLUSS_DOCKER_VERSION$/fluss-flink-${FLINK_VERSION}-$FLUSS_DOCKER_VERSION$.jar
 ```
 
 3. Create a `docker-compose.yml` file with the following content:
-
 
 ```yaml
 services:
@@ -79,21 +80,20 @@ services:
   #end
   #begin Flink cluster
   jobmanager:
-    build:
-      dockerfile: ./fluss.Dockerfile
+    image: flink:${FLINK_VERSION}
     ports:
       - "8083:8081"
-    command: jobmanager
     environment:
       - |
         FLINK_PROPERTIES=
         jobmanager.rpc.address: jobmanager
+    entrypoint: ["sh", "-c", "cp -v /tmp/lib/*.jar /opt/flink/lib && exec /docker-entrypoint.sh jobmanager"]
+    volumes:
+      - ./lib:/tmp/lib
   taskmanager:
-    build:
-      dockerfile: ./fluss.Dockerfile
+    image: flink:${FLINK_VERSION}
     depends_on:
       - jobmanager
-    command: taskmanager
     environment:
       - |
         FLINK_PROPERTIES=
@@ -101,10 +101,11 @@ services:
         taskmanager.numberOfTaskSlots: 10
         taskmanager.memory.process.size: 2048m
         taskmanager.memory.framework.off-heap.size: 256m
+    entrypoint: ["sh", "-c", "cp -v /tmp/lib/*.jar /opt/flink/lib && exec /docker-entrypoint.sh jobmanager"]
+    volumes:
+      - ./lib:/tmp/lib
   sql-client:
-    build:
-      dockerfile: ./fluss.Dockerfile
-    command: bin/sql-client.sh
+    image: flink:${FLINK_VERSION}
     depends_on:
       - jobmanager
     environment:
@@ -112,6 +113,9 @@ services:
         FLINK_PROPERTIES=
         jobmanager.rpc.address: jobmanager
         rest.address: jobmanager    
+    entrypoint: ["sh", "-c", "cp -v /tmp/lib/*.jar /opt/flink/lib && exec /docker-entrypoint.sh bin/sql-client.sh"]
+    volumes:
+      - ./lib:/tmp/lib
   #end
 ```
 
