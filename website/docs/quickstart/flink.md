@@ -101,7 +101,7 @@ services:
         taskmanager.numberOfTaskSlots: 10
         taskmanager.memory.process.size: 2048m
         taskmanager.memory.framework.off-heap.size: 256m
-    entrypoint: ["sh", "-c", "cp -v /tmp/lib/*.jar /opt/flink/lib && exec /docker-entrypoint.sh jobmanager"]
+    entrypoint: ["sh", "-c", "cp -v /tmp/lib/*.jar /opt/flink/lib && exec /docker-entrypoint.sh taskmanager"]
     volumes:
       - ./lib:/tmp/lib
   sql-client:
