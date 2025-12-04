@@ -207,6 +207,11 @@ CREATE TEMPORARY TABLE `source_nation` (
 );
 ```
 
+```sql title="Flink SQL"
+-- drop records silently if a null value would have to be inserted into a NOT NULL column
+SET 'table.exec.sink.not-null-enforcer'='DROP';
+```
+
 ## Create Fluss Tables
 ### Create Fluss Catalog
 Use the following SQL to create a Fluss catalog:
