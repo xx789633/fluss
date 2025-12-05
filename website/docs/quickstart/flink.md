@@ -42,7 +42,7 @@ export FLINK_VERSION="1.20"
 ```shell
 mkdir lib
 wget -O lib/flink-faker-0.5.3.jar https://github.com/knaufk/flink-faker/releases/download/v0.5.3/flink-faker-0.5.3.jar
-wget -O lib/fluss-flink-${FLINK_VERSION}-$FLUSS_DOCKER_VERSION$.jar https://repo1.maven.org/maven2/org/apache/fluss/fluss-flink-${FLINK_VERSION}/$FLUSS_DOCKER_VERSION$/fluss-flink-${FLINK_VERSION}-$FLUSS_DOCKER_VERSION$.jar
+wget -O "lib/fluss-flink-${FLINK_VERSION}-$FLUSS_DOCKER_VERSION$.jar" "https://repo1.maven.org/maven2/org/apache/fluss/fluss-flink-${FLINK_VERSION}/$FLUSS_DOCKER_VERSION$/fluss-flink-${FLINK_VERSION}-$FLUSS_DOCKER_VERSION$.jar"
 ```
 
 3. Create a `docker-compose.yml` file with the following content:
