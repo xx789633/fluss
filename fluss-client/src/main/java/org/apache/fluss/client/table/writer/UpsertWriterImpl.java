@@ -93,8 +93,8 @@ class UpsertWriterImpl extends AbstractTableWriter implements UpsertWriter {
             if (!autoIncrementColumnNames.isEmpty()) {
                 throw new IllegalArgumentException(
                         String.format(
-                                "This table has auto increment column %s."
-                                        + "Explicitly specifying values for an auto increment column is not allowed."
+                                "This table has auto increment column %s. "
+                                        + "Explicitly specifying values for an auto increment column is not allowed. "
                                         + "Please specify non-auto-increment columns as target columns using partialUpdate first.",
                                 autoIncrementColumnNames));
             }
