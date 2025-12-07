@@ -61,7 +61,11 @@ class UpsertWriterImpl extends AbstractTableWriter implements UpsertWriter {
             WriterClient writerClient) {
         super(tablePath, tableInfo, writerClient);
         RowType rowType = tableInfo.getRowType();
-        sanityCheck(rowType, tableInfo.getPrimaryKeys(), partialUpdateColumns);
+        sanityCheck(
+                rowType,
+                tableInfo.getPrimaryKeys(),
+                tableInfo.getSchema().getAutoIncrementColumnNames(),
+                partialUpdateColumns);
 
         this.targetColumns = partialUpdateColumns;
         DataLakeFormat lakeFormat = tableInfo.getTableConfig().getDataLakeFormat().orElse(null);
@@ -80,9 +84,20 @@ class UpsertWriterImpl extends AbstractTableWriter implements UpsertWriter {
     }
 
     private static void sanityCheck(
-            RowType rowType, List<String> primaryKeys, @Nullable int[] targetColumns) {
+            RowType rowType,
+            List<String> primaryKeys,
+            List<String> autoIncrementColumnNames,
+            @Nullable int[] targetColumns) {
         // skip check when target columns is null
         if (targetColumns == null) {
+            if (!autoIncrementColumnNames.isEmpty()) {
+                throw new IllegalArgumentException(
+                        String.format(
+                                "This table has auto increment column %s."
+                                        + "Explicitly specifying values for an auto increment column is not allowed."
+                                        + "Please specify non-auto-increment columns as target columns using partialUpdate first.",
+                                autoIncrementColumnNames));
+            }
             return;
         }
         BitSet targetColumnsSet = new BitSet();
@@ -114,6 +129,16 @@ class UpsertWriterImpl extends AbstractTableWriter implements UpsertWriter {
                                     "Partial Update requires all columns except primary key to be nullable, but column %s is NOT NULL.",
                                     rowType.getFieldNames().get(i)));
                 }
+            }
+        }
+
+        // explicitly specifying values for an auto increment column is not allowed
+        for (String autoIncrementColumnName : autoIncrementColumnNames) {
+            if (targetColumnsSet.get(rowType.getFieldIndex(autoIncrementColumnName))) {
+                throw new IllegalArgumentException(
+                        String.format(
+                                "Explicitly specifying values for the auto increment column %s is not allowed.",
+                                autoIncrementColumnName));
             }
         }
     }
