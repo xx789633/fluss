@@ -60,11 +60,6 @@ public class ColumnJsonSerde
 
         DataType dataType = DataTypeJsonSerde.INSTANCE.deserialize(node.get(DATA_TYPE));
 
-        Schema.Column column = new Schema.Column(columnName, dataType);
-        if (node.hasNonNull(COMMENT)) {
-            column = column.withComment(node.get(COMMENT).asText());
-        }
-
         return new Schema.Column(
                 columnName,
                 dataType,
