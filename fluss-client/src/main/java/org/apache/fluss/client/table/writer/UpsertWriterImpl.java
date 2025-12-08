@@ -118,10 +118,23 @@ class UpsertWriterImpl extends AbstractTableWriter implements UpsertWriter {
             pkColumnSet.set(pkIndex);
         }
 
+        BitSet autoIncrementColumnSet = new BitSet();
+        // explicitly specifying values for an auto increment column is not allowed
+        for (String autoIncrementColumnName : autoIncrementColumnNames) {
+            int autoIncrementColumnIndex = rowType.getFieldIndex(autoIncrementColumnName);
+            if (targetColumnsSet.get(autoIncrementColumnIndex)) {
+                throw new IllegalArgumentException(
+                        String.format(
+                                "Explicitly specifying values for the auto increment column %s is not allowed.",
+                                autoIncrementColumnName));
+            }
+            autoIncrementColumnSet.set(autoIncrementColumnIndex);
+        }
+
         // check the columns not in targetColumns should be nullable
         for (int i = 0; i < rowType.getFieldCount(); i++) {
-            // column not in primary key
-            if (!pkColumnSet.get(i)) {
+            // column not in primary key and not in auto increment column
+            if (!pkColumnSet.get(i) && !autoIncrementColumnSet.get(i)) {
                 // the column should be nullable
                 if (!rowType.getTypeAt(i).isNullable()) {
                     throw new IllegalArgumentException(
@@ -129,16 +142,6 @@ class UpsertWriterImpl extends AbstractTableWriter implements UpsertWriter {
                                     "Partial Update requires all columns except primary key to be nullable, but column %s is NOT NULL.",
                                     rowType.getFieldNames().get(i)));
                 }
-            }
-        }
-
-        // explicitly specifying values for an auto increment column is not allowed
-        for (String autoIncrementColumnName : autoIncrementColumnNames) {
-            if (targetColumnsSet.get(rowType.getFieldIndex(autoIncrementColumnName))) {
-                throw new IllegalArgumentException(
-                        String.format(
-                                "Explicitly specifying values for the auto increment column %s is not allowed.",
-                                autoIncrementColumnName));
             }
         }
     }

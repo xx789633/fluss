@@ -668,8 +668,9 @@ class FlussTableITCase extends ClientToServerITCaseBase {
                 Schema.newBuilder()
                         .column("a", DataTypes.INT())
                         .column("b", DataTypes.INT())
+                        .column("c", DataTypes.INT())
                         .primaryKey("a")
-                        .enableAutoIncrement("b")
+                        .enableAutoIncrement("c")
                         .build();
         tableDescriptor = TableDescriptor.builder().schema(schema).distributedBy(3, "a").build();
         TablePath tablePath =
@@ -678,11 +679,11 @@ class FlussTableITCase extends ClientToServerITCaseBase {
         try (Table table = conn.getTable(tablePath)) {
             assertThatThrownBy(() -> table.newUpsert().createWriter())
                     .hasMessage(
-                            "This table has auto increment column [b]. Explicitly specifying values for an auto increment column is not allowed. Please specify non-auto-increment columns as target columns using partialUpdate first.");
+                            "This table has auto increment column [c]. Explicitly specifying values for an auto increment column is not allowed. Please specify non-auto-increment columns as target columns using partialUpdate first.");
 
-            assertThatThrownBy(() -> table.newUpsert().partialUpdate("a", "b").createWriter())
+            assertThatThrownBy(() -> table.newUpsert().partialUpdate("a", "c").createWriter())
                     .hasMessage(
-                            "Explicitly specifying values for the auto increment column b is not allowed.");
+                            "Explicitly specifying values for the auto increment column c is not allowed.");
         }
     }
 
