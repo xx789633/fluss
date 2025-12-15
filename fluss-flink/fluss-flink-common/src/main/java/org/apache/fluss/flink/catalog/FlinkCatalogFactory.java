@@ -26,6 +26,7 @@ import org.apache.flink.table.factories.FactoryUtil;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -69,7 +70,11 @@ public class FlinkCatalogFactory implements CatalogFactory {
         helper.validateExcept(PREFIXES_TO_SKIP_VALIDATE.toArray(new String[0]));
         Map<String, String> options = context.getOptions();
         Map<String, String> securityConfigs = extractPrefix(options, CLIENT_SECURITY_PREFIX);
-        Map<String, String> lakeCatalogProperties = extractPrefix(options, DataLakeFormat.class);
+
+        Map<String, String> lakeCatalogProperties = new HashMap<>();
+        for (DataLakeFormat lakeFormat : DataLakeFormat.values()) {
+            lakeCatalogProperties.putAll(extractPrefix(options, lakeFormat.toString()));
+        }
 
         return new FlinkCatalog(
                 context.getName(),

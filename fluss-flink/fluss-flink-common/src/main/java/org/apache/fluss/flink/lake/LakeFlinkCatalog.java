@@ -21,6 +21,7 @@ import org.apache.fluss.config.ConfigOptions;
 import org.apache.fluss.config.Configuration;
 import org.apache.fluss.flink.utils.DataLakeUtils;
 import org.apache.fluss.metadata.DataLakeFormat;
+import org.apache.fluss.utils.PropertiesUtils;
 
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.paimon.catalog.CatalogContext;
@@ -30,7 +31,6 @@ import org.apache.paimon.options.Options;
 
 import java.lang.reflect.Method;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import static org.apache.fluss.metadata.DataLakeFormat.ICEBERG;
 import static org.apache.fluss.metadata.DataLakeFormat.PAIMON;
@@ -71,18 +71,9 @@ public class LakeFlinkCatalog {
                                         + ConfigOptions.TABLE_DATALAKE_FORMAT.key()
                                         + "' is set.");
                     }
-                    String dataLakePrefix = lakeFormat.toString() + ".";
                     Map<String, String> catalogProperties =
-                            lakeCatalogProperties.entrySet().stream()
-                                    .filter(entry -> entry.getKey().startsWith(dataLakePrefix))
-                                    .collect(
-                                            Collectors.toMap(
-                                                    entry ->
-                                                            entry.getKey()
-                                                                    .substring(
-                                                                            dataLakePrefix
-                                                                                    .length()),
-                                                    Map.Entry::getValue));
+                            PropertiesUtils.extractAndRemovePrefix(
+                                    lakeCatalogProperties, lakeFormat + ".");
 
                     catalogProperties.putAll(
                             DataLakeUtils.extractLakeCatalogProperties(tableOptions));
