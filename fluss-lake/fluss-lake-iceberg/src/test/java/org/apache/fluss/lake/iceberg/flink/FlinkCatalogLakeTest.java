@@ -103,7 +103,7 @@ class FlinkCatalogLakeTest extends FlinkIcebergTieringTestBase {
                         bootstrapServers,
                         Thread.currentThread().getContextClassLoader(),
                         Collections.emptyMap(),
-                        Collections.emptyMap());
+                        Collections::emptyMap);
         catalog.open();
     }
 }

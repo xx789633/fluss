@@ -116,7 +116,7 @@ abstract class FlinkCatalogITCase {
                         bootstrapServers,
                         Thread.currentThread().getContextClassLoader(),
                         Collections.emptyMap(),
-                        Collections.emptyMap());
+                        Collections::emptyMap);
         catalog.open();
     }
 
@@ -771,7 +771,7 @@ abstract class FlinkCatalogITCase {
                             bootstrapServers,
                             Thread.currentThread().getContextClassLoader(),
                             Collections.emptyMap(),
-                            Collections.emptyMap());
+                            Collections::emptyMap);
             Catalog finalAuthenticateCatalog = authenticateCatalog;
             assertThatThrownBy(finalAuthenticateCatalog::open)
                     .cause()
@@ -790,7 +790,7 @@ abstract class FlinkCatalogITCase {
                             bootstrapServers,
                             Thread.currentThread().getContextClassLoader(),
                             clientConfig,
-                            Collections.emptyMap());
+                            Collections::emptyMap);
             authenticateCatalog.open();
             assertThat(authenticateCatalog.listDatabases())
                     .containsExactlyInAnyOrderElementsOf(Collections.singletonList(DEFAULT_DB));

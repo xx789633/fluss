@@ -71,17 +71,18 @@ public class FlinkCatalogFactory implements CatalogFactory {
         Map<String, String> options = context.getOptions();
         Map<String, String> securityConfigs = extractPrefix(options, CLIENT_SECURITY_PREFIX);
 
-        Map<String, String> lakeCatalogProperties = new HashMap<>();
-        for (DataLakeFormat lakeFormat : DataLakeFormat.values()) {
-            lakeCatalogProperties.putAll(extractPrefix(options, lakeFormat.toString()));
-        }
-
         return new FlinkCatalog(
                 context.getName(),
                 helper.getOptions().get(FlinkCatalogOptions.DEFAULT_DATABASE),
                 helper.getOptions().get(FlinkConnectorOptions.BOOTSTRAP_SERVERS),
                 context.getClassLoader(),
                 securityConfigs,
-                lakeCatalogProperties);
+                () -> {
+                    Map<String, String> lakeCatalogProperties = new HashMap<>();
+                    for (DataLakeFormat lakeFormat : DataLakeFormat.values()) {
+                        lakeCatalogProperties.putAll(extractPrefix(options, lakeFormat.toString()));
+                    }
+                    return lakeCatalogProperties;
+                });
     }
 }

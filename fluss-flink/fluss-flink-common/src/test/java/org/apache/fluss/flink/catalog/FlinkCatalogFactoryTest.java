@@ -65,7 +65,7 @@ abstract class FlinkCatalogFactoryTest {
                         BOOTSTRAP_SERVERS_NAME,
                         Thread.currentThread().getContextClassLoader(),
                         Collections.emptyMap(),
-                        Collections.emptyMap());
+                        Collections::emptyMap);
 
         checkEquals(flinkCatalog, actualCatalog);
 

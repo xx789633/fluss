@@ -80,6 +80,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -115,7 +116,7 @@ public class FlinkCatalog extends AbstractCatalog {
     protected final String bootstrapServers;
     protected final Map<String, String> securityConfigs;
     protected final LakeFlinkCatalog lakeFlinkCatalog;
-    protected final Map<String, String> lakeCatalogProperties;
+    protected final Supplier<Map<String, String>> lakeCatalogProperties;
     protected Connection connection;
     protected Admin admin;
 
@@ -125,7 +126,7 @@ public class FlinkCatalog extends AbstractCatalog {
             String bootstrapServers,
             ClassLoader classLoader,
             Map<String, String> securityConfigs,
-            Map<String, String> lakeCatalogProperties) {
+            Supplier<Map<String, String>> lakeCatalogProperties) {
         super(name, defaultDatabase);
         this.catalogName = name;
         this.defaultDatabase = defaultDatabase;
@@ -302,7 +303,7 @@ public class FlinkCatalog extends AbstractCatalog {
                         objectPath.getDatabaseName(),
                         tableName,
                         tableInfo.getProperties(),
-                        lakeCatalogProperties);
+                        lakeCatalogProperties.get());
             } else {
                 tableInfo = admin.getTableInfo(tablePath).get();
             }

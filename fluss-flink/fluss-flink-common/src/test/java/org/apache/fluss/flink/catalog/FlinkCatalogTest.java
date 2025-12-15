@@ -169,7 +169,7 @@ class FlinkCatalogTest {
                         String.join(",", flussConf.get(BOOTSTRAP_SERVERS)),
                         Thread.currentThread().getContextClassLoader(),
                         Collections.emptyMap(),
-                        Collections.emptyMap());
+                        Collections::emptyMap);
         catalog.open();
     }
 
@@ -625,7 +625,7 @@ class FlinkCatalogTest {
                                                 flussConf.get(ConfigOptions.BOOTSTRAP_SERVERS)),
                                         Thread.currentThread().getContextClassLoader(),
                                         Collections.emptyMap(),
-                                        Collections.emptyMap()))
+                                        Collections::emptyMap))
                 .hasMessageContaining("defaultDatabase cannot be null or empty");
     }
 
@@ -814,7 +814,7 @@ class FlinkCatalogTest {
                         "invalid-bootstrap-server:9092",
                         Thread.currentThread().getContextClassLoader(),
                         Collections.emptyMap(),
-                        Collections.emptyMap());
+                        Collections::emptyMap);
 
         // Test open() throws proper exception
         assertThatThrownBy(() -> badCatalog.open())
@@ -945,7 +945,7 @@ class FlinkCatalogTest {
                         String.join(",", flussConf.get(BOOTSTRAP_SERVERS)),
                         Thread.currentThread().getContextClassLoader(),
                         securityConfigs,
-                        Collections.emptyMap());
+                        Collections::emptyMap);
         securedCatalog.open();
 
         try {

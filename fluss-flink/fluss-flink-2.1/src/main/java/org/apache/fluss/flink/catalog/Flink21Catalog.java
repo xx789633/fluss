@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 /** A {@link FlinkCatalog} used for Flink 2.1. */
 public class Flink21Catalog extends FlinkCatalog {
@@ -41,7 +42,7 @@ public class Flink21Catalog extends FlinkCatalog {
             String bootstrapServers,
             ClassLoader classLoader,
             Map<String, String> securityConfigs,
-            Map<String, String> lakeCatalogProperties) {
+            Supplier<Map<String, String>> lakeCatalogProperties) {
         super(
                 name,
                 defaultDatabase,
