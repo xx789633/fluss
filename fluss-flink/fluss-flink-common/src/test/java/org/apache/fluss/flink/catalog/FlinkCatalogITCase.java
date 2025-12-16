@@ -818,6 +818,20 @@ abstract class FlinkCatalogITCase {
                         "The configured default-database 'non-exist' does not exist in the Fluss cluster.");
     }
 
+    @Test
+    void testCreateCatalogWithLakeProperties() {
+        Map<String, String> properties = new HashMap<>();
+        properties.put("paimon.jdbc.password", "pass");
+        tEnv.executeSql(
+                String.format(
+                        "create catalog test_catalog_with_lake_properties with ('type' = 'fluss', '%s' = '%s', 'paimon.jdbc.password' = 'pass')",
+                        BOOTSTRAP_SERVERS.key(), FLUSS_CLUSTER_EXTENSION.getBootstrapServers()));
+        FlinkCatalog catalog =
+                (FlinkCatalog) tEnv.getCatalog("test_catalog_with_lake_properties").get();
+
+        assertOptionsEqual(catalog.getLakeCatalogProperties().get(), properties);
+    }
+
     /**
      * Before Flink 2.1, the {@link Schema} did not include an index field. Starting from Flink 2.1,
      * Flink introduced the concept of an index, and in Fluss, the primary key is considered as an
