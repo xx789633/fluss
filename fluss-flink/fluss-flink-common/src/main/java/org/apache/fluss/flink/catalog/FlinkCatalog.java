@@ -125,16 +125,31 @@ public class FlinkCatalog extends AbstractCatalog {
             String defaultDatabase,
             String bootstrapServers,
             ClassLoader classLoader,
+            Map<String, String> securityConfigs) {
+        this(
+                name,
+                defaultDatabase,
+                bootstrapServers,
+                classLoader,
+                securityConfigs,
+                new LakeFlinkCatalog(name, classLoader));
+    }
+
+    @VisibleForTesting
+    public FlinkCatalog(
+            String name,
+            String defaultDatabase,
+            String bootstrapServers,
+            ClassLoader classLoader,
             Map<String, String> securityConfigs,
-            Supplier<Map<String, String>> lakeCatalogProperties) {
+            LakeFlinkCatalog lakeFlinkCatalog) {
         super(name, defaultDatabase);
         this.catalogName = name;
         this.defaultDatabase = defaultDatabase;
         this.bootstrapServers = bootstrapServers;
         this.classLoader = classLoader;
         this.securityConfigs = securityConfigs;
-        this.lakeCatalogProperties = lakeCatalogProperties;
-        this.lakeFlinkCatalog = new LakeFlinkCatalog(catalogName, classLoader);
+        this.lakeFlinkCatalog = lakeFlinkCatalog;
     }
 
     @Override
@@ -162,6 +177,7 @@ public class FlinkCatalog extends AbstractCatalog {
     public void close() throws CatalogException {
         IOUtils.closeQuietly(admin, "fluss-admin");
         IOUtils.closeQuietly(connection, "fluss-connection");
+        IOUtils.closeQuietly(lakeFlinkCatalog, "fluss-lake-catalog");
     }
 
     @Override
