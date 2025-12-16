@@ -125,13 +125,15 @@ public class FlinkCatalog extends AbstractCatalog {
             String defaultDatabase,
             String bootstrapServers,
             ClassLoader classLoader,
-            Map<String, String> securityConfigs) {
+            Map<String, String> securityConfigs,
+            Supplier<Map<String, String>> lakeCatalogProperties) {
         this(
                 name,
                 defaultDatabase,
                 bootstrapServers,
                 classLoader,
                 securityConfigs,
+                lakeCatalogProperties,
                 new LakeFlinkCatalog(name, classLoader));
     }
 
@@ -142,6 +144,7 @@ public class FlinkCatalog extends AbstractCatalog {
             String bootstrapServers,
             ClassLoader classLoader,
             Map<String, String> securityConfigs,
+            Supplier<Map<String, String>> lakeCatalogProperties,
             LakeFlinkCatalog lakeFlinkCatalog) {
         super(name, defaultDatabase);
         this.catalogName = name;
@@ -149,6 +152,7 @@ public class FlinkCatalog extends AbstractCatalog {
         this.bootstrapServers = bootstrapServers;
         this.classLoader = classLoader;
         this.securityConfigs = securityConfigs;
+        this.lakeCatalogProperties = lakeCatalogProperties;
         this.lakeFlinkCatalog = lakeFlinkCatalog;
     }
 
