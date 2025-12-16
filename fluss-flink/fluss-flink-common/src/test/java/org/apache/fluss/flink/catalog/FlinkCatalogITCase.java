@@ -829,7 +829,7 @@ abstract class FlinkCatalogITCase {
         FlinkCatalog catalog =
                 (FlinkCatalog) tEnv.getCatalog("test_catalog_with_lake_properties").get();
 
-        assertOptionsEqual(catalog.getLakeCatalogProperties().get(), properties);
+        assertOptionsEqual(catalog.getLakeCatalogProperties(), properties);
     }
 
     /**

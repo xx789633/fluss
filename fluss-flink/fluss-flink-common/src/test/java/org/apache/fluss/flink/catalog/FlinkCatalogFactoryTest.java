@@ -91,7 +91,7 @@ abstract class FlinkCatalogFactoryTest {
                                 Thread.currentThread().getContextClassLoader());
 
         assertThat(actualCatalog2.getSecurityConfigs()).isEqualTo(securityMap);
-        assertThat(actualCatalog2.getLakeCatalogProperties().get()).isEqualTo(lakeCatalogMap);
+        assertThat(actualCatalog2.getLakeCatalogProperties()).isEqualTo(lakeCatalogMap);
     }
 
     @Test

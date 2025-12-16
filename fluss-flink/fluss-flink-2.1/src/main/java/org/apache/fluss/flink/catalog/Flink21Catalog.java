@@ -44,14 +44,14 @@ public class Flink21Catalog extends FlinkCatalog {
             String bootstrapServers,
             ClassLoader classLoader,
             Map<String, String> securityConfigs,
-            Supplier<Map<String, String>> lakeCatalogProperties) {
+            Supplier<Map<String, String>> lakeCatalogPropertiesSupplier) {
         super(
                 name,
                 defaultDatabase,
                 bootstrapServers,
                 classLoader,
                 securityConfigs,
-                lakeCatalogProperties);
+                lakeCatalogPropertiesSupplier);
     }
 
     @VisibleForTesting
@@ -61,7 +61,7 @@ public class Flink21Catalog extends FlinkCatalog {
             String bootstrapServers,
             ClassLoader classLoader,
             Map<String, String> securityConfigs,
-            Supplier<Map<String, String>> lakeCatalogProperties,
+            Supplier<Map<String, String>> lakeCatalogPropertiesSupplier,
             LakeFlinkCatalog lakeFlinkCatalog) {
         super(
                 name,
@@ -69,7 +69,7 @@ public class Flink21Catalog extends FlinkCatalog {
                 bootstrapServers,
                 classLoader,
                 securityConfigs,
-                lakeCatalogProperties,
+                lakeCatalogPropertiesSupplier,
                 lakeFlinkCatalog);
     }
 

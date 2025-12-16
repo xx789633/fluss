@@ -116,7 +116,7 @@ public class FlinkCatalog extends AbstractCatalog {
     protected final String bootstrapServers;
     protected final Map<String, String> securityConfigs;
     protected final LakeFlinkCatalog lakeFlinkCatalog;
-    protected final Supplier<Map<String, String>> lakeCatalogProperties;
+    protected final Supplier<Map<String, String>> lakeCatalogPropertiesSupplier;
     protected Connection connection;
     protected Admin admin;
 
@@ -126,14 +126,14 @@ public class FlinkCatalog extends AbstractCatalog {
             String bootstrapServers,
             ClassLoader classLoader,
             Map<String, String> securityConfigs,
-            Supplier<Map<String, String>> lakeCatalogProperties) {
+            Supplier<Map<String, String>> lakeCatalogPropertiesSupplier) {
         this(
                 name,
                 defaultDatabase,
                 bootstrapServers,
                 classLoader,
                 securityConfigs,
-                lakeCatalogProperties,
+                lakeCatalogPropertiesSupplier,
                 new LakeFlinkCatalog(name, classLoader));
     }
 
@@ -144,7 +144,7 @@ public class FlinkCatalog extends AbstractCatalog {
             String bootstrapServers,
             ClassLoader classLoader,
             Map<String, String> securityConfigs,
-            Supplier<Map<String, String>> lakeCatalogProperties,
+            Supplier<Map<String, String>> lakeCatalogPropertiesSupplier,
             LakeFlinkCatalog lakeFlinkCatalog) {
         super(name, defaultDatabase);
         this.catalogName = name;
@@ -152,7 +152,7 @@ public class FlinkCatalog extends AbstractCatalog {
         this.bootstrapServers = bootstrapServers;
         this.classLoader = classLoader;
         this.securityConfigs = securityConfigs;
-        this.lakeCatalogProperties = lakeCatalogProperties;
+        this.lakeCatalogPropertiesSupplier = lakeCatalogPropertiesSupplier;
         this.lakeFlinkCatalog = lakeFlinkCatalog;
     }
 
@@ -323,7 +323,7 @@ public class FlinkCatalog extends AbstractCatalog {
                         objectPath.getDatabaseName(),
                         tableName,
                         tableInfo.getProperties(),
-                        lakeCatalogProperties);
+                        lakeCatalogPropertiesSupplier);
             } else {
                 tableInfo = admin.getTableInfo(tablePath).get();
             }
@@ -360,7 +360,7 @@ public class FlinkCatalog extends AbstractCatalog {
             String databaseName,
             String tableName,
             Configuration properties,
-            Supplier<Map<String, String>> lakeCatalogProperties)
+            Supplier<Map<String, String>> lakeCatalogPropertiesSupplier)
             throws TableNotExistException, CatalogException {
         String[] tableComponents = tableName.split("\\" + LAKE_TABLE_SPLITTER);
         if (tableComponents.length == 1) {
@@ -372,7 +372,7 @@ public class FlinkCatalog extends AbstractCatalog {
             tableName = String.join("", tableComponents);
         }
         return lakeFlinkCatalog
-                .getLakeCatalog(properties, lakeCatalogProperties)
+                .getLakeCatalog(properties, lakeCatalogPropertiesSupplier)
                 .getTable(new ObjectPath(databaseName, tableName));
     }
 
@@ -787,7 +787,7 @@ public class FlinkCatalog extends AbstractCatalog {
     }
 
     @VisibleForTesting
-    public Supplier<Map<String, String>> getLakeCatalogProperties() {
-        return lakeCatalogProperties;
+    public Map<String, String> getLakeCatalogProperties() {
+        return lakeCatalogPropertiesSupplier.get();
     }
 }

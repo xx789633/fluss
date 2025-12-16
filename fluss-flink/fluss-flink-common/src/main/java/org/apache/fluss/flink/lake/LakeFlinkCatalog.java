@@ -52,7 +52,8 @@ public class LakeFlinkCatalog implements AutoCloseable {
     }
 
     public Catalog getLakeCatalog(
-            Configuration tableOptions, Supplier<Map<String, String>> lakeCatalogProperties) {
+            Configuration tableOptions,
+            Supplier<Map<String, String>> lakeCatalogPropertiesSupplier) {
         // TODO: Currently, a Fluss cluster only supports a single DataLake storage.
         // However, in the
         //  future, it may support multiple DataLakes. The following code assumes
@@ -74,7 +75,7 @@ public class LakeFlinkCatalog implements AutoCloseable {
                     }
                     Map<String, String> catalogProperties =
                             PropertiesUtils.extractAndRemovePrefix(
-                                    lakeCatalogProperties.get(), lakeFormat + ".");
+                                    lakeCatalogPropertiesSupplier.get(), lakeFormat + ".");
 
                     catalogProperties.putAll(
                             DataLakeUtils.extractLakeCatalogProperties(tableOptions));

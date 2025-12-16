@@ -1012,7 +1012,8 @@ class FlinkCatalogTest {
 
         @Override
         public Catalog getLakeCatalog(
-                Configuration tableOptions, Supplier<Map<String, String>> lakeCatalogProperties) {
+                Configuration tableOptions,
+                Supplier<Map<String, String>> lakeCatalogPropertiesSupplier) {
             return catalog;
         }
 
