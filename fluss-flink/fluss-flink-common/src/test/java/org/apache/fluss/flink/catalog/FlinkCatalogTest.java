@@ -72,7 +72,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Supplier;
 
 import static org.apache.fluss.config.ConfigOptions.BOOTSTRAP_SERVERS;
 import static org.apache.fluss.config.ConfigOptions.TABLE_DATALAKE_ENABLED;
@@ -1012,8 +1011,7 @@ class FlinkCatalogTest {
 
         @Override
         public Catalog getLakeCatalog(
-                Configuration tableOptions,
-                Supplier<Map<String, String>> lakeCatalogPropertiesSupplier) {
+                Configuration tableOptions, Map<String, String> lakeCatalogProperties) {
             return catalog;
         }
 

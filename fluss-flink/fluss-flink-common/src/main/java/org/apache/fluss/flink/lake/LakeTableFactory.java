@@ -85,7 +85,7 @@ public class LakeTableFactory {
                     lakeFlinkCatalog.getLakeCatalog(
                             // we can pass empty configuration to get catalog
                             // since the catalog should already be initialized
-                            new Configuration(), Collections::emptyMap);
+                            new Configuration(), Collections.emptyMap());
 
             // Create FlinkDynamicTableFactory with the catalog
             Class<?> icebergFactoryClass =

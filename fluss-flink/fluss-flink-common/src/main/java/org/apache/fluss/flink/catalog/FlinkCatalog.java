@@ -116,6 +116,7 @@ public class FlinkCatalog extends AbstractCatalog {
     protected final String bootstrapServers;
     protected final Map<String, String> securityConfigs;
     protected final LakeFlinkCatalog lakeFlinkCatalog;
+    protected volatile Map<String, String> lakeCatalogProperties;
     protected final Supplier<Map<String, String>> lakeCatalogPropertiesSupplier;
     protected Connection connection;
     protected Admin admin;
@@ -323,7 +324,7 @@ public class FlinkCatalog extends AbstractCatalog {
                         objectPath.getDatabaseName(),
                         tableName,
                         tableInfo.getProperties(),
-                        lakeCatalogPropertiesSupplier);
+                        getLakeCatalogProperties());
             } else {
                 tableInfo = admin.getTableInfo(tablePath).get();
             }
@@ -360,7 +361,7 @@ public class FlinkCatalog extends AbstractCatalog {
             String databaseName,
             String tableName,
             Configuration properties,
-            Supplier<Map<String, String>> lakeCatalogPropertiesSupplier)
+            Map<String, String> lakeCatalogProperties)
             throws TableNotExistException, CatalogException {
         String[] tableComponents = tableName.split("\\" + LAKE_TABLE_SPLITTER);
         if (tableComponents.length == 1) {
@@ -372,7 +373,7 @@ public class FlinkCatalog extends AbstractCatalog {
             tableName = String.join("", tableComponents);
         }
         return lakeFlinkCatalog
-                .getLakeCatalog(properties, lakeCatalogPropertiesSupplier)
+                .getLakeCatalog(properties, lakeCatalogProperties)
                 .getTable(new ObjectPath(databaseName, tableName));
     }
 
@@ -788,6 +789,13 @@ public class FlinkCatalog extends AbstractCatalog {
 
     @VisibleForTesting
     public Map<String, String> getLakeCatalogProperties() {
-        return lakeCatalogPropertiesSupplier.get();
+        if (lakeCatalogProperties == null) {
+            synchronized (this) {
+                if (lakeCatalogProperties == null) {
+                    lakeCatalogProperties = lakeCatalogPropertiesSupplier.get();
+                }
+            }
+        }
+        return lakeCatalogProperties;
     }
 }

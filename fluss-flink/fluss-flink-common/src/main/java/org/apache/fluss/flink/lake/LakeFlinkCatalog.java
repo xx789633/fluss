@@ -31,7 +31,6 @@ import org.apache.paimon.options.Options;
 
 import java.lang.reflect.Method;
 import java.util.Map;
-import java.util.function.Supplier;
 
 import static org.apache.fluss.metadata.DataLakeFormat.ICEBERG;
 import static org.apache.fluss.metadata.DataLakeFormat.PAIMON;
@@ -52,8 +51,7 @@ public class LakeFlinkCatalog implements AutoCloseable {
     }
 
     public Catalog getLakeCatalog(
-            Configuration tableOptions,
-            Supplier<Map<String, String>> lakeCatalogPropertiesSupplier) {
+            Configuration tableOptions, Map<String, String> lakeCatalogProperties) {
         // TODO: Currently, a Fluss cluster only supports a single DataLake storage.
         // However, in the
         //  future, it may support multiple DataLakes. The following code assumes
@@ -75,7 +73,7 @@ public class LakeFlinkCatalog implements AutoCloseable {
                     }
                     Map<String, String> catalogProperties =
                             PropertiesUtils.extractAndRemovePrefix(
-                                    lakeCatalogPropertiesSupplier.get(), lakeFormat + ".");
+                                    lakeCatalogProperties, lakeFormat + ".");
 
                     catalogProperties.putAll(
                             DataLakeUtils.extractLakeCatalogProperties(tableOptions));
