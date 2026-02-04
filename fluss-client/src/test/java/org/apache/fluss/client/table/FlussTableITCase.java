@@ -633,6 +633,84 @@ class FlussTableITCase extends ClientToServerITCaseBase {
         verifyRecords(expectedRecords, autoIncTable, schema);
     }
 
+    @Test
+    void testLookupWithInsertIfNotExists() throws Exception {
+        TablePath tablePath = TablePath.of("test_db_1", "test_invalid_lookup_with_insert_table");
+        Schema schema =
+                Schema.newBuilder()
+                        .column("a", DataTypes.INT())
+                        .withComment("a is first column")
+                        .column("b", DataTypes.INT())
+                        .withComment("b is second column")
+                        .primaryKey("b")
+                        .column("c", DataTypes.STRING())
+                        .enableAutoIncrement("a")
+                        .build();
+        TableDescriptor tableDescriptor = TableDescriptor.builder().schema(schema).build();
+        createTable(tablePath, tableDescriptor, false);
+        Table invalid_table = conn.getTable(tablePath);
+
+        assertThatThrownBy(
+                        () -> invalid_table.newLookup().enableInsertIfNotExists().createLookuper())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining(
+                        "insertIfNotExists cannot be enabled for tables with nullable columns besides primary key and auto increment columns.");
+
+        tablePath = TablePath.of("test_db_1", "test_lookup_with_insert_table");
+        schema =
+                Schema.newBuilder()
+                        .column("a", DataTypes.INT())
+                        .withComment("a is first column")
+                        .column("b", DataTypes.INT())
+                        .withComment("b is second column")
+                        .primaryKey("b")
+                        .enableAutoIncrement("a")
+                        .build();
+        tableDescriptor = TableDescriptor.builder().schema(schema).distributedBy(1, "b").build();
+        createTable(tablePath, tableDescriptor, true);
+        Table table = conn.getTable(tablePath);
+        RowType rowType = schema.getRowType();
+
+        assertThatThrownBy(
+                        () ->
+                                table.newLookup()
+                                        .lookupBy("b")
+                                        .enableInsertIfNotExists()
+                                        .createLookuper())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("insertIfNotExists can not be used with prefix lookup");
+        assertThatThrownBy(
+                        () ->
+                                table.newLookup()
+                                        .enableInsertIfNotExists()
+                                        .lookupBy("b")
+                                        .createLookuper())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("insertIfNotExists can not be used with prefix lookup");
+
+        Lookuper lookuper = table.newLookup().createLookuper();
+        // make sure the key does not exist
+        assertThat(lookupRow(lookuper, row(1))).isNull();
+
+        Lookuper insertLookuper = table.newLookup().enableInsertIfNotExists().createLookuper();
+        assertRowValueEquals(
+                rowType,
+                insertLookuper.lookup(row(1)).get().getSingletonRow(),
+                new Object[] {1, 1});
+
+        // lookup the same key again
+        assertRowValueEquals(
+                rowType,
+                insertLookuper.lookup(row(1)).get().getSingletonRow(),
+                new Object[] {1, 1});
+
+        // test another key
+        assertRowValueEquals(
+                rowType,
+                insertLookuper.lookup(row(2)).get().getSingletonRow(),
+                new Object[] {2, 2});
+    }
+
     private void partialUpdateRecords(String[] targetColumns, Object[][] records, Table table) {
         UpsertWriter upsertWriter = table.newUpsert().partialUpdate(targetColumns).createWriter();
         for (Object[] record : records) {

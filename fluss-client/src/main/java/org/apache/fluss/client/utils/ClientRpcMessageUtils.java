@@ -198,6 +198,25 @@ public class ClientRpcMessageUtils {
         return request;
     }
 
+    public static LookupRequest makeLookupRequestWithInsertIfNotExists(
+            long tableId, Collection<LookupBatch> lookupBatches, short acks, int timeoutMs) {
+        LookupRequest request = new LookupRequest().setTableId(tableId);
+        request.setInsertIfNotExists(true);
+        request.setAcks(acks);
+        request.setTimeoutMs(timeoutMs);
+        lookupBatches.forEach(
+                (batch) -> {
+                    TableBucket tb = batch.tableBucket();
+                    PbLookupReqForBucket pbLookupReqForBucket =
+                            request.addBucketsReq().setBucketId(tb.getBucket());
+                    if (tb.getPartitionId() != null) {
+                        pbLookupReqForBucket.setPartitionId(tb.getPartitionId());
+                    }
+                    batch.lookups().forEach(get -> pbLookupReqForBucket.addKey(get.key()));
+                });
+        return request;
+    }
+
     public static PrefixLookupRequest makePrefixLookupRequest(
             long tableId, Collection<PrefixLookupBatch> lookupBatches) {
         PrefixLookupRequest request = new PrefixLookupRequest().setTableId(tableId);
