@@ -77,15 +77,23 @@ class LookupSender implements Runnable {
 
     private final int maxRetries;
 
+    private final int maxRequestTimeoutMs;
+
+    private final short acks;
+
     LookupSender(
             MetadataUpdater metadataUpdater,
             LookupQueue lookupQueue,
             int maxFlightRequests,
-            int maxRetries) {
+            int maxRetries,
+            short acks,
+            int maxRequestTimeoutMs) {
         this.metadataUpdater = metadataUpdater;
         this.lookupQueue = lookupQueue;
         this.maxInFlightReuqestsSemaphore = new Semaphore(maxFlightRequests);
         this.maxRetries = maxRetries;
+        this.acks = acks;
+        this.maxRequestTimeoutMs = maxRequestTimeoutMs;
         this.running = true;
     }
 

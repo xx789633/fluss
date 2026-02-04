@@ -21,6 +21,7 @@ import org.apache.fluss.annotation.Internal;
 import org.apache.fluss.client.metadata.MetadataUpdater;
 import org.apache.fluss.config.ConfigOptions;
 import org.apache.fluss.config.Configuration;
+import org.apache.fluss.exception.IllegalConfigurationException;
 import org.apache.fluss.metadata.TableBucket;
 import org.apache.fluss.metadata.TablePath;
 import org.apache.fluss.utils.concurrent.ExecutorThreadFactory;
@@ -64,12 +65,15 @@ public class LookupClient {
     public LookupClient(Configuration conf, MetadataUpdater metadataUpdater) {
         this.lookupQueue = new LookupQueue(conf);
         this.lookupSenderThreadPool = createThreadPool();
+        short acks = configureAcks(conf);
         this.lookupSender =
                 new LookupSender(
                         metadataUpdater,
                         lookupQueue,
                         conf.getInt(ConfigOptions.CLIENT_LOOKUP_MAX_INFLIGHT_SIZE),
-                        conf.getInt(ConfigOptions.CLIENT_LOOKUP_MAX_RETRIES));
+                        conf.getInt(ConfigOptions.CLIENT_LOOKUP_MAX_RETRIES),
+                        acks,
+                        (int) conf.get(ConfigOptions.CLIENT_REQUEST_TIMEOUT).toMillis());
         lookupSenderThreadPool.submit(lookupSender);
     }
 
@@ -77,6 +81,19 @@ public class LookupClient {
         // according to benchmark, increase the thread pool size improve not so much
         // performance, so we always use 1 thread for simplicity.
         return Executors.newFixedThreadPool(1, new ExecutorThreadFactory(LOOKUP_THREAD_PREFIX));
+    }
+
+
+    private short configureAcks(Configuration conf) {
+        String acks = conf.get(ConfigOptions.CLIENT_WRITER_ACKS);
+        short ack;
+        if (acks.equals("all")) {
+            ack = Short.parseShort("-1");
+        } else {
+            ack = Short.parseShort(acks);
+        }
+
+        return ack;
     }
 
     public CompletableFuture<byte[]> lookup(

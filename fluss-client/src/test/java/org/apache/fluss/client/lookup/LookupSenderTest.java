@@ -70,6 +70,8 @@ public class LookupSenderTest {
 
     private static final int MAX_RETRIES = 3;
     private static final int MAX_INFLIGHT_REQUESTS = 10;
+    private static final int MAX_REQUEST_TIMEOUT_MS = 1000;
+    private static final short ACKS = 3;
     private static final TableBucket TABLE_BUCKET = new TableBucket(DATA1_TABLE_ID_PK, 0);
 
     private LookupQueue lookupQueue;
@@ -95,7 +97,7 @@ public class LookupSenderTest {
         lookupQueue = new LookupQueue(conf);
 
         lookupSender =
-                new LookupSender(metadataUpdater, lookupQueue, MAX_INFLIGHT_REQUESTS, MAX_RETRIES);
+                new LookupSender(metadataUpdater, lookupQueue, MAX_INFLIGHT_REQUESTS, MAX_RETRIES, ACKS, MAX_REQUEST_TIMEOUT_MS);
 
         senderThread = new Thread(lookupSender);
         senderThread.start();
