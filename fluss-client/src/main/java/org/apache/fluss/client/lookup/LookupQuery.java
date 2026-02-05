@@ -46,7 +46,7 @@ public class LookupQuery extends AbstractLookupQuery<byte[]> {
 
     @Override
     public LookupType lookupType() {
-        return insertIfNotExists ? LookupType.LOOKUP_WITH_INSERT_IF_NOT_EXIST : LookupType.LOOKUP;
+        return insertIfNotExists ? LookupType.LOOKUP_WITH_INSERT_IF_NOT_EXISTS : LookupType.LOOKUP;
     }
 
     @Override

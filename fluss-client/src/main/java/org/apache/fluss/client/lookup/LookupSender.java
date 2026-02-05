@@ -54,7 +54,6 @@ import java.util.concurrent.Semaphore;
 import java.util.stream.Collectors;
 
 import static org.apache.fluss.client.utils.ClientRpcMessageUtils.makeLookupRequest;
-import static org.apache.fluss.client.utils.ClientRpcMessageUtils.makeLookupRequestWithInsertIfNotExists;
 import static org.apache.fluss.client.utils.ClientRpcMessageUtils.makePrefixLookupRequest;
 
 /**
@@ -188,7 +187,7 @@ class LookupSender implements Runnable {
             int destination, LookupType lookupType, List<AbstractLookupQuery<?>> lookupBatches) {
         if (lookupType == LookupType.LOOKUP) {
             sendLookupRequest(destination, lookupBatches, false);
-        } else if (lookupType == LookupType.LOOKUP_WITH_INSERT_IF_NOT_EXIST) {
+        } else if (lookupType == LookupType.LOOKUP_WITH_INSERT_IF_NOT_EXISTS) {
             sendLookupRequest(destination, lookupBatches, true);
         } else if (lookupType == LookupType.PREFIX_LOOKUP) {
             sendPrefixLookupRequest(destination, lookupBatches);
@@ -198,7 +197,7 @@ class LookupSender implements Runnable {
     }
 
     private void sendLookupRequest(
-            int destination, List<AbstractLookupQuery<?>> lookups, boolean insertIfNotExist) {
+            int destination, List<AbstractLookupQuery<?>> lookups, boolean insertIfNotExists) {
         // table id -> (bucket -> lookups)
         Map<Long, Map<TableBucket, LookupBatch>> lookupByTableId = new HashMap<>();
         for (AbstractLookupQuery<?> abstractLookupQuery : lookups) {
@@ -230,13 +229,12 @@ class LookupSender implements Runnable {
                         sendLookupRequestAndHandleResponse(
                                 destination,
                                 gateway,
-                                insertIfNotExist
-                                        ? makeLookupRequestWithInsertIfNotExists(
-                                                tableId,
-                                                lookupsByBucket.values(),
-                                                acks,
-                                                maxRequestTimeoutMs)
-                                        : makeLookupRequest(tableId, lookupsByBucket.values()),
+                                makeLookupRequest(
+                                        tableId,
+                                        lookupsByBucket.values(),
+                                        insertIfNotExists,
+                                        acks,
+                                        maxRequestTimeoutMs),
                                 tableId,
                                 lookupsByBucket));
     }

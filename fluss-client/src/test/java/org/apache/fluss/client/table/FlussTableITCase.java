@@ -635,7 +635,7 @@ class FlussTableITCase extends ClientToServerITCaseBase {
 
     @Test
     void testLookupWithInsertIfNotExists() throws Exception {
-        TablePath tablePath = TablePath.of("test_db_1", "test_invalid_lookup_with_insert_table");
+        TablePath tablePath = TablePath.of("test_db_1", "test_invalid_insert_lookup_table");
         Schema schema =
                 Schema.newBuilder()
                         .column("a", DataTypes.INT())
@@ -648,15 +648,15 @@ class FlussTableITCase extends ClientToServerITCaseBase {
                         .build();
         TableDescriptor tableDescriptor = TableDescriptor.builder().schema(schema).build();
         createTable(tablePath, tableDescriptor, false);
-        Table invalid_table = conn.getTable(tablePath);
+        Table invalidTable = conn.getTable(tablePath);
 
         assertThatThrownBy(
-                        () -> invalid_table.newLookup().enableInsertIfNotExists().createLookuper())
+                        () -> invalidTable.newLookup().enableInsertIfNotExists().createLookuper())
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining(
                         "insertIfNotExists cannot be enabled for tables with nullable columns besides primary key and auto increment columns.");
 
-        tablePath = TablePath.of("test_db_1", "test_lookup_with_insert_table");
+        tablePath = TablePath.of("test_db_1", "test_insert_lookup_table");
         schema =
                 Schema.newBuilder()
                         .column("a", DataTypes.INT())
