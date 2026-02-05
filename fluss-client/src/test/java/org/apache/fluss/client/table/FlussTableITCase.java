@@ -643,7 +643,7 @@ class FlussTableITCase extends ClientToServerITCaseBase {
                         .column("b", DataTypes.INT())
                         .withComment("b is second column")
                         .primaryKey("b")
-                        .column("c", DataTypes.STRING())
+                        .column("c", new StringType(false))
                         .enableAutoIncrement("a")
                         .build();
         TableDescriptor tableDescriptor = TableDescriptor.builder().schema(schema).build();
@@ -654,7 +654,7 @@ class FlussTableITCase extends ClientToServerITCaseBase {
                         () -> invalidTable.newLookup().enableInsertIfNotExists().createLookuper())
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining(
-                        "insertIfNotExists cannot be enabled for tables with nullable columns besides primary key and auto increment columns.");
+                        "insertIfNotExists cannot be enabled for tables with non-nullable columns besides primary key and auto increment columns.");
 
         tablePath = TablePath.of("test_db_1", "test_insert_lookup_table");
         schema =
@@ -663,6 +663,7 @@ class FlussTableITCase extends ClientToServerITCaseBase {
                         .withComment("a is first column")
                         .column("b", DataTypes.INT())
                         .withComment("b is second column")
+                        .column("c", new StringType(true))
                         .primaryKey("b")
                         .enableAutoIncrement("a")
                         .build();
@@ -696,19 +697,19 @@ class FlussTableITCase extends ClientToServerITCaseBase {
         assertRowValueEquals(
                 rowType,
                 insertLookuper.lookup(row(1)).get().getSingletonRow(),
-                new Object[] {1, 1});
+                new Object[] {1, 1, null});
 
         // lookup the same key again
         assertRowValueEquals(
                 rowType,
                 insertLookuper.lookup(row(1)).get().getSingletonRow(),
-                new Object[] {1, 1});
+                new Object[] {1, 1, null});
 
         // test another key
         assertRowValueEquals(
                 rowType,
                 insertLookuper.lookup(row(2)).get().getSingletonRow(),
-                new Object[] {2, 2});
+                new Object[] {2, 2, null});
     }
 
     private void partialUpdateRecords(String[] targetColumns, Object[][] records, Table table) {

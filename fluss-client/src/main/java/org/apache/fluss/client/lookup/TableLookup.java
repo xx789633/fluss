@@ -86,7 +86,7 @@ public class TableLookup implements Lookup {
         }
 
         if (tableInfo.getSchema().getColumns().stream()
-                .filter(column -> column.getDataType().isNullable())
+                .filter(column -> !column.getDataType().isNullable())
                 .filter(column -> !tableInfo.getPrimaryKeys().contains(column.getName()))
                 .anyMatch(
                         column ->
@@ -95,7 +95,7 @@ public class TableLookup implements Lookup {
                                         .getAutoIncrementColumnNames()
                                         .contains(column.getName()))) {
             throw new IllegalArgumentException(
-                    "insertIfNotExists cannot be enabled for tables with nullable columns besides primary key and auto increment columns.");
+                    "insertIfNotExists cannot be enabled for tables with non-nullable columns besides primary key and auto increment columns.");
         }
 
         return new TableLookup(tableInfo, schemaGetter, metadataUpdater, lookupClient, true);
