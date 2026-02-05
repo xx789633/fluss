@@ -50,24 +50,6 @@ public class TableLookup implements Lookup {
             SchemaGetter schemaGetter,
             MetadataUpdater metadataUpdater,
             LookupClient lookupClient,
-            @Nullable List<String> lookupColumnNames) {
-        this(tableInfo, schemaGetter, metadataUpdater, lookupClient, lookupColumnNames, false);
-    }
-
-    private TableLookup(
-            TableInfo tableInfo,
-            SchemaGetter schemaGetter,
-            MetadataUpdater metadataUpdater,
-            LookupClient lookupClient,
-            boolean insertIfNotExists) {
-        this(tableInfo, schemaGetter, metadataUpdater, lookupClient, null, insertIfNotExists);
-    }
-
-    private TableLookup(
-            TableInfo tableInfo,
-            SchemaGetter schemaGetter,
-            MetadataUpdater metadataUpdater,
-            LookupClient lookupClient,
             @Nullable List<String> lookupColumnNames,
             boolean insertIfNotExists) {
         this.tableInfo = tableInfo;
@@ -80,40 +62,32 @@ public class TableLookup implements Lookup {
 
     @Override
     public Lookup enableInsertIfNotExists() {
-        if (lookupColumnNames != null) {
-            throw new IllegalArgumentException(
-                    "insertIfNotExists can not be used with prefix lookup");
-        }
-
-        if (tableInfo.getSchema().getColumns().stream()
-                .filter(column -> !column.getDataType().isNullable())
-                .filter(column -> !tableInfo.getPrimaryKeys().contains(column.getName()))
-                .anyMatch(
-                        column ->
-                                !tableInfo
-                                        .getSchema()
-                                        .getAutoIncrementColumnNames()
-                                        .contains(column.getName()))) {
-            throw new IllegalArgumentException(
-                    "insertIfNotExists cannot be enabled for tables with non-nullable columns besides primary key and auto increment columns.");
-        }
-
-        return new TableLookup(tableInfo, schemaGetter, metadataUpdater, lookupClient, true);
+        return new TableLookup(tableInfo, schemaGetter, metadataUpdater, lookupClient, null, true);
     }
 
     @Override
     public Lookup lookupBy(List<String> lookupColumnNames) {
-        if (insertIfNotExists) {
-            throw new IllegalArgumentException(
-                    "insertIfNotExists can not be used with prefix lookup");
-        }
         return new TableLookup(
-                tableInfo, schemaGetter, metadataUpdater, lookupClient, lookupColumnNames);
+                tableInfo, schemaGetter, metadataUpdater, lookupClient, lookupColumnNames, false);
     }
 
     @Override
     public Lookuper createLookuper() {
         if (lookupColumnNames == null) {
+            if (insertIfNotExists) {
+                if (tableInfo.getSchema().getColumns().stream()
+                        .filter(column -> !column.getDataType().isNullable())
+                        .filter(column -> !tableInfo.getPrimaryKeys().contains(column.getName()))
+                        .anyMatch(
+                                column ->
+                                        !tableInfo
+                                                .getSchema()
+                                                .getAutoIncrementColumnNames()
+                                                .contains(column.getName()))) {
+                    throw new IllegalArgumentException(
+                            "insertIfNotExists cannot be enabled for tables with non-nullable columns besides primary key and auto increment columns.");
+                }
+            }
             return new PrimaryKeyLookuper(
                     tableInfo, schemaGetter, metadataUpdater, lookupClient, insertIfNotExists);
         } else {

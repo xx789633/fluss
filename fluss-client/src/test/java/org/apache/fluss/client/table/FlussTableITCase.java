@@ -642,8 +642,11 @@ class FlussTableITCase extends ClientToServerITCaseBase {
                         .withComment("a is first column")
                         .column("b", DataTypes.INT())
                         .withComment("b is second column")
-                        .primaryKey("b")
-                        .column("c", new StringType(false))
+                        .column("c", DataTypes.INT())
+                        .withComment("c is third column")
+                        .column("d", new StringType(false))
+                        .withComment("d is fourth column")
+                        .primaryKey("b", "c")
                         .enableAutoIncrement("a")
                         .build();
         TableDescriptor tableDescriptor = TableDescriptor.builder().schema(schema).build();
@@ -663,8 +666,11 @@ class FlussTableITCase extends ClientToServerITCaseBase {
                         .withComment("a is first column")
                         .column("b", DataTypes.INT())
                         .withComment("b is second column")
-                        .column("c", new StringType(true))
-                        .primaryKey("b")
+                        .column("c", DataTypes.INT())
+                        .withComment("c is third column")
+                        .column("d", new StringType(true))
+                        .withComment("d is fourth column")
+                        .primaryKey("b", "c")
                         .enableAutoIncrement("a")
                         .build();
         tableDescriptor = TableDescriptor.builder().schema(schema).distributedBy(1, "b").build();
@@ -672,44 +678,27 @@ class FlussTableITCase extends ClientToServerITCaseBase {
         Table table = conn.getTable(tablePath);
         RowType rowType = schema.getRowType();
 
-        assertThatThrownBy(
-                        () ->
-                                table.newLookup()
-                                        .lookupBy("b")
-                                        .enableInsertIfNotExists()
-                                        .createLookuper())
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("insertIfNotExists can not be used with prefix lookup");
-        assertThatThrownBy(
-                        () ->
-                                table.newLookup()
-                                        .enableInsertIfNotExists()
-                                        .lookupBy("b")
-                                        .createLookuper())
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("insertIfNotExists can not be used with prefix lookup");
-
         Lookuper lookuper = table.newLookup().createLookuper();
         // make sure the key does not exist
-        assertThat(lookupRow(lookuper, row(1))).isNull();
+        assertThat(lookupRow(lookuper, row(100, 100))).isNull();
 
         Lookuper insertLookuper = table.newLookup().enableInsertIfNotExists().createLookuper();
         assertRowValueEquals(
                 rowType,
-                insertLookuper.lookup(row(1)).get().getSingletonRow(),
-                new Object[] {1, 1, null});
+                insertLookuper.lookup(row(100, 100)).get().getSingletonRow(),
+                new Object[] {1, 100, 100, null});
 
         // lookup the same key again
         assertRowValueEquals(
                 rowType,
-                insertLookuper.lookup(row(1)).get().getSingletonRow(),
-                new Object[] {1, 1, null});
+                insertLookuper.lookup(row(100, 100)).get().getSingletonRow(),
+                new Object[] {1, 100, 100, null});
 
         // test another key
         assertRowValueEquals(
                 rowType,
-                insertLookuper.lookup(row(2)).get().getSingletonRow(),
-                new Object[] {2, 2, null});
+                insertLookuper.lookup(row(200, 200)).get().getSingletonRow(),
+                new Object[] {2, 200, 200, null});
     }
 
     private void partialUpdateRecords(String[] targetColumns, Object[][] records, Table table) {
