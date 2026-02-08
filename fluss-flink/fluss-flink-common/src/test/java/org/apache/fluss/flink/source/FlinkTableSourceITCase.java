@@ -972,20 +972,17 @@ abstract class FlinkTableSourceITCase extends AbstractTestBase {
         // use single parallelism to make result ordering stable
         tEnv.getConfig().set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
 
-        String uidMappingTable =
-                String.format("uid_mapping_%s_%s", async ? "async" : "sync", RandomUtils.nextInt());
+        String uidMappingTable = String.format("uid_mapping_%s", async ? "async" : "sync");
         // Create uid_mapping table: uid (STRING, PK), uid_int32 (INT, auto-increment)
         tEnv.executeSql(
                 String.format(
                         "create table %s ("
                                 + " uid varchar not null,"
                                 + " uid_int32 int,"
-                                + " primary key (uid) not enforced"
-                                + ") with ('auto-increment.fields' = 'uid_int32')",
+                                + " primary key (uid) NOT ENFORCED"
+                                + ") with ('auto-increment.fields' = 'uid_int32', 'bucket.num' = '1')",
                         uidMappingTable));
 
-        String odsTable =
-                String.format("ods_table_%s_%s", async ? "async" : "sync", RandomUtils.nextInt());
         // Create ods_table as a Flink temporary source table
         List<Row> odsData =
                 Arrays.asList(
@@ -1001,7 +998,7 @@ abstract class FlinkTableSourceITCase extends AbstractTestBase {
                         .column("city", DataTypes.STRING())
                         .column("ymd", DataTypes.STRING())
                         .column("uid", DataTypes.STRING())
-                        .columnByExpression("proc", "PROCTIME()")
+                        .columnByExpression("proctime", "PROCTIME()")
                         .build();
         RowTypeInfo odsTypeInfo =
                 new RowTypeInfo(
@@ -1017,11 +1014,11 @@ abstract class FlinkTableSourceITCase extends AbstractTestBase {
         String lookupAsyncOption = async ? "'lookup.async' = 'true'" : "'lookup.async' = 'false'";
         String joinQuery =
                 String.format(
-                        "SELECT o.country, o.prov, o.city, o.ymd, o.uid, h.uid_int32 "
-                                + "FROM ods_src AS o "
+                        "SELECT ods.country, ods.prov, ods.city, ods.ymd, ods.uid, dim.uid_int32 "
+                                + "FROM ods_src AS ods "
                                 + "JOIN %s /*+ OPTIONS('lookup.insert-if-not-exists' = 'true', %s) */ "
-                                + "FOR SYSTEM_TIME AS OF o.proc AS h "
-                                + "ON h.uid = o.uid",
+                                + "FOR SYSTEM_TIME AS OF ods.proctime AS dim "
+                                + "ON dim.uid = ods.uid",
                         uidMappingTable, lookupAsyncOption);
 
         CloseableIterator<Row> joinResult = tEnv.executeSql(joinQuery).collect();
