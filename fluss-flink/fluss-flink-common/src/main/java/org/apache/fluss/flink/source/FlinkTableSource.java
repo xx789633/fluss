@@ -123,7 +123,7 @@ public class FlinkTableSource
 
     // options for lookup source
     private final boolean lookupAsync;
-    private final boolean lookupInsertIfNotExists;
+    private final boolean insertIfNotExists;
     @Nullable private final LookupCache cache;
 
     private final long scanPartitionDiscoveryIntervalMs;
@@ -162,7 +162,7 @@ public class FlinkTableSource
             boolean streaming,
             FlinkConnectorOptionsUtils.StartupOptions startupOptions,
             boolean lookupAsync,
-            boolean lookupInsertIfNotExists,
+            boolean insertIfNotExists,
             @Nullable LookupCache cache,
             long scanPartitionDiscoveryIntervalMs,
             boolean isDataLakeEnabled,
@@ -179,7 +179,7 @@ public class FlinkTableSource
         this.startupOptions = checkNotNull(startupOptions, "startupOptions must not be null");
 
         this.lookupAsync = lookupAsync;
-        this.lookupInsertIfNotExists = lookupInsertIfNotExists;
+        this.insertIfNotExists = insertIfNotExists;
         this.cache = cache;
 
         this.scanPartitionDiscoveryIntervalMs = scanPartitionDiscoveryIntervalMs;
@@ -389,7 +389,7 @@ public class FlinkTableSource
                             tableOutputType,
                             lookupNormalizer,
                             projectedFields,
-                            lookupInsertIfNotExists);
+                            insertIfNotExists);
             if (cache != null) {
                 return PartialCachingAsyncLookupProvider.of(asyncLookupFunction, cache);
             } else {
@@ -403,7 +403,7 @@ public class FlinkTableSource
                             tableOutputType,
                             lookupNormalizer,
                             projectedFields,
-                            lookupInsertIfNotExists);
+                            insertIfNotExists);
             if (cache != null) {
                 return PartialCachingLookupProvider.of(lookupFunction, cache);
             } else {
@@ -425,7 +425,7 @@ public class FlinkTableSource
                         streaming,
                         startupOptions,
                         lookupAsync,
-                        lookupInsertIfNotExists,
+                        insertIfNotExists,
                         cache,
                         scanPartitionDiscoveryIntervalMs,
                         isDataLakeEnabled,
