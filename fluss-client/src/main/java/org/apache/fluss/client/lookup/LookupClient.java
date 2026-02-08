@@ -81,7 +81,7 @@ public class LookupClient {
         String acks = conf.get(ConfigOptions.CLIENT_WRITER_ACKS);
         short ack;
         if (acks.equals("all")) {
-            ack = Short.parseShort("-1");
+            ack = -1;
         } else {
             ack = Short.parseShort(acks);
         }
