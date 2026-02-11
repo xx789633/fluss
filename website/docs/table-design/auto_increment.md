@@ -11,7 +11,7 @@ sidebar_position: 6
 In Fluss, the auto increment column is a feature that automatically generates a unique numeric value, commonly used to create unique identifiers for each row of data.
 Each time a new record is inserted, the auto increment column automatically assigns an incrementing value, eliminating the need for manually specifying the number.
 
-One application scenario is of the auto-increment column is to accelerate the counting of distinct values in a high-cardinality column:
+One application scenario of the auto-increment column is to accelerate the counting of distinct values in a high-cardinality column:
 an auto-increment column can be used to represent the unique value column in a dictionary.
 Compared to directly counting distinct STRING values, counting distinct integer values of the auto-increment column can sometimes improve the query speed by several times or even tens of times.
 
@@ -30,7 +30,7 @@ It can only be ensured that the values roughly increase in chronological order.
 The number of auto-incremented IDs cached by the TabletServers is determined by the parameter table.auto-increment.cache-size, which defaults to 100,000.
 :::
 
-For example, create a table named test_tbl3 with 2 buckets and insert five rows of data as follows:
+For example, create a table named test_tbl with 2 buckets and insert five rows of data as follows:
 
 ```sql
 CREATE TABLE test_tbl
