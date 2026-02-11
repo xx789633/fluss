@@ -1,6 +1,6 @@
 ---
 title: Data Formats
-sidebar_position: 6
+sidebar_position: 7
 ---
 
 In Fluss, a data format primarily defines **how data is stored and accessed**. Each format is designed to balance storage efficiency, read performance, and query capabilities.
