@@ -34,6 +34,7 @@
 
     <properties>
         <fs.s3.aws.version>1.12.319</fs.s3.aws.version>
+        <fs.s3.aws.v2.version>2.20.162</fs.s3.aws.v2.version>
     </properties>
 
     <dependencies>
@@ -209,6 +210,13 @@
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-java-sdk-sts</artifactId>
             <version>${fs.s3.aws.version}</version>
+        </dependency>
+
+        <!-- AWS SDK v2 dependencies (for STS client) -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>sts</artifactId>
+            <version>${fs.s3.aws.v2.version}</version>
         </dependency>
 
         <!-- Hadoop's s3 support classes (bundled) -->
